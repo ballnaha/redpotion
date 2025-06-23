@@ -1,36 +1,169 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Red Potion - Multi-Tenant Food Delivery Platform
 
-## Getting Started
+แพลตฟอร์มสั่งอาหารออนไลน์แบบ Multi-tenant ที่รองรับการสร้าง subdomain สำหรับร้านอาหารแต่ละร้าน
 
-First, run the development server:
+## 🌟 ฟีเจอร์หลัก
+
+- **Multi-tenant Architecture**: แต่ละร้านอาหารมี subdomain เป็นของตัวเอง
+- **Responsive Design**: Mobile-first liquid glass design
+- **ระบบจัดการเมนู**: เจ้าของร้านสามารถจัดการเมนูและราคาได้
+- **Template ที่ยืดหยุ่น**: ใช้ template เดียวกันแต่ข้อมูลแตกต่างกัน
+
+## 🏪 ระบบ Subdomain
+
+### การเข้าถึงร้านอาหาร
+
+```
+Production:
+- restaurant1.theredpotion.com → ร้านที่ 1
+- restaurant2.theredpotion.com → ร้านที่ 2  
+- restaurant3.theredpotion.com → ร้านที่ 3
+
+Development:
+- restaurant1.localhost:3000 → ร้านที่ 1
+- restaurant2.localhost:3000 → ร้านที่ 2
+- restaurant3.localhost:3000 → ร้านที่ 3
+```
+
+### ตัวอย่างร้านอาหาร
+
+1. **restaurant1** - ข้าวแกงใต้แท้
+   - อาหารใต้รสจัดจ้าน
+   - แกงส้มปลาช่อน, แกงไตปลา
+   
+2. **restaurant2** - ซูชิ โตเกียว  
+   - ซูชิสไตล์ญี่ปุ่นแท้
+   - ซูชิแซลมอน, ซูชิทูน่า
+   
+3. **restaurant3** - เจ๊หนู ส้มตำ
+   - อาหารอีสานต้นตำรับ
+   - ส้มตำไทย, ลาบหมู
+
+## 🚀 การติดตั้งและใช้งาน
+
+### ติดตั้ง Dependencies
+
+```bash
+npm install --legacy-peer-deps
+```
+
+### รัน Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### การทดสอบ Subdomain ใน Local
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+เพิ่ม hosts ในไฟล์ `C:\Windows\System32\drivers\etc\hosts` (Windows) หรือ `/etc/hosts` (Mac/Linux):
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+127.0.0.1 restaurant1.localhost
+127.0.0.1 restaurant2.localhost  
+127.0.0.1 restaurant3.localhost
+```
 
-## Learn More
+แล้วเข้าถึงผ่าน:
+- http://restaurant1.localhost:3000
+- http://restaurant2.localhost:3000
+- http://restaurant3.localhost:3000
 
-To learn more about Next.js, take a look at the following resources:
+## 📂 โครงสร้างไฟล์
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+src/
+├── app/
+│   ├── restaurant-site/
+│   │   └── [restaurantId]/
+│   │       ├── layout.tsx          # Layout สำหรับร้านอาหาร
+│   │       ├── page.tsx            # หน้าหลักร้านอาหาร
+│   │       ├── admin/
+│   │       │   └── page.tsx        # หน้าจัดการเมนู
+│   │       └── context/
+│   │           └── RestaurantContext.tsx  # Context สำหรับข้อมูลร้าน
+│   ├── customer/                   # หน้าลูกค้า (แอปหลัก)
+│   ├── admin/                      # หน้า Admin ระบบ
+│   └── ...
+├── middleware.ts                   # Middleware สำหรับ subdomain routing
+└── ...
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🔧 การตั้งค่า
 
-## Deploy on Vercel
+### Next.js Configuration (next.config.ts)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```typescript
+async rewrites() {
+  return [
+    {
+      source: '/(.*)',
+      has: [
+        {
+          type: 'host',
+          value: '(?<restaurant>restaurant\\d+)\\.theredpotion\\.com',
+        },
+      ],
+      destination: '/restaurant-site/:restaurant/:path*',
+    },
+  ];
+}
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Middleware (middleware.ts)
+
+จัดการ subdomain routing และ rewrite URL ไปยัง path ที่ถูกต้อง
+
+## 🎨 การปรับแต่ง Theme
+
+แต่ละร้านสามารถมี theme สีที่แตกต่างกัน:
+
+```typescript
+theme: {
+  primaryColor: '#e53e3e',    // สีหลัก
+  secondaryColor: '#fc8181',  // สีรอง
+}
+```
+
+## 📱 ฟีเจอร์สำหรับร้านอาหาร
+
+- ✅ แสดงเมนูอาหารพร้อมรูปภาพ
+- ✅ ระบบราคาและส่วนลด
+- ✅ จัดการสถานะความพร้อมของเมนู
+- ✅ ระบบแท็กและหมวดหมู่
+- ✅ ข้อมูลติดต่อและเวลาเปิด-ปิด
+- ✅ Shopping cart
+- ✅ หน้า Admin จัดการเมนู
+
+## 📱 ฟีเจอร์สำหรับลูกค้า
+
+- ✅ เลือกดูร้านอาหารต่างๆ
+- ✅ สั่งอาหารจากหลายร้าน
+- ✅ ติดตาม order
+- ✅ ระบบรีวิวและคะแนน
+
+## 🚀 Deployment
+
+### DNS Configuration
+
+ตั้งค่า DNS wildcard record:
+
+```
+*.theredpotion.com CNAME yourapp.vercel.app
+```
+
+### Environment Variables
+
+```
+NEXT_PUBLIC_APP_URL=https://theredpotion.com
+```
+
+## 🔐 การรักษาความปลอดภัย
+
+- ✅ Middleware validation
+- ✅ Restaurant data isolation  
+- ✅ Admin authentication (coming soon)
+- ✅ API rate limiting (coming soon)
+
+## 📄 License
+
+MIT License
