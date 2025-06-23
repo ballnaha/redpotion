@@ -1,0 +1,204 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# กฎการใช้งาน Material-UI (MUI)
+
+## กฎ: ให้ใช้ <Box> แทน <Grid> สำหรับการจัด Layout เสมอ
+
+**คำอธิบาย (Description):**
+สำหรับการจัดวางเลย์เอาต์ทั้งหมดในโปรเจกต์นี้ คุณต้องใช้คอมโพเนนต์ `<Box>` พร้อมกับคุณสมบัติของ Flexbox **เสมอ** แทนที่การใช้คอมโพเนนต์ `<Grid>` การใช้ `<Box>` ช่วยให้ควบคุมผ่าน CSS ได้โดยตรงและทำให้โครงสร้างคอมโพเนนต์เรียบง่ายและเบาบางกว่า
+
+**เหตุผล (Reasoning):**
+- **ประสิทธิภาพ (Performance):** คอมโพเนนต์ `<Grid>` บางครั้งสร้าง DOM node ที่ไม่จำเป็นและซับซ้อนเกินไป การใช้ `<Box>` ร่วมกับ Flexbox โดยทั่วไปมีประสิทธิภาพดีกว่า
+- **ความเรียบง่ายและสม่ำเสมอ (Simplicity & Consistency):** การใช้คอมโพเนนต์เดียว (`<Box>`) สำหรับการจัดเลย์เอาต์ทำให้โค้ดเบสเรียบง่ายและคาดเดาการจัดสไตล์ได้ง่ายขึ้น
+- **ควบคุม CSS ได้โดยตรง (Direct CSS Control):** `<Box>` อนุญาตให้ใช้ `sx` prop ซึ่งใกล้เคียงกับ CSS จริง ทำให้ง่ายต่อการทำความเข้าใจเลย์เอาต์
+
+---
+
+### ตัวอย่างที่ถูกต้อง (Do this):
+ใช้ `<Box>` กับ `display="flex"` เพื่อสร้างเลย์เอาต์แบบแถว (row) หรือคอลัมน์ (column)
+
+```javascript
+import { Box } from '@mui/material';
+
+function MyNewComponent() {
+  return (
+    <Box display="flex" flexDirection="row" gap={2} alignItems="center">
+      <Box sx={{ flexGrow: 1, p: 2 }}>
+        Item 1 (Content)
+      </Box>
+      <Box sx={{ p: 2 }}>
+        Item 2 (Sidebar)
+      </Box>
+    </Box>
+  );
+
+}
+```
+
+---
+
+# กฎการป้องกัน Hydration Mismatch ใน Next.js
+
+## กฎ: ต้องระวัง Hydration Mismatch เสมอเมื่อทำ SSR
+
+**คำอธิบาย (Description):**
+Hydration mismatch เกิดขึ้นเมื่อ HTML ที่ generate ใน server-side แตกต่างจาก HTML ที่ render ใน client-side การป้องกันปัญหานี้จำเป็นต้องระวังในหลายจุด
+
+**กฎที่ต้องปฏิบัติ (Rules to Follow):**
+
+### 1. ใช้ `suppressHydrationWarning` อย่างระมัดระวัง
+```javascript
+// ✅ ใช้เมื่อจำเป็นจริงๆ และรู้ว่าทำไม
+<body suppressHydrationWarning>
+  {children}
+</body>
+
+// ❌ อย่าใช้เพื่อซ่อนข้อผิดพลาด
+<div suppressHydrationWarning>
+  {randomValue} // ยังคงผิด!
+</div>
+```
+
+### 2. ป้องกัน Client-Only Content
+```javascript
+// ✅ วิธีที่ถูกต้อง: ใช้ useEffect เพื่อ mount ใน client
+function ClientOnlyComponent() {
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return <div>Loading...</div>; // Placeholder สำหรับ SSR
+  }
+
+  return <div>{new Date().toString()}</div>; // Client-only content
+}
+
+// ❌ ผิด: ใช้ browser API โดยตรง
+function WrongComponent() {
+  return <div>{window.location.href}</div>; // Error ใน SSR!
+}
+```
+
+### 3. ระวังการใช้ Dynamic Values
+```javascript
+// ✅ ถูกต้อง: ใช้ค่าคงที่หรือ prop จาก server
+function CorrectComponent({ serverTime }) {
+  return <div>Server time: {serverTime}</div>;
+}
+
+// ❌ ผิด: ใช้ค่าที่เปลี่ยนแปลงระหว่าง server/client
+function WrongComponent() {
+  return <div>Current time: {new Date().toString()}</div>;
+}
+```
+
+### 4. ระวังการใช้ Third-party Libraries
+```javascript
+// ✅ ถูกต้อง: ใช้ dynamic import สำหรับ client-only libraries
+import dynamic from 'next/dynamic';
+
+const ClientOnlyChart = dynamic(() => import('../components/Chart'), {
+  ssr: false,
+  loading: () => <div>Loading chart...</div>
+});
+
+// ❌ ผิด: import library ที่ไม่ support SSR โดยตรง
+import Chart from 'some-client-only-chart-library'; // Error!
+```
+
+### 5. ระวังการใช้ CSS-in-JS และ Styling
+```javascript
+// ✅ ถูกต้อง: ใช้ ThemeProvider และ styled-components อย่างถูกต้อง
+function MyApp({ Component, pageProps }) {
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Component {...pageProps} />
+    </ThemeProvider>
+  );
+}
+
+// ❌ ผิด: ใช้ inline styles ที่ขึ้นกับ client state
+function WrongComponent() {
+  const [color, setColor] = useState(Math.random() > 0.5 ? 'red' : 'blue');
+  return <div style={{ color }}>Text</div>; // Hydration mismatch!
+}
+```
+
+### 6. ใช้ Next.js Features อย่างถูกต้อง
+```javascript
+// ✅ ถูกต้อง: ใช้ useRouter ใน useEffect
+function CorrectComponent() {
+  const router = useRouter();
+  const [currentPath, setCurrentPath] = useState('');
+
+  useEffect(() => {
+    setCurrentPath(router.asPath);
+  }, [router.asPath]);
+
+  return <div>Current path: {currentPath}</div>;
+}
+
+// ❌ ผิด: ใช้ router ใน render โดยตรง
+function WrongComponent() {
+  const router = useRouter();
+  return <div>Path: {router.asPath}</div>; // Hydration mismatch!
+}
+```
+
+### 7. การจัดการ localStorage และ sessionStorage
+```javascript
+// ✅ ถูกต้อง: ตรวจสอบ typeof window
+function CorrectComponent() {
+  const [userData, setUserData] = useState(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const data = localStorage.getItem('userData');
+      setUserData(data ? JSON.parse(data) : null);
+    }
+  }, []);
+
+  return <div>{userData ? `Hello ${userData.name}` : 'Hello Guest'}</div>;
+}
+
+// ❌ ผิด: ใช้ localStorage โดยตรง
+function WrongComponent() {
+  const userData = JSON.parse(localStorage.getItem('userData')); // Error ใน SSR!
+  return <div>Hello {userData?.name}</div>;
+}
+```
+
+**เครื่องมือในการ Debug:**
+```javascript
+// เพิ่มใน next.config.ts สำหรับ development
+const nextConfig = {
+  reactStrictMode: true,
+  // เปิด logging สำหรับ hydration mismatch
+  onDemandEntries: {
+    maxInactiveAge: 25 * 1000,
+    pagesBufferLength: 2,
+  },
+};
+```
+
+**สัญญาณเตือน Hydration Mismatch:**
+- Console errors: "Text content does not match server-rendered HTML"
+- Console errors: "Hydration failed because the initial UI does not match"
+- Content ที่กะพริบ (flashing) เมื่อ page โหลด
+- Layout shift ที่ไม่คาดคิด
+
+**Best Practices:**
+1. ใช้ `suppressHydrationWarning` เฉพาะจุดที่จำเป็นและรู้เหตุผล
+2. เขียน test สำหรับ component ที่มี client-only logic
+3. ใช้ TypeScript เพื่อ catch error ก่อน runtime
+4. ทำการ testing ใน production mode (`next build && next start`)
+
+
+5. ใช้ React DevTools เพื่อ inspect hydration
