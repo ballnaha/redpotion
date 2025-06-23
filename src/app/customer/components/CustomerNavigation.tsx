@@ -8,12 +8,10 @@ import {
   Box, 
   Badge,
   Avatar,
-  Button,
   TextField,
   InputAdornment
 } from '@mui/material';
 import { 
-  ShoppingCart, 
   LocationOn,
   Notifications,
   Search,

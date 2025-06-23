@@ -12,7 +12,7 @@ declare global {
         pictureUrl?: string;
         statusMessage?: string;
       }>;
-      sendMessages: (messages: any[]) => Promise<void>;
+      sendMessages: (messages: unknown[]) => Promise<void>;
       openWindow: (params: { url: string; external?: boolean }) => void;
       closeWindow: () => void;
       getContext: () => {

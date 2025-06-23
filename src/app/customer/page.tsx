@@ -8,9 +8,7 @@ import {
   CardMedia, 
   Chip,
   IconButton,
-  Avatar,
-  Button,
-  Rating
+  Avatar
 } from '@mui/material';
 import { 
   Star,
@@ -27,8 +25,7 @@ import {
   Search,
   LocationOn,
   AccessTime,
-  Add,
-  Favorite
+  Add
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -36,6 +33,7 @@ import { Pagination, Autoplay } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/pagination';
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 
 export default function CustomerPage() {
   const theme = useTheme();
@@ -83,64 +81,7 @@ export default function CustomerPage() {
     },
   ];
 
-  const featuredFood = [
-    {
-      id: 1,
-      name: 'Grilled Salmon',
-      description: 'Fresh salmon with herbs',
-      image: 'https://images.unsplash.com/photo-1467003909585-2616b612b784?w=300&h=200&fit=crop',
-      price: 320,
-      originalPrice: 380,
-      rating: 4.8,
-      reviewCount: 124,
-      discount: 15,
-      cookingTime: 15,
-      restaurant: 'Ocean Grill',
-      tag: 'PROMO'
-    },
-    {
-      id: 2,
-      name: 'Truffle Pizza',
-      description: 'Italian pizza with truffle',
-      image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=300&h=200&fit=crop',
-      price: 450,
-      originalPrice: 520,
-      rating: 4.9,
-      reviewCount: 89,
-      discount: 13,
-      cookingTime: 20,
-      restaurant: 'Roma Pizzeria',
-      tag: 'HOT'
-    },
-    {
-      id: 3,
-      name: 'Wagyu Burger',
-      description: 'Premium beef burger',
-      image: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=300&h=200&fit=crop',
-      price: 280,
-      originalPrice: 350,
-      rating: 4.7,
-      reviewCount: 156,
-      discount: 20,
-      cookingTime: 12,
-      restaurant: 'Burger House',
-      tag: 'PROMO'
-    },
-    {
-      id: 4,
-      name: 'Thai Green Curry',
-      description: 'Authentic Thai curry',
-      image: 'https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?w=300&h=200&fit=crop',
-      price: 180,
-      originalPrice: 220,
-      rating: 4.6,
-      reviewCount: 92,
-      discount: 18,
-      cookingTime: 18,
-      restaurant: 'Thai Kitchen',
-      tag: 'SPICY'
-    },
-  ];
+
 
   const cleanKetoFoodDeals = [
     {
@@ -341,8 +282,10 @@ export default function CustomerPage() {
             border: '1px solid rgba(255, 255, 255, 0.4)',
             boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
           }}>
-            <img 
+            <Image 
               src="https://images.unsplash.com/photo-1494790108755-2616b612b784?w=100&h=100&fit=crop&crop=face" 
+              width={32}
+              height={32}
               style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
               alt="Profile"
             />

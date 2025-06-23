@@ -9,10 +9,7 @@ import {
   Card, 
   CardContent, 
   Button, 
-  Avatar,
-  IconButton,
-  Paper,
-  Chip
+  Paper
 } from '@mui/material';
 import { 
   Person,
