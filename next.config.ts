@@ -5,16 +5,6 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ['@mui/material', '@mui/icons-material'],
   },
   
-  // Move turbo config to turbopack (as per Next.js 15+ recommendation)
-  turbopack: {
-    rules: {
-      '*.svg': {
-        loaders: ['@svgr/webpack'],
-        as: '*.js',
-      },
-    },
-  },
-  
   images: {
     domains: ['images.unsplash.com'],
   },

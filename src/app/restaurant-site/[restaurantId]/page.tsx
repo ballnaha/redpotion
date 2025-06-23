@@ -447,7 +447,7 @@ export default function RestaurantSitePage({
         </Box>
 
         {/* Menu by Categories */}
-        {restaurant.menu.map((category, categoryIndex) => (
+        {restaurant.menu.map((category) => (
           <Box key={category.id} sx={{ mb: 4 }}>
             <Typography 
               variant="h5" 
@@ -469,7 +469,7 @@ export default function RestaurantSitePage({
               gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
               gap: 2
             }}>
-              {category.items.map((item, index) => (
+              {category.items.map((item) => (
                 <Card
                   key={item.id}
                   sx={{

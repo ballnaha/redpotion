@@ -1,24 +1,16 @@
 'use client';
 
-import { Inter, Prompt } from 'next/font/google';
 import { ThemeRegistry } from '../../components/ThemeRegistry';
 import { Box, BottomNavigation, BottomNavigationAction, Paper } from '@mui/material';
 import { Home, Search, ShoppingBag, Person, Favorite } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { RestaurantProvider, useRestaurant } from './context/RestaurantContext';
+import { RestaurantProvider } from './context/RestaurantContext';
 import { useState, use } from 'react';
-
-const inter = Inter({ subsets: ['latin'] });
-const prompt = Prompt({ 
-  weight: ['100', '200', '300', '400', '500', '600', '700', '800', '900'],
-  subsets: ['latin', 'thai'] 
-});
 
 // Component สำหรับ Layout Content ภายใน Provider
 function RestaurantLayoutContent({ children }: { children: React.ReactNode }) {
   const [bottomValue, setBottomValue] = useState(0);
   const theme = useTheme();
-  const { restaurant } = useRestaurant();
 
   return (
     <Box

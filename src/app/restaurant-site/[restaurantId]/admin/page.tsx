@@ -30,23 +30,34 @@ import {
   Visibility,
   VisibilityOff
 } from '@mui/icons-material';
-import { useTheme } from '@mui/material/styles';
 import { useRestaurant } from '../context/RestaurantContext';
 import { useState } from 'react';
 
+interface MenuItem {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  originalPrice?: number;
+  image: string;
+  cookingTime: number;
+  available: boolean;
+  isRecommended?: boolean;
+  tags?: string[];
+}
+
 export default function RestaurantAdminPage() {
-  const theme = useTheme();
   const { restaurant, loading, updateMenuItem } = useRestaurant();
   const [editDialog, setEditDialog] = useState<{
     open: boolean;
-    item?: any;
+    item?: MenuItem;
   }>({ open: false });
 
   const handleToggleAvailability = (itemId: string, available: boolean) => {
     updateMenuItem(itemId, { available });
   };
 
-  const handleEditItem = (item: any) => {
+  const handleEditItem = (item: MenuItem) => {
     setEditDialog({ open: true, item });
   };
 
