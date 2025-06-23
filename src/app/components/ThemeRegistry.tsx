@@ -11,7 +11,9 @@ export function ThemeRegistry({ children }: { children: React.ReactNode }) {
     <NextAppDirEmotionCacheProvider options={{ key: 'mui' }}>
       <ThemeProvider theme={liquidGlassTheme}>
         <CssBaseline />
-        {children}
+        <div suppressHydrationWarning>
+          {children}
+        </div>
       </ThemeProvider>
     </NextAppDirEmotionCacheProvider>
   );

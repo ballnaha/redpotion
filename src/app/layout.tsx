@@ -1,8 +1,5 @@
 import type { Metadata } from 'next'
-import { ThemeProvider } from '@mui/material/styles'
-import CssBaseline from '@mui/material/CssBaseline'
-import { Box } from '@mui/material'
-import theme from './theme/theme'
+import { ThemeRegistry } from './components/ThemeRegistry'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -26,10 +23,9 @@ export default function RootLayout({
         ></script>
       </head>
       <body suppressHydrationWarning>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <Box 
-            sx={{ 
+        <ThemeRegistry>
+          <div 
+            style={{ 
               width: '100%',
               minHeight: '100vh',
               backgroundColor: '#ffffff',
@@ -37,8 +33,8 @@ export default function RootLayout({
             }}
           >
             {children}
-          </Box>
-        </ThemeProvider>
+          </div>
+        </ThemeRegistry>
       </body>
     </html>
   )

@@ -266,7 +266,7 @@ export default function CustomerPage() {
         backdropFilter: 'blur(40px) saturate(180%)',
         WebkitBackdropFilter: 'blur(40px) saturate(180%)',
         borderBottom: '1px solid rgba(255, 255, 255, 0.3)',
-        boxShadow: '0 8px 32px rgba(31, 38, 135, 0.1)',
+                            boxShadow: '0 2px 8px rgba(31, 38, 135, 0.1)',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -280,7 +280,7 @@ export default function CustomerPage() {
             background: 'rgba(255, 255, 255, 0.3)',
             backdropFilter: 'blur(20px)',
             border: '1px solid rgba(255, 255, 255, 0.4)',
-            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
+                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
           }}>
             <Image 
               src="https://images.unsplash.com/photo-1494790108755-2616b612b784?w=100&h=100&fit=crop&crop=face" 
@@ -323,13 +323,12 @@ export default function CustomerPage() {
                 backdropFilter: 'blur(20px) saturate(180%)',
                 WebkitBackdropFilter: 'blur(20px) saturate(180%)',
                 border: '1px solid rgba(255, 255, 255, 0.3)',
-                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                '&:hover': { 
-                  background: 'rgba(255, 255, 255, 0.4)',
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)',
-                }
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                transition: 'all 0.2s ease',
+                                  '&:hover': { 
+                    background: 'rgba(255, 255, 255, 0.4)',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                  }
               }}
             >
               <Icon sx={{ fontSize: 20, color: 'rgba(0, 0, 0, 0.7)' }} />
@@ -383,7 +382,7 @@ export default function CustomerPage() {
                         opacity: 0.8,
                       },
                       '& .banner-content': {
-                        transform: 'translateY(-5px)',
+                        opacity: 1,
                       },
                     },
                   }}
@@ -435,7 +434,6 @@ export default function CustomerPage() {
                       textAlign: 'center',
                       zIndex: 2,
                       px: 3,
-                      transition: 'transform 0.3s ease',
                     }}
                   >
                     <Typography variant="h1" sx={{ 
@@ -505,22 +503,16 @@ export default function CustomerPage() {
                     justifyContent: 'center',
                     mb: 1,
                     boxShadow: '0 8px 25px rgba(0, 0, 0, 0.1)',
-                    transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                    transition: 'all 0.2s ease',
                     '&:hover': {
                       background: 'rgba(255, 255, 255, 0.6)',
-                      transform: 'translateY(-8px) scale(1.15)',
-                      boxShadow: '0 15px 40px rgba(0, 0, 0, 0.2)',
-                      '& > div': {
-                        transform: 'scale(1.2)',
-                        filter: `drop-shadow(0 4px 8px ${category.color}40)`,
-                      },
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
                     },
                   }}
                 >
                   <Box sx={{ 
                     color: category.color,
-                    transition: 'all 0.3s ease',
-                    filter: `drop-shadow(0 2px 4px ${category.color}20)`,
+                    filter: `drop-shadow(0 1px 2px ${category.color}30)`,
                   }}>
                     {category.icon}
                   </Box>
@@ -585,12 +577,11 @@ export default function CustomerPage() {
                   border: '1px solid rgba(255, 255, 255, 0.3)',
                   borderRadius: 1,
                   overflow: 'hidden',
-                  boxShadow: '0 8px 25px rgba(0, 0, 0, 0.1)',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                  transition: 'all 0.2s ease',
                   cursor: 'pointer',
                   '&:hover': {
-                    transform: 'translateY(-4px) scale(1.02)',
-                    boxShadow: '0 15px 40px rgba(0, 0, 0, 0.2)',
+                    boxShadow: '0 6px 16px rgba(0, 0, 0, 0.15)',
                     background: 'rgba(255, 255, 255, 0.6)',
                   },
                 }}
@@ -729,12 +720,11 @@ export default function CustomerPage() {
                         color: 'white',
                         width: 28,
                         height: 28,
-                        boxShadow: '0 4px 16px rgba(16, 185, 129, 0.4)',
+                        boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
                         transition: 'all 0.2s ease',
                         '&:hover': {
                           background: `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
-                          transform: 'scale(1.1)',
-                          boxShadow: '0 8px 25px rgba(16, 185, 129, 0.6)',
+                          boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
                         },
                       }}
                     >

@@ -1,195 +1,169 @@
-# RedPotion - Food Delivery Platform
+# Red Potion - Multi-Tenant Food Delivery Platform
 
-แพลตฟอร์มส่งอาหารครบวงจรที่รองรับ 4 กลุ่มผู้ใช้: ลูกค้า, ร้านอาหาร, ไรเดอร์, และผู้ดูแลระบบ
+แพลตฟอร์มสั่งอาหารออนไลน์แบบ Multi-tenant ที่รองรับการสร้าง subdomain สำหรับร้านอาหารแต่ละร้าน
 
-## ✨ คุณสมบัติหลัก
+## 🌟 ฟีเจอร์หลัก
 
-- 🛒 **Customer App**: สั่งอาหารจากร้านดังในพื้นที่
-- 🍕 **Restaurant Dashboard**: จัดการร้านอาหาร เมนู และออเดอร์
-- 🚴 **Rider App**: รับงานส่งอาหาร แผนที่ GPS
-- 👨‍💼 **Admin Panel**: จัดการระบบ รายงาน และสถิติ
-- 📱 **LINE LIFF Integration**: เชื่อมต่อกับ LINE สำหรับร้านอาหารแต่ละร้าน
-- 🏪 **Multi-tenant**: แต่ละร้านอาหารมี subdomain แยกกัน
+- **Multi-tenant Architecture**: แต่ละร้านอาหารมี subdomain เป็นของตัวเอง
+- **Responsive Design**: Mobile-first liquid glass design
+- **ระบบจัดการเมนู**: เจ้าของร้านสามารถจัดการเมนูและราคาได้
+- **Template ที่ยืดหยุ่น**: ใช้ template เดียวกันแต่ข้อมูลแตกต่างกัน
 
-## 🏗️ โครงสร้างโปรเจค
+## 🏪 ระบบ Subdomain
+
+### การเข้าถึงร้านอาหาร
 
 ```
-src/
-├── app/
-│   ├── customer/              # หน้าลูกค้า
-│   │   ├── components/
-│   │   ├── layout.tsx
-│   │   └── page.tsx
-│   ├── restaurant/            # หน้าร้านอาหาร
-│   │   ├── components/
-│   │   ├── layout.tsx
-│   │   └── page.tsx
-│   ├── rider/                 # หน้าไรเดอร์
-│   │   ├── layout.tsx
-│   │   └── page.tsx
-│   ├── admin/                 # หน้าแอดมิน
-│   │   ├── layout.tsx
-│   │   └── page.tsx
-│   ├── components/            # Shared components
-│   │   ├── ThemeRegistry.tsx
-│   │   └── EmotionCache.tsx
-│   ├── theme/                 # MUI Theme
-│   │   └── theme.ts
-│   ├── layout.tsx             # Root layout
-│   └── page.tsx               # Landing page
-├── types/                     # TypeScript types
-│   └── liff.d.ts
-└── ...
+Production:
+- restaurant1.theredpotion.com → ร้านที่ 1
+- restaurant2.theredpotion.com → ร้านที่ 2  
+- restaurant3.theredpotion.com → ร้านที่ 3
+
+Development:
+- restaurant1.localhost:3000 → ร้านที่ 1
+- restaurant2.localhost:3000 → ร้านที่ 2
+- restaurant3.localhost:3000 → ร้านที่ 3
 ```
 
-## 🎨 Design System
+### ตัวอย่างร้านอาหาร
 
-- **UI Library**: Material-UI (MUI) v7
-- **Layout**: Liquid Glass Design
-- **Components**: ใช้ Box แทน Grid เพื่อความกว้างเต็มพื้นที่
-- **Theme**: Custom glassmorphism theme
-- **Responsive**: Mobile-first approach
+1. **restaurant1** - ข้าวแกงใต้แท้
+   - อาหารใต้รสจัดจ้าน
+   - แกงส้มปลาช่อน, แกงไตปลา
+   
+2. **restaurant2** - ซูชิ โตเกียว  
+   - ซูชิสไตล์ญี่ปุ่นแท้
+   - ซูชิแซลมอน, ซูชิทูน่า
+   
+3. **restaurant3** - เจ๊หนู ส้มตำ
+   - อาหารอีสานต้นตำรับ
+   - ส้มตำไทย, ลาบหมู
 
-## 🚀 เริ่มต้นใช้งาน
+## 🚀 การติดตั้งและใช้งาน
 
-### 1. Clone และติดตั้ง dependencies
+### ติดตั้ง Dependencies
 
 ```bash
-git clone <repository-url>
-cd redpotion
-npm install
+npm install --legacy-peer-deps
 ```
 
-### 2. ตั้งค่า Environment Variables
-
-```bash
-cp .env.example .env.local
-```
-
-แก้ไขค่าตัวแปรใน `.env.local`:
-
-```env
-NEXT_PUBLIC_LIFF_ID=your-line-liff-id-here
-NEXT_PUBLIC_API_URL=http://localhost:3000/api
-```
-
-### 3. รันโปรเจค
+### รัน Development Server
 
 ```bash
 npm run dev
 ```
 
-เปิดเบราว์เซอร์ที่ [http://localhost:3000](http://localhost:3000)
+### การทดสอบ Subdomain ใน Local
 
-## 📱 LINE LIFF Integration
-
-### การตั้งค่า LINE LIFF
-
-1. สร้าง LINE Developers Account
-2. สร้าง Provider และ Channel
-3. เพิ่ม LIFF App สำหรับแต่ละร้านอาหาร
-4. กำหนด Endpoint URL สำหรับแต่ละ subdomain
-
-### Subdomain Structure
+เพิ่ม hosts ในไฟล์ `C:\Windows\System32\drivers\etc\hosts` (Windows) หรือ `/etc/hosts` (Mac/Linux):
 
 ```
-main.redpotion.com          # หน้าแรก
-customer.redpotion.com      # ลูกค้า
-admin.redpotion.com         # แอดมิน
-rider.redpotion.com         # ไรเดอร์
-
-# ร้านอาหารแต่ละร้าน
-restaurant1.redpotion.com   # ร้านที่ 1
-restaurant2.redpotion.com   # ร้านที่ 2
-som-tam-nang-ram.redpotion.com  # ร้านส้มตำนางรำ
+127.0.0.1 restaurant1.localhost
+127.0.0.1 restaurant2.localhost  
+127.0.0.1 restaurant3.localhost
 ```
 
-## 🛠️ การพัฒนา
+แล้วเข้าถึงผ่าน:
+- http://restaurant1.localhost:3000
+- http://restaurant2.localhost:3000
+- http://restaurant3.localhost:3000
 
-### การเพิ่ม Component ใหม่
+## 📂 โครงสร้างไฟล์
 
-```tsx
-// ใช้ Box แทน Grid
-import { Box } from '@mui/material';
+```
+src/
+├── app/
+│   ├── restaurant-site/
+│   │   └── [restaurantId]/
+│   │       ├── layout.tsx          # Layout สำหรับร้านอาหาร
+│   │       ├── page.tsx            # หน้าหลักร้านอาหาร
+│   │       ├── admin/
+│   │       │   └── page.tsx        # หน้าจัดการเมนู
+│   │       └── context/
+│   │           └── RestaurantContext.tsx  # Context สำหรับข้อมูลร้าน
+│   ├── customer/                   # หน้าลูกค้า (แอปหลัก)
+│   ├── admin/                      # หน้า Admin ระบบ
+│   └── ...
+├── middleware.ts                   # Middleware สำหรับ subdomain routing
+└── ...
+```
 
-function MyComponent() {
-  return (
-    <Box sx={{ width: '100%', p: 2 }}>
-      {/* เนื้อหา */}
-    </Box>
-  );
+## 🔧 การตั้งค่า
+
+### Next.js Configuration (next.config.ts)
+
+```typescript
+async rewrites() {
+  return [
+    {
+      source: '/(.*)',
+      has: [
+        {
+          type: 'host',
+          value: '(?<restaurant>restaurant\\d+)\\.theredpotion\\.com',
+        },
+      ],
+      destination: '/restaurant-site/:restaurant/:path*',
+    },
+  ];
 }
 ```
 
-### Glassmorphism Design
+### Middleware (middleware.ts)
 
-```tsx
-// ใช้ theme.custom.glassmorphism
-const theme = useTheme();
+จัดการ subdomain routing และ rewrite URL ไปยัง path ที่ถูกต้อง
 
-<Box sx={{
-  ...theme.custom.glassmorphism,
-  p: 3
-}}>
-  {/* เนื้อหา */}
-</Box>
-```
+## 🎨 การปรับแต่ง Theme
 
-### ป้องกัน Hydration Issues
+แต่ละร้านสามารถมี theme สีที่แตกต่างกัน:
 
-```tsx
-'use client';
-import { useEffect, useState } from 'react';
-
-function MyComponent() {
-  const [mounted, setMounted] = useState(false);
-  
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-  
-  if (!mounted) return null;
-  
-  return <div>Component content</div>;
+```typescript
+theme: {
+  primaryColor: '#e53e3e',    // สีหลัก
+  secondaryColor: '#fc8181',  // สีรอง
 }
 ```
 
-## 🌟 Features อนาคต
+## 📱 ฟีเจอร์สำหรับร้านอาหาร
 
-- [ ] Real-time order tracking
-- [ ] Payment integration
-- [ ] Push notifications
-- [ ] Multi-language support
-- [ ] Advanced analytics
-- [ ] Chat support
-- [ ] Inventory management
-- [ ] Loyalty program
+- ✅ แสดงเมนูอาหารพร้อมรูปภาพ
+- ✅ ระบบราคาและส่วนลด
+- ✅ จัดการสถานะความพร้อมของเมนู
+- ✅ ระบบแท็กและหมวดหมู่
+- ✅ ข้อมูลติดต่อและเวลาเปิด-ปิด
+- ✅ Shopping cart
+- ✅ หน้า Admin จัดการเมนู
 
-## 📋 To-Do List
+## 📱 ฟีเจอร์สำหรับลูกค้า
 
-- [ ] API Integration
-- [ ] Database Schema
-- [ ] Authentication System
-- [ ] Payment Gateway
-- [ ] Testing Setup
-- [ ] Deployment Configuration
-- [ ] Performance Optimization
-- [ ] SEO Optimization
+- ✅ เลือกดูร้านอาหารต่างๆ
+- ✅ สั่งอาหารจากหลายร้าน
+- ✅ ติดตาม order
+- ✅ ระบบรีวิวและคะแนน
 
-## 🤝 Contributing
+## 🚀 Deployment
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+### DNS Configuration
+
+ตั้งค่า DNS wildcard record:
+
+```
+*.theredpotion.com CNAME yourapp.vercel.app
+```
+
+### Environment Variables
+
+```
+NEXT_PUBLIC_APP_URL=https://theredpotion.com
+```
+
+## 🔐 การรักษาความปลอดภัย
+
+- ✅ Middleware validation
+- ✅ Restaurant data isolation  
+- ✅ Admin authentication (coming soon)
+- ✅ API rate limiting (coming soon)
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 📞 Contact
-
-- Email: support@redpotion.com
-- Website: https://redpotion.com
-- LINE: @redpotion
+MIT License

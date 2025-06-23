@@ -31,7 +31,33 @@ export default function HomePage() {
 
   useEffect(() => {
     setIsMounted(true);
-  }, []);
+    
+    // Check for subdomain and redirect to restaurant-site
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      console.log('🔍 Current hostname:', hostname);
+      
+      // Check for restaurant subdomain
+      const restaurantMatch = hostname.match(/^restaurant(\d+)\.localhost$/);
+      if (restaurantMatch) {
+        const restaurantId = `restaurant${restaurantMatch[1]}`;
+        console.log('🎯 Detected restaurant subdomain:', restaurantId);
+        console.log('🔄 Redirecting to:', `/restaurant-site/${restaurantId}`);
+        router.push(`/restaurant-site/${restaurantId}`);
+        return;
+      }
+      
+      // Check for URL parameters (fallback)
+      const urlParams = new URLSearchParams(window.location.search);
+      const restaurantParam = urlParams.get('restaurant');
+      if (restaurantParam && restaurantParam.startsWith('restaurant')) {
+        console.log('🎯 Detected restaurant parameter:', restaurantParam);
+        console.log('🔄 Redirecting to:', `/restaurant-site/${restaurantParam}`);
+        router.push(`/restaurant-site/${restaurantParam}`);
+        return;
+      }
+    }
+  }, [router]);
 
   const userTypes = [
     {

@@ -3,6 +3,17 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ['@mui/material', '@mui/icons-material'],
+    turbo: {
+      rules: {
+        '*.svg': {
+          loaders: ['@svgr/webpack'],
+          as: '*.js',
+        },
+      },
+    },
+  },
+  images: {
+    domains: ['images.unsplash.com'],
   },
   async headers() {
     return [
@@ -11,13 +22,43 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: 'X-Frame-Options',
-            value: 'SAMEORIGIN',
+            value: 'DENY',
           },
           {
             key: 'X-Content-Type-Options',
             value: 'nosniff',
           },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
         ],
+      },
+    ];
+  },
+  async rewrites() {
+    return [
+      // Local development subdomain simulation
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'host',
+            value: 'restaurant(?<id>\\d+)\\.localhost:3000',
+          },
+        ],
+        destination: '/restaurant-site/restaurant:id/:path*',
+      },
+      // Production environment
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'host',
+            value: 'restaurant(?<id>\\d+)\\.theredpotion\\.com',
+          },
+        ],
+        destination: '/restaurant-site/restaurant:id/:path*',
       },
     ];
   },
