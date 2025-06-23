@@ -21,8 +21,7 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  FormControlLabel,
-  Grid
+  FormControlLabel
 } from '@mui/material';
 import { 
   Edit,
@@ -90,32 +89,32 @@ export default function RestaurantAdminPage() {
           <Typography variant="h6" sx={{ mb: 2 }}>
             ข้อมูลร้าน
           </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
+            <Box>
               <Typography variant="body2" color="text.secondary">
                 ชื่อร้าน
               </Typography>
               <Typography variant="body1" sx={{ fontWeight: 600 }}>
                 {restaurant.name}
               </Typography>
-            </Grid>
-            <Grid item xs={12} sm={6}>
+            </Box>
+            <Box>
               <Typography variant="body2" color="text.secondary">
                 โทรศัพท์
               </Typography>
               <Typography variant="body1" sx={{ fontWeight: 600 }}>
                 {restaurant.contact.phone}
               </Typography>
-            </Grid>
-            <Grid item xs={12}>
+            </Box>
+            <Box sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}>
               <Typography variant="body2" color="text.secondary">
                 คำอธิบาย
               </Typography>
               <Typography variant="body1" sx={{ fontWeight: 600 }}>
                 {restaurant.description}
               </Typography>
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
         </CardContent>
       </Card>
 
@@ -207,7 +206,7 @@ export default function RestaurantAdminPage() {
                           control={
                             <Switch
                               checked={item.available}
-                              onChange={(e) => handleToggleAvailability(item.id, e.target.checked)}
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleToggleAvailability(item.id, e.target.checked)}
                               color="primary"
                             />
                           }
@@ -262,15 +261,15 @@ export default function RestaurantAdminPage() {
       >
         <DialogTitle>แก้ไขเมนู</DialogTitle>
         <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2, mt: 1 }}>
+            <Box sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}>
               <TextField
                 fullWidth
                 label="ชื่อเมนู"
                 defaultValue={editDialog.item?.name}
               />
-            </Grid>
-            <Grid item xs={12}>
+            </Box>
+            <Box sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}>
               <TextField
                 fullWidth
                 label="คำอธิบาย"
@@ -278,31 +277,31 @@ export default function RestaurantAdminPage() {
                 rows={3}
                 defaultValue={editDialog.item?.description}
               />
-            </Grid>
-            <Grid item xs={6}>
+            </Box>
+            <Box>
               <TextField
                 fullWidth
                 label="ราคา"
                 type="number"
                 defaultValue={editDialog.item?.price}
               />
-            </Grid>
-            <Grid item xs={6}>
+            </Box>
+            <Box>
               <TextField
                 fullWidth
                 label="เวลาทำ (นาที)"
                 type="number"
                 defaultValue={editDialog.item?.cookingTime}
               />
-            </Grid>
-            <Grid item xs={12}>
+            </Box>
+            <Box sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}>
               <TextField
                 fullWidth
                 label="URL รูปภาพ"
                 defaultValue={editDialog.item?.image}
               />
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditDialog({ open: false })}>
