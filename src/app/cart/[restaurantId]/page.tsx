@@ -454,7 +454,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
               variant="contained"
               onClick={() => router.push(`/menu/${restaurantId}`)}
               sx={{
-                background: 'linear-gradient(135deg, #10B981 0%, #16A34A 100%)',
+                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                 borderRadius: '16px',
                 px: 4,
                 py: 1.5,
@@ -897,10 +897,10 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                       }}
                     >
                       <Box>
-                        <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: '#16A34A' }}>
+                        <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: '#059669' }}>
                           {promoApplied}
                         </Typography>
-                        <Typography sx={{ fontSize: '0.7rem', color: '#16A34A' }}>
+                        <Typography sx={{ fontSize: '0.7rem', color: '#059669' }}>
                           ส่วนลด ฿{discount}
                         </Typography>
                       </Box>
@@ -961,7 +961,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
               variant="contained"
               fullWidth
               sx={{
-                background: 'linear-gradient(135deg, #10B981 0%, #16A34A 100%)',
+                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                 borderRadius: '20px',
                 py: 2,
                 fontSize: '1rem',

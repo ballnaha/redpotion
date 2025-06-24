@@ -329,7 +329,7 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
                size="small"
                sx={{ 
                  backgroundColor: '#F0FDF4',
-                 color: '#16A34A',
+                 color: '#059669',
                  fontWeight: 500,
                  fontSize: '0.7rem',
                  border: 'none',
@@ -584,7 +584,7 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
               fontWeight: 600,
               color: 'white',
               '&:hover': {
-                background: '#16A34A'
+                background: '#059669'
               }
             }}
           >
