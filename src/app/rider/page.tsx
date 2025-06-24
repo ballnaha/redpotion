@@ -19,7 +19,7 @@ export default function RiderPage() {
       title: 'Earnings', 
       value: '฿1,280', 
       icon: <AttachMoney />, 
-      color: 'rgba(52, 199, 89, 0.85)',
+      color: 'rgba(16, 185, 129, 0.85)',
       change: '+฿320 today'
     },
     { 
@@ -181,8 +181,8 @@ export default function RiderPage() {
                       px: 2,
                       py: 0.5,
                       borderRadius: 1,
-                      backgroundColor: order.status === 'Picked up' ? 'rgba(52, 199, 89, 0.2)' : 'rgba(255, 149, 0, 0.2)',
-                      color: order.status === 'Picked up' ? 'rgba(52, 199, 89, 1)' : 'rgba(255, 149, 0, 1)',
+                      backgroundColor: order.status === 'Picked up' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 149, 0, 0.2)',
+                      color: order.status === 'Picked up' ? 'rgba(16, 185, 129, 1)' : 'rgba(255, 149, 0, 1)',
                       fontWeight: 600,
                     }}
                   >

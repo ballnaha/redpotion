@@ -84,7 +84,7 @@ export default function HomePage() {
       subtitle: 'จัดการเมนูและคำสั่งซื้อ',
       icon: Restaurant,
       description: 'อัปเดตเมนู จัดการคำสั่งซื้อ และติดตามยอดขาย',
-      gradient: `linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)`,
+      gradient: `linear-gradient(135deg, #10B981 0%, #34D399 100%)`,
       route: '/restaurant',
     },
     {

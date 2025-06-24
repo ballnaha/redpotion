@@ -137,8 +137,6 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
   
   const restaurant = restaurantData[restaurantId];
 
-
-
   // จัดการ mounted state เพื่อแก้ไข hydration
   useEffect(() => {
     setMounted(true);
@@ -151,8 +149,6 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
     const loadCart = () => {
       try {
         const items = loadCartFromStorage(restaurantId);
-        
-
         
         setCartItems(items); // แสดงเฉพาะสินค้าที่เลือกจริง ไม่ใส่ข้อมูลตัวอย่าง
       } catch (error) {
@@ -323,7 +319,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
         <CircularProgress 
           size={32} 
           sx={{ 
-            color: '#22C55E',
+            color: '#10B981',
             '& .MuiCircularProgress-circle': {
               strokeLinecap: 'round'
             }
@@ -458,7 +454,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
               variant="contained"
               onClick={() => router.push(`/menu/${restaurantId}`)}
               sx={{
-                background: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)',
+                background: 'linear-gradient(135deg, #10B981 0%, #16A34A 100%)',
                 borderRadius: '16px',
                 px: 4,
                 py: 1.5,
@@ -551,7 +547,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                     {selectedAddress.isDefault && (
                       <Box 
                         sx={{ 
-                          background: '#22C55E',
+                          background: '#10B981',
                           color: 'white',
                           px: 1.5,
                           py: 0.3,
@@ -614,7 +610,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
               <NoSSR 
                 fallback={
                   <Box sx={{ px: 3, py: 4, textAlign: 'center' }}>
-                    <CircularProgress size={24} sx={{ color: '#22C55E' }} />
+                    <CircularProgress size={24} sx={{ color: '#10B981' }} />
                   </Box>
                 }
               >
@@ -699,7 +695,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                             <Typography 
                               variant="h6" 
                               sx={{ 
-                                color: '#22C55E',
+                                color: '#10B981',
                                 fontWeight: 600,
                                 fontSize: '1.1rem'
                               }}
@@ -821,10 +817,25 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                       }}
                     >
                       {selectedPayment.id === 'credit' ? 
-                        <CreditCard sx={{ color: 'white', fontSize: 22, zIndex: 1, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }} /> :
+                        <CreditCard sx={{ 
+                          color: selectedPayment.id === 'credit' ? 'white' : '#3B82F6', 
+                          fontSize: 22, 
+                          zIndex: 1, 
+                          filter: selectedPayment.id === 'credit' ? 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' : 'none' 
+                        }} /> :
                         selectedPayment.id === 'wallet' ?
-                        <AccountBalanceWallet sx={{ color: 'white', fontSize: 22, zIndex: 1, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }} /> :
-                        <Payment sx={{ color: 'white', fontSize: 22, zIndex: 1, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }} />}
+                        <AccountBalanceWallet sx={{ 
+                          color: selectedPayment.id === 'wallet' ? 'white' : '#8B5CF6', 
+                          fontSize: 22, 
+                          zIndex: 1, 
+                          filter: selectedPayment.id === 'wallet' ? 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' : 'none' 
+                        }} /> :
+                        <Payment sx={{ 
+                          color: selectedPayment.id === 'wallet' ? 'white' : '#10B981', 
+                          fontSize: 22, 
+                          zIndex: 1, 
+                          filter: selectedPayment.id === 'wallet' ? 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' : 'none' 
+                        }} />}
                     </Box>
                     <Box>
                       <Typography sx={{ fontWeight: 600, color: '#374151', fontSize: '0.85rem' }}>
@@ -867,7 +878,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                           px: 2,
                           fontSize: '0.75rem',
                           fontWeight: 600,
-                          background: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)'
+                          background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
                         }}
                       >
                         ใช้
@@ -924,10 +935,10 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                   </Box>
                   {discount > 0 && (
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                      <Typography sx={{ color: '#22C55E', fontSize: '0.85rem' }}>
+                      <Typography sx={{ color: '#10B981', fontSize: '0.85rem' }}>
                         ส่วนลด ({promoApplied})
                       </Typography>
-                      <Typography sx={{ fontWeight: 600, color: '#22C55E', fontSize: '0.85rem' }}>
+                      <Typography sx={{ fontWeight: 600, color: '#10B981', fontSize: '0.85rem' }}>
                         -฿{discount.toFixed(0)}
                       </Typography>
                     </Box>
@@ -950,7 +961,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
               variant="contained"
               fullWidth
               sx={{
-                background: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)',
+                background: 'linear-gradient(135deg, #10B981 0%, #16A34A 100%)',
                 borderRadius: '20px',
                 py: 2,
                 fontSize: '1rem',
@@ -1015,7 +1026,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                   gap: 2,
                   p: 2,
                   borderRadius: '12px',
-                  border: selectedAddress.id === address.id ? '2px solid #22C55E' : '1px solid rgba(0, 0, 0, 0.1)',
+                  border: selectedAddress.id === address.id ? '2px solid #10B981' : '1px solid rgba(0, 0, 0, 0.1)',
                   backgroundColor: selectedAddress.id === address.id ? 'rgba(34, 197, 94, 0.05)' : 'transparent',
                   cursor: 'pointer',
                   '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }
@@ -1064,7 +1075,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                     {address.isDefault && (
                       <Box 
                         sx={{ 
-                          background: '#22C55E',
+                          background: '#10B981',
                           color: 'white',
                           px: 1,
                           py: 0.2,
@@ -1153,7 +1164,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                   gap: 2,
                   p: 2,
                   borderRadius: '12px',
-                  border: selectedPayment.id === payment.id ? '2px solid #22C55E' : '1px solid rgba(0, 0, 0, 0.1)',
+                  border: selectedPayment.id === payment.id ? '2px solid #10B981' : '1px solid rgba(0, 0, 0, 0.1)',
                   backgroundColor: selectedPayment.id === payment.id ? 'rgba(34, 197, 94, 0.05)' : 'transparent',
                   cursor: 'pointer',
                   '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }

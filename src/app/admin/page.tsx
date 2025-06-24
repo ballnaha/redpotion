@@ -19,7 +19,7 @@ export default function AdminPage() {
       title: 'Restaurants', 
       value: '89', 
       icon: <Restaurant />, 
-      color: 'rgba(52, 199, 89, 0.85)',
+      color: 'rgba(16, 185, 129, 0.85)',
       change: '+12 active'
     },
     { 
@@ -171,10 +171,10 @@ export default function AdminPage() {
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {[
-                { label: 'Server Status', status: 'Online', color: 'rgba(52, 199, 89, 0.85)' },
-                { label: 'Database', status: 'Healthy', color: 'rgba(52, 199, 89, 0.85)' },
-                { label: 'Payment Gateway', status: 'Active', color: 'rgba(52, 199, 89, 0.85)' },
-                { label: 'Notifications', status: 'Working', color: 'rgba(52, 199, 89, 0.85)' },
+                { label: 'Server Status', status: 'Online', color: 'rgba(16, 185, 129, 0.85)' },
+                { label: 'Database', status: 'Healthy', color: 'rgba(16, 185, 129, 0.85)' },
+                { label: 'Payment Gateway', status: 'Active', color: 'rgba(16, 185, 129, 0.85)' },
+                { label: 'Notifications', status: 'Working', color: 'rgba(16, 185, 129, 0.85)' },
               ].map((item, index) => (
                 <Box 
                   key={index}

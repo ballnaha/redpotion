@@ -190,8 +190,8 @@ const mockRestaurants: Record<string, Restaurant> = {
     logo: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=200&h=200&fit=crop',
     banner: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=800&h=400&fit=crop',
     theme: {
-      primaryColor: '#22C55E',
-      secondaryColor: '#4ADE80',
+      primaryColor: '#10B981',
+              secondaryColor: '#34D399',
     },
     contact: {
       phone: '02-456-7890',

@@ -75,7 +75,7 @@ export default function CustomerMenuPage() {
       subtitle: 'ส่วนลดพิเศษ',
       date: 'วันนี้เท่านั้น!',
       image: restaurant.banner || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&q=80',
-      color: restaurant.theme.primaryColor || '#22C55E'
+      color: restaurant.theme.primaryColor || '#10B981'
     };
   };
 
@@ -97,7 +97,7 @@ export default function CustomerMenuPage() {
         <CircularProgress 
           size={32} 
           sx={{ 
-            color: '#22C55E',
+            color: '#10B981',
             '& .MuiCircularProgress-circle': {
               strokeLinecap: 'round'
             }
@@ -130,7 +130,7 @@ export default function CustomerMenuPage() {
     <Box 
       sx={{ 
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, rgba(74, 222, 128, 0.1) 0%, rgba(34, 197, 94, 0.05) 100%)',
+        background: 'linear-gradient(135deg, rgba(240, 248, 255, 0.8) 0%, rgba(249, 250, 251, 0.9) 100%)',
         position: 'relative',
         display: 'flex',
         flexDirection: 'column'
@@ -147,7 +147,7 @@ export default function CustomerMenuPage() {
           left: 0,
           right: 0,
           zIndex: 1000,
-          borderBottom: '1px solid rgba(74, 222, 128, 0.1)'
+          borderBottom: '1px solid rgba(16, 185, 129, 0.1)'
         }}
       >
         {/* Customer Header */}
@@ -158,7 +158,7 @@ export default function CustomerMenuPage() {
                 width: 44,
                 height: 44,
                 borderRadius: '50%',
-                background: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)',
+                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -205,7 +205,7 @@ export default function CustomerMenuPage() {
                 borderRadius: '50%',
                 width: 40,
                 height: 40,
-                border: '1px solid rgba(74, 222, 128, 0.2)',
+                border: '1px solid rgba(16, 185, 129, 0.2)',
                 '&:hover': {
                   background: 'rgba(255, 255, 255, 0.95)',
                   transform: 'translateY(-1px)'
@@ -225,7 +225,7 @@ export default function CustomerMenuPage() {
                 borderRadius: '50%',
                 width: 40,
                 height: 40,
-                border: '1px solid rgba(74, 222, 128, 0.2)',
+                border: '1px solid rgba(16, 185, 129, 0.2)',
                 position: 'relative',
                 '&:hover': {
                   background: 'rgba(255, 255, 255, 0.95)',
@@ -260,7 +260,7 @@ export default function CustomerMenuPage() {
                 borderRadius: '50%',
                 width: 40,
                 height: 40,
-                border: '1px solid rgba(74, 222, 128, 0.2)',
+                border: '1px solid rgba(16, 185, 129, 0.2)',
                 '&:hover': {
                   background: 'rgba(255, 255, 255, 0.95)',
                   transform: 'translateY(-1px)'
@@ -345,7 +345,7 @@ export default function CustomerMenuPage() {
             background: 'rgba(255, 255, 255, 0.1)'
           },
           '&::-webkit-scrollbar-thumb': {
-            background: 'rgba(74, 222, 128, 0.2)',
+            background: 'rgba(16, 185, 129, 0.2)',
             borderRadius: '10px'
           }
         }}
@@ -392,7 +392,7 @@ export default function CustomerMenuPage() {
                       background: 'rgba(255, 255, 255, 0.9)',
                       backdropFilter: 'blur(8px)',
                       borderRadius: '16px',
-                      border: '1px solid rgba(74, 222, 128, 0.2)',
+                      border: '1px solid rgba(16, 185, 129, 0.2)',
                       overflow: 'hidden',
                       boxShadow: 'none',
                       transition: 'all 0.3s ease',
@@ -400,7 +400,7 @@ export default function CustomerMenuPage() {
                       position: 'relative',
                       '&:hover': {
                         transform: 'translateY(-4px)',
-                        boxShadow: '0 12px 24px rgba(74, 222, 128, 0.15)'
+                        boxShadow: '0 12px 24px rgba(16, 185, 129, 0.15)'
                       }
                     }}
                   >
@@ -431,7 +431,7 @@ export default function CustomerMenuPage() {
                       <Box display="flex" alignItems="center" gap={1} mb={1}>
                         <Typography 
                           sx={{ 
-                            color: '#22C55E',
+                            color: '#10B981',
                             fontWeight: 700,
                             fontSize: '1rem'
                           }}
@@ -472,7 +472,7 @@ export default function CustomerMenuPage() {
               height: 40,
               borderRadius: '10px',
               overflow: 'hidden',
-              border: '2px solid rgba(74, 222, 128, 0.2)'
+              border: '2px solid rgba(16, 185, 129, 0.2)'
             }}
           >
             <Box
@@ -506,10 +506,10 @@ export default function CustomerMenuPage() {
               >
                 {restaurant?.contact?.address || 'กำลังโหลดที่อยู่...'}
               </Typography>
-              <Box sx={{ color: '#22C55E', fontSize: '0.75rem' }}>●</Box>
+              <Box sx={{ color: '#10B981', fontSize: '0.75rem' }}>●</Box>
               <Typography 
                 sx={{ 
-                  color: '#22C55E',
+                  color: '#10B981',
                   fontSize: '0.6rem',
                   fontWeight: 500
                 }}
@@ -533,7 +533,7 @@ export default function CustomerMenuPage() {
             </Typography>
             <Typography 
               sx={{ 
-                color: '#22C55E',
+                color: '#10B981',
                 fontSize: '0.875rem',
                 fontWeight: 500,
                 cursor: 'pointer',
@@ -666,11 +666,11 @@ export default function CustomerMenuPage() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: '24px',
-                    border: '1px solid rgba(74, 222, 128, 0.2)',
+                    border: '1px solid rgba(16, 185, 129, 0.2)',
                     transition: 'all 0.2s ease',
                     '&:hover': {
                       transform: 'translateY(-2px)',
-                      boxShadow: '0 4px 12px rgba(74, 222, 128, 0.15)'
+                      boxShadow: '0 4px 12px rgba(16, 185, 129, 0.15)'
                     }
                   }}
                 >
@@ -709,7 +709,7 @@ export default function CustomerMenuPage() {
             </Box>
             <Typography 
               sx={{ 
-                color: '#22C55E',
+                color: '#10B981',
                 fontSize: '0.875rem',
                 fontWeight: 500,
                 cursor: 'pointer',
@@ -754,7 +754,7 @@ export default function CustomerMenuPage() {
                   background: 'rgba(255, 255, 255, 0.9)',
                   backdropFilter: 'blur(8px)',
                   borderRadius: '16px',
-                  border: '1px solid rgba(74, 222, 128, 0.2)',
+                  border: '1px solid rgba(16, 185, 129, 0.2)',
                   overflow: 'hidden',
                   boxShadow: 'none',
                   transition: 'all 0.3s ease',
@@ -762,7 +762,7 @@ export default function CustomerMenuPage() {
                   position: 'relative',
                   '&:hover': {
                     transform: 'translateY(-4px)',
-                    boxShadow: '0 12px 24px rgba(74, 222, 128, 0.15)'
+                    boxShadow: '0 12px 24px rgba(16, 185, 129, 0.15)'
                   }
                 }}
               >
@@ -772,7 +772,7 @@ export default function CustomerMenuPage() {
                     position: 'absolute',
                     top: 8,
                     left: 8,
-                    background: '#22C55E',
+                    background: '#10B981',
                     color: 'white',
                     px: 1,
                     py: 0.5,
@@ -811,7 +811,7 @@ export default function CustomerMenuPage() {
                   <Box display="flex" alignItems="center" gap={1} mb={1}>
                     <Typography 
                       sx={{ 
-                        color: '#22C55E',
+                        color: '#10B981',
                         fontWeight: 700,
                         fontSize: '1rem'
                       }}
@@ -854,7 +854,7 @@ export default function CustomerMenuPage() {
               </Typography>
             <Typography 
               sx={{ 
-                color: '#22C55E',
+                color: '#10B981',
                 fontSize: '0.875rem',
                 fontWeight: 500,
                 cursor: 'pointer',
@@ -895,7 +895,7 @@ export default function CustomerMenuPage() {
                   background: 'rgba(255, 255, 255, 0.9)',
                   backdropFilter: 'blur(8px)',
                   borderRadius: '16px',
-                  border: '1px solid rgba(74, 222, 128, 0.2)',
+                  border: '1px solid rgba(16, 185, 129, 0.2)',
                         overflow: 'hidden',
                   boxShadow: 'none',
                         transition: 'all 0.3s ease',
@@ -903,7 +903,7 @@ export default function CustomerMenuPage() {
                         position: 'relative',
                         '&:hover': {
                           transform: 'translateY(-4px)',
-                    boxShadow: '0 12px 24px rgba(74, 222, 128, 0.15)'
+                    boxShadow: '0 12px 24px rgba(16, 185, 129, 0.15)'
                           }
                         }}
                       >
@@ -913,7 +913,7 @@ export default function CustomerMenuPage() {
                             position: 'absolute',
                             top: 8,
                             left: 8,
-                            background: '#22C55E',
+                            background: '#10B981',
                             color: 'white',
                             px: 1,
                             py: 0.5,
@@ -951,7 +951,7 @@ export default function CustomerMenuPage() {
                         </Typography>
                               <Typography 
                                 sx={{ 
-                      color: '#22C55E',
+                      color: '#10B981',
                       fontWeight: 700,
                       fontSize: '1rem'
                                 }}
@@ -977,7 +977,7 @@ export default function CustomerMenuPage() {
           zIndex: 1000,
           background: 'rgba(255, 255, 255, 0.9)',
           backdropFilter: 'blur(12px)',
-          borderTop: '1px solid rgba(74, 222, 128, 0.2)',
+          borderTop: '1px solid rgba(16, 185, 129, 0.2)',
           borderRadius: '24px 24px 0 0'
         }} 
         elevation={0}
@@ -997,9 +997,9 @@ export default function CustomerMenuPage() {
             label="Home"
             icon={<Home />}
             sx={{
-              color: bottomValue === 0 ? '#22C55E' : 'rgba(107, 114, 128, 0.8)',
+              color: bottomValue === 0 ? '#10B981' : 'rgba(107, 114, 128, 0.8)',
               '&.Mui-selected': {
-                color: '#22C55E'
+                color: '#10B981'
               }
             }}
           />
@@ -1009,7 +1009,7 @@ export default function CustomerMenuPage() {
             sx={{
               color: 'rgba(107, 114, 128, 0.8)',
               '&.Mui-selected': {
-                color: '#22C55E'
+                color: '#10B981'
               }
             }}
           />
@@ -1019,7 +1019,7 @@ export default function CustomerMenuPage() {
             sx={{
               color: 'rgba(107, 114, 128, 0.8)',
               '&.Mui-selected': {
-                color: '#22C55E'
+                color: '#10B981'
               }
             }}
           />
@@ -1029,7 +1029,7 @@ export default function CustomerMenuPage() {
             sx={{
               color: 'rgba(107, 114, 128, 0.8)',
               '&.Mui-selected': {
-                color: '#22C55E'
+                color: '#10B981'
               }
             }}
           />
@@ -1039,7 +1039,7 @@ export default function CustomerMenuPage() {
             sx={{
               color: 'rgba(107, 114, 128, 0.8)',
               '&.Mui-selected': {
-                color: '#22C55E'
+                color: '#10B981'
               }
             }}
           />
@@ -1106,7 +1106,7 @@ export default function CustomerMenuPage() {
                     key={item.itemId} 
                     sx={{ 
                       py: 2,
-                      borderBottom: '1px solid rgba(74, 222, 128, 0.1)'
+                      borderBottom: '1px solid rgba(16, 185, 129, 0.1)'
                     }}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -1157,7 +1157,7 @@ export default function CustomerMenuPage() {
                               <Typography 
                                 component="span"
                                 sx={{ 
-                                  color: '#4ade80',
+                                  color: '#10B981',
                                   fontWeight: 600,
                                   fontSize: '0.875rem'
                                 }}
@@ -1167,7 +1167,7 @@ export default function CustomerMenuPage() {
                               <Typography 
                                 component="span"
                                 sx={{ 
-                                  color: '#4ade80',
+                                  color: '#10B981',
                                   fontWeight: 700,
                                   fontSize: '0.875rem'
                                 }}
@@ -1201,7 +1201,7 @@ export default function CustomerMenuPage() {
                             background: 'rgba(255, 255, 255, 0.9)',
                             backdropFilter: 'blur(8px)',
                             borderRadius: '8px',
-                            border: '1px solid rgba(74, 222, 128, 0.2)',
+                            border: '1px solid rgba(16, 185, 129, 0.2)',
                             p: 0.5
                           }}
                         >
@@ -1212,7 +1212,7 @@ export default function CustomerMenuPage() {
                               color: '#6B7280',
                               '&:hover': {
                                 color: '#111827',
-                                background: 'rgba(74, 222, 128, 0.1)'
+                                background: 'rgba(16, 185, 129, 0.1)'
                               }
                             }}
                           >
@@ -1235,7 +1235,7 @@ export default function CustomerMenuPage() {
                               color: '#6B7280',
                               '&:hover': {
                                 color: '#111827',
-                                background: 'rgba(74, 222, 128, 0.1)'
+                                background: 'rgba(16, 185, 129, 0.1)'
                               }
                             }}
                           >
@@ -1267,7 +1267,7 @@ export default function CustomerMenuPage() {
                   background: 'rgba(255, 255, 255, 0.9)',
                   backdropFilter: 'blur(12px)',
                   borderRadius: '16px',
-                  border: '1px solid rgba(74, 222, 128, 0.1)',
+                  border: '1px solid rgba(16, 185, 129, 0.1)',
                   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)'
                 }}
               >
@@ -1289,19 +1289,19 @@ export default function CustomerMenuPage() {
                   size="large"
                   sx={{ 
                     mt: 2,
-                    background: 'linear-gradient(135deg, #4ade80 0%, #22c55e 100%)',
+                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                     color: 'white',
                     borderRadius: '12px',
                     py: 1.5,
                     fontWeight: 600,
                     fontSize: '1rem',
-                    boxShadow: '0 4px 12px rgba(74, 222, 128, 0.3)',
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
                     border: '1px solid rgba(255, 255, 255, 0.2)',
                     backdropFilter: 'blur(8px)',
                     '&:hover': { 
-                      background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                      background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
                       transform: 'translateY(-2px)',
-                      boxShadow: '0 6px 16px rgba(74, 222, 128, 0.4)'
+                      boxShadow: '0 6px 16px rgba(16, 185, 129, 0.4)'
                     }
                   }}
                 >

@@ -253,7 +253,7 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
             position: 'absolute',
             bottom: 30,
             right: 16,
-            background: '#22C55E',
+            background: '#10B981',
             borderRadius: '6px',
             px: 1.5,
             py: 0.3,
@@ -305,7 +305,7 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
               {itemData.restaurant}
             </Typography>
             <Box display="flex" alignItems="center" gap={0.5}>
-              <Star sx={{ fontSize: { xs: 14, sm: 14 }, color: '#22C55E' }} />
+              <Star sx={{ fontSize: { xs: 14, sm: 14 }, color: '#10B981' }} />
               <Typography 
                 sx={{ 
                   color: '#111827',
@@ -382,7 +382,7 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
           <Box display="flex" alignItems="center" gap={2} mb={2}>
             <Typography 
               sx={{ 
-                color: '#22C55E',
+                color: '#10B981',
                 fontSize: { xs: '1.375rem', sm: '1.5rem' },
                 fontWeight: 800
               }}
@@ -440,9 +440,9 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
                       checked={selectedAddOns.includes(addOn.id)}
                       onChange={() => handleAddOnToggle(addOn.id)}
                       sx={{
-                        color: '#22C55E',
+                        color: '#10B981',
                         '&.Mui-checked': {
-                          color: '#22C55E',
+                          color: '#10B981',
                         },
                       }}
                     />
@@ -460,7 +460,7 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
                       </Typography>
                       <Typography 
                         sx={{ 
-                          color: '#22C55E',
+                          color: '#10B981',
                           fontSize: '0.875rem',
                           fontWeight: 700
                         }}
@@ -548,7 +548,7 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
             <Box textAlign="right">
               <Typography 
                 sx={{ 
-                  color: '#22C55E',
+                  color: '#10B981',
                   fontSize: { xs: '1.25rem', sm: '1.25rem' },
                   fontWeight: 800,
                   lineHeight: 1
@@ -577,7 +577,7 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
             onClick={handleAddToCart}
             fullWidth
             sx={{
-              background: '#22C55E',
+              background: '#10B981',
               borderRadius: '8px',
               py: 1.25,
               fontSize: '1rem',
@@ -606,7 +606,7 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
           severity="success" 
           sx={{ 
             width: '100%',
-            backgroundColor: '#22C55E',
+            backgroundColor: '#10B981',
             color: 'white',
             '& .MuiAlert-icon': {
               color: 'white'
