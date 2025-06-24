@@ -44,9 +44,18 @@ interface MenuItem {
 interface CartItem {
   itemId: string;
   name: string;
+  description?: string;
   price: number;
+  originalPrice?: number;
+  image?: string;
   quantity: number;
   restaurantId: string;
+  category?: string;
+  addOns?: Array<{
+    id: string;
+    name: string;
+    price: number;
+  }>;
 }
 
 interface RestaurantContextType {
@@ -57,6 +66,7 @@ interface RestaurantContextType {
   cartTotal: number;
   userRole: 'customer' | 'restaurant_owner' | 'rider' | 'admin';
   addToCart: (item: MenuItem, quantity?: number) => void;
+  setCartItemQuantity: (item: MenuItem & { addOns?: Array<{id: string, name: string, price: number}> }, totalQuantity: number) => void;
   removeFromCart: (itemId: string) => void;
   updateCartItemQuantity: (itemId: string, quantity: number) => void;
   clearCart: () => void;
@@ -167,6 +177,112 @@ const mockRestaurants: Record<string, Restaurant> = {
             available: true,
             cookingTime: 5,
             tags: ['พรีเมี่ยม', 'เนื้อแน่น']
+          }
+        ]
+      }
+    ]
+  },
+  // ร้านอาหารสุขภาพ Green Bowl
+  '550e8400-e29b-41d4-a716-446655440004': {
+    id: '550e8400-e29b-41d4-a716-446655440004',
+    name: 'Green Bowl - Healthy Food',
+    description: 'อาหารสุขภาพ คลีน ออร์แกนิค โลว์แคลอรี่',
+    logo: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=200&h=200&fit=crop',
+    banner: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=800&h=400&fit=crop',
+    theme: {
+      primaryColor: '#22C55E',
+      secondaryColor: '#4ADE80',
+    },
+    contact: {
+      phone: '02-456-7890',
+      address: '999 ถนนเพลินจิต กรุงเทพฯ 10330',
+      hours: '07:00 - 21:00',
+    },
+    menu: [
+      {
+        id: 'healthy-bowls',
+        name: 'Healthy Bowls',
+        items: [
+          {
+            id: 'quinoa-bowl',
+            name: 'Quinoa Power Bowl',
+            description: 'ควินัว ผักสด อโวคาโด้ เมล็ดชีอา โปรตีนสูง',
+            price: 189,
+            originalPrice: 220,
+            image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&h=200&fit=crop',
+            category: 'healthy-bowls',
+            available: true,
+            cookingTime: 10,
+            isRecommended: true,
+            tags: ['โปรตีนสูง', 'ออร์แกนิค', 'ไม่มีแป้ง']
+          },
+          {
+            id: 'salmon-bowl',
+            name: 'Grilled Salmon Bowl',
+            description: 'แซลมอนย่าง ข้าวกล้อง ผักโบราณ น้ำสลัดมะนาว',
+            price: 259,
+            originalPrice: 290,
+            image: 'https://images.unsplash.com/photo-1559181567-c3190ca9959b?w=300&h=200&fit=crop',
+            category: 'healthy-bowls',
+            available: true,
+            cookingTime: 15,
+            isRecommended: true,
+            tags: ['โอเมก้า3', 'โปรตีนสูง', 'สด']
+          },
+          {
+            id: 'chicken-bowl',
+            name: 'Grilled Chicken Bowl',
+            description: 'ไก่ย่างเสียบไผ่ ผักสดหลากสี ข้าวไรซ์เบอร์รี่',
+            price: 169,
+            originalPrice: 200,
+            image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=300&h=200&fit=crop',
+            category: 'healthy-bowls',
+            available: true,
+            cookingTime: 12,
+            tags: ['โปรตีนสูง', 'ไขมันต่ำ']
+          },
+          {
+            id: 'avocado-bowl',
+            name: 'Avocado Toast Bowl',
+            description: 'ขนมปังโฮลวีท อโวคาโด้สด ไข่ออนเซ็น ผักใบเขียว',
+            price: 149,
+            originalPrice: 180,
+            image: 'https://images.unsplash.com/photo-1581833971358-2c8b550f87b3?w=300&h=200&fit=crop',
+            category: 'healthy-bowls',
+            available: true,
+            cookingTime: 8,
+            tags: ['ไฟเบอร์สูง', 'วีแกน', 'ดีต็อกซ์']
+          }
+        ]
+      },
+      {
+        id: 'smoothies',
+        name: 'Smoothies & Juices',
+        items: [
+          {
+            id: 'green-smoothie',
+            name: 'Green Detox Smoothie',
+            description: 'ผักโขม แอปเปิ้ล เซเลอรี่ มะนาว ชีอา',
+            price: 89,
+            originalPrice: 110,
+            image: 'https://images.unsplash.com/photo-1610970881699-44a5587cabec?w=300&h=200&fit=crop',
+            category: 'smoothies',
+            available: true,
+            cookingTime: 5,
+            isRecommended: true,
+            tags: ['ดีต็อกซ์', 'วีแกน', 'ไฟเบอร์สูง']
+          },
+          {
+            id: 'protein-smoothie',
+            name: 'Protein Berry Smoothie',
+            description: 'เบอร์รี่รวม โปรตีนเวย์ กล้วยหอม อัลมอนด์มิลค์',
+            price: 119,
+            originalPrice: 140,
+            image: 'https://images.unsplash.com/photo-1553530666-ba11a7da3888?w=300&h=200&fit=crop',
+            category: 'smoothies',
+            available: true,
+            cookingTime: 5,
+            tags: ['โปรตีนสูง', 'แอนติออกซิแดนท์']
           }
         ]
       }
@@ -337,29 +453,70 @@ export function RestaurantProvider({
     loadRestaurant();
   }, [restaurantId, mounted]);
 
-  // คำนวณยอดรวมตะกร้า
-  const cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  // คำนวณยอดรวมตะกร้า (รวม add-ons)
+  const cartTotal = cart.reduce((total, item) => {
+    const basePrice = item.price * item.quantity;
+    const addOnsPrice = item.addOns ? item.addOns.reduce((addOnTotal, addOn) => addOnTotal + addOn.price, 0) * item.quantity : 0;
+    return total + basePrice + addOnsPrice;
+  }, 0);
 
-  // เพิ่มสินค้าในตะกร้า
+  // เพิ่มสินค้าในตะกร้า (ใช้สำหรับปุ่มเพิ่มในเมนู - เพิ่มทีละ 1)
   const addToCart = (item: MenuItem, quantity: number = 1) => {
     if (!restaurant) return;
 
     setCart(prevCart => {
+      // ใช้ item.id เป็น unique identifier สำหรับสินค้า + add-ons
       const existingItemIndex = prevCart.findIndex(cartItem => cartItem.itemId === item.id);
       
       if (existingItemIndex >= 0) {
-        // สินค้ามีอยู่แล้ว ให้เพิ่มจำนวน
+        // สินค้ามีอยู่แล้ว - เพิ่มจำนวน
         const updatedCart = [...prevCart];
         updatedCart[existingItemIndex].quantity += quantity;
         return updatedCart;
       } else {
         // สินค้าใหม่
         const newCartItem: CartItem = {
+          itemId: item.id, // ใช้ unique ID ที่ส่งมา (อาจมี add-ons)
+          name: item.name,
+          description: item.description,
+          price: item.price,
+          originalPrice: item.originalPrice,
+          image: item.image,
+          quantity,
+          restaurantId: restaurant.id,
+          category: item.category
+        };
+        return [...prevCart, newCartItem];
+      }
+    });
+  };
+
+  // ตั้งจำนวนสินค้าในตะกร้า (ใช้สำหรับหน้า item - ตั้งค่าจำนวนรวม)
+  const setCartItemQuantity = (item: MenuItem & { addOns?: Array<{id: string, name: string, price: number}> }, totalQuantity: number) => {
+    if (!restaurant) return;
+
+    setCart(prevCart => {
+      // ใช้ item.id เป็น unique identifier สำหรับสินค้า + add-ons
+      const existingItemIndex = prevCart.findIndex(cartItem => cartItem.itemId === item.id);
+      
+      if (existingItemIndex >= 0) {
+        // สินค้ามีอยู่แล้ว - ตั้งค่าจำนวนรวม
+        const updatedCart = [...prevCart];
+        updatedCart[existingItemIndex].quantity = totalQuantity;
+        return updatedCart;
+      } else {
+        // สินค้าใหม่
+        const newCartItem: CartItem = {
           itemId: item.id,
           name: item.name,
+          description: item.description,
           price: item.price,
-          quantity,
-          restaurantId: restaurant.id
+          originalPrice: item.originalPrice,
+          image: item.image,
+          quantity: totalQuantity,
+          restaurantId: restaurant.id,
+          category: item.category,
+          addOns: item.addOns // เพิ่ม add-ons
         };
         return [...prevCart, newCartItem];
       }
@@ -401,6 +558,7 @@ export function RestaurantProvider({
       cartTotal,
       userRole,
       addToCart,
+      setCartItemQuantity,
       removeFromCart,
       updateCartItemQuantity,
       clearCart

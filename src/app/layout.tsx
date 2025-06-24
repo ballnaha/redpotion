@@ -17,12 +17,16 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         <meta name="theme-color" content="#ffffff" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap"
+          rel="stylesheet"
+        />
         <script 
           src="https://static.line-scdn.net/liff/edge/2/sdk.js"
           async
         ></script>
       </head>
-      <body suppressHydrationWarning>
+      <body suppressHydrationWarning style={{ fontFamily: "'Prompt', sans-serif" }}>
         <ThemeRegistry>
           <div 
             style={{ 
