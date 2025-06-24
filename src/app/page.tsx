@@ -359,6 +359,149 @@ export default function HomePage() {
         </Box>
       </Container>
 
+      {/* Demo Section */}
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        {/* UUID System Demo */}
+        <Card sx={{ 
+          background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+          color: 'white',
+          textAlign: 'center',
+          p: 4,
+          mb: 3
+        }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, mb: 2 }}>
+            🔐 ระบบ UUID ใหม่
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 3, opacity: 0.9 }}>
+            ทดสอบระบบป้องกันการแอบเข้าถึงร้านอื่นด้วย UUID
+          </Typography>
+          <Button
+            variant="contained"
+            onClick={() => router.push('/demo-uuid')}
+            sx={{
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              color: 'white',
+              fontWeight: 600,
+              px: 4,
+              py: 1.5,
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.3)',
+              },
+            }}
+          >
+            ดู UUID Demo
+          </Button>
+        </Card>
+
+        {/* New URL Structure Demo */}
+        <Card sx={{ 
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+          p: 4
+        }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, mb: 2, textAlign: 'center' }}>
+            🏗️ โครงสร้าง URL ใหม่แยกตาม Role
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 4, opacity: 0.9, textAlign: 'center' }}>
+            แยกชัดเจนระหว่าง Customer, Restaurant Owner, Rider และ Admin
+          </Typography>
+          
+          <Box sx={{ 
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
+            gap: 3
+          }}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Button 
+                variant="contained" 
+                fullWidth
+                onClick={() => router.push('/menu/550e8400-e29b-41d4-a716-446655440001')}
+                sx={{ 
+                  bgcolor: '#10b981', 
+                  '&:hover': { bgcolor: '#059669' }, 
+                  mb: 1,
+                  py: 1.5,
+                  fontWeight: 600
+                }}
+              >
+                🍽️ ลูกค้า - เมนู
+              </Button>
+              <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>
+                /menu/{'{uuid}'}
+              </Typography>
+            </Box>
+
+            <Box sx={{ textAlign: 'center' }}>
+              <Button 
+                variant="contained" 
+                fullWidth
+                onClick={() => router.push('/restaurant/550e8400-e29b-41d4-a716-446655440001')}
+                sx={{ 
+                  bgcolor: '#3b82f6', 
+                  '&:hover': { bgcolor: '#2563eb' }, 
+                  mb: 1,
+                  py: 1.5,
+                  fontWeight: 600
+                }}
+              >
+                🏪 เจ้าของร้าน
+              </Button>
+              <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>
+                /restaurant/{'{uuid}'}
+              </Typography>
+            </Box>
+
+            <Box sx={{ textAlign: 'center' }}>
+              <Button 
+                variant="contained" 
+                fullWidth
+                onClick={() => router.push('/rider')}
+                sx={{ 
+                  bgcolor: '#f59e0b', 
+                  '&:hover': { bgcolor: '#d97706' }, 
+                  mb: 1,
+                  py: 1.5,
+                  fontWeight: 600
+                }}
+              >
+                🚴 ไรเดอร์
+              </Button>
+              <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>
+                /rider
+              </Typography>
+            </Box>
+
+            <Box sx={{ textAlign: 'center' }}>
+              <Button 
+                variant="contained" 
+                fullWidth
+                onClick={() => router.push('/admin')}
+                sx={{ 
+                  bgcolor: '#6366f1', 
+                  '&:hover': { bgcolor: '#4f46e5' }, 
+                  mb: 1,
+                  py: 1.5,
+                  fontWeight: 600
+                }}
+              >
+                👑 Admin
+              </Button>
+              <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>
+                /admin
+              </Typography>
+            </Box>
+          </Box>
+
+          <Box sx={{ mt: 4, p: 2, bgcolor: 'rgba(255,255,255,0.1)', borderRadius: 2 }}>
+            <Typography variant="body2" sx={{ opacity: 0.9, textAlign: 'center' }}>
+              💡 <strong>ข้อดี:</strong> URL ชัดเจน, แยก Permission ได้ดี, ปลอดภัยขึ้น, Scalable
+            </Typography>
+          </Box>
+        </Card>
+      </Container>
+
       {/* Footer */}
       <Box sx={{ bgcolor: 'background.paper', py: 4, mt: 6 }}>
         <Container maxWidth="lg">

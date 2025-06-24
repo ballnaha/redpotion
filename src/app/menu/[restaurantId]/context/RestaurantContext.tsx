@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 
 interface Restaurant {
   id: string;
@@ -40,19 +41,40 @@ interface MenuItem {
   tags?: string[];
 }
 
+interface CartItem {
+  itemId: string;
+  name: string;
+  price: number;
+  quantity: number;
+  restaurantId: string;
+}
+
 interface RestaurantContextType {
   restaurant: Restaurant | null;
   loading: boolean;
   error: string | null;
-  updateMenuItem: (itemId: string, updates: Partial<MenuItem>) => void;
+  cart: CartItem[];
+  cartTotal: number;
+  userRole: 'customer' | 'restaurant_owner' | 'rider' | 'admin';
+  addToCart: (item: MenuItem, quantity?: number) => void;
+  removeFromCart: (itemId: string) => void;
+  updateCartItemQuantity: (itemId: string, quantity: number) => void;
+  clearCart: () => void;
 }
 
 const RestaurantContext = createContext<RestaurantContextType | undefined>(undefined);
 
-// Mock data สำหรับร้านอาหารต่างๆ
+// ฟังก์ชันตรวจสอบ UUID format
+const isValidUUID = (str: string): boolean => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+};
+
+// Mock data สำหรับร้านอาหารต่างๆ ใช้ UUID
 const mockRestaurants: Record<string, Restaurant> = {
-  restaurant1: {
-    id: 'restaurant1',
+  // ร้านข้าวแกงใต้แท้
+  '550e8400-e29b-41d4-a716-446655440001': {
+    id: '550e8400-e29b-41d4-a716-446655440001',
     name: 'ข้าวแกงใต้แท้',
     description: 'อาหารใต้แท้รสจัดจ้าน ครบครันทุกเมนู',
     logo: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=200&h=200&fit=crop',
@@ -100,8 +122,9 @@ const mockRestaurants: Record<string, Restaurant> = {
       }
     ]
   },
-  restaurant2: {
-    id: 'restaurant2',
+  // ร้านซูชิ โตเกียว
+  '550e8400-e29b-41d4-a716-446655440002': {
+    id: '550e8400-e29b-41d4-a716-446655440002',
     name: 'ซูชิ โตเกียว',
     description: 'ซูชิสไตล์ญี่ปุ่นแท้ วัตถุดิบนำเข้าจากญี่ปุ่น',
     logo: 'https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?w=200&h=200&fit=crop',
@@ -149,8 +172,9 @@ const mockRestaurants: Record<string, Restaurant> = {
       }
     ]
   },
-  restaurant3: {
-    id: 'restaurant3',
+  // ร้านเจ๊หนู ส้มตำ
+  '550e8400-e29b-41d4-a716-446655440003': {
+    id: '550e8400-e29b-41d4-a716-446655440003',
     name: 'เจ๊หนู ส้มตำ',
     description: 'ส้มตำอีสาน รสชาติต้นตำรับ เผ็ดจี๊ดจ๊าด',
     logo: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=200&h=200&fit=crop',
@@ -200,22 +224,77 @@ const mockRestaurants: Record<string, Restaurant> = {
   }
 };
 
+// Mapping เก่าไปใหม่สำหรับ backward compatibility
+const legacyMapping: Record<string, string> = {
+  'restaurant1': '550e8400-e29b-41d4-a716-446655440001',
+  'restaurant2': '550e8400-e29b-41d4-a716-446655440002',
+  'restaurant3': '550e8400-e29b-41d4-a716-446655440003',
+  'r1': '550e8400-e29b-41d4-a716-446655440001',
+  'r2': '550e8400-e29b-41d4-a716-446655440002',
+  'r3': '550e8400-e29b-41d4-a716-446655440003'
+};
+
+// ฟังก์ชันจัดการ localStorage แยกตามร้าน
+const getCartStorageKey = (restaurantId: string, userRole: string) => 
+  `redpotion_cart_${userRole}_${restaurantId}`;
+
+const saveCartToStorage = (restaurantId: string, cart: CartItem[], userRole: string) => {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(getCartStorageKey(restaurantId, userRole), JSON.stringify(cart));
+    } catch (error) {
+      console.warn('ไม่สามารถบันทึกตะกร้าได้:', error);
+    }
+  }
+};
+
+const loadCartFromStorage = (restaurantId: string, userRole: string): CartItem[] => {
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem(getCartStorageKey(restaurantId, userRole));
+      return saved ? JSON.parse(saved) : [];
+    } catch (error) {
+      console.warn('ไม่สามารถโหลดตะกร้าได้:', error);
+      return [];
+    }
+  }
+  return [];
+};
+
 export function RestaurantProvider({ 
   children, 
-  restaurantId 
+  restaurantId,
+  userRole = 'customer'
 }: { 
   children: ReactNode; 
   restaurantId: string;
+  userRole?: 'customer' | 'restaurant_owner' | 'rider' | 'admin';
 }) {
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [mounted, setMounted] = useState(false);
 
   // Handle hydration
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // โหลดตะกร้าจาก localStorage เมื่อเปลี่ยนร้าน
+  useEffect(() => {
+    if (!mounted || !restaurant) return;
+    
+    const savedCart = loadCartFromStorage(restaurant.id, userRole);
+    setCart(savedCart);
+  }, [restaurant?.id, mounted, userRole]);
+
+  // บันทึกตะกร้าลง localStorage เมื่อมีการเปลี่ยนแปลง
+  useEffect(() => {
+    if (!mounted || !restaurant) return;
+    
+    saveCartToStorage(restaurant.id, cart, userRole);
+  }, [cart, restaurant?.id, mounted, userRole]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -225,18 +304,31 @@ export function RestaurantProvider({
         setLoading(true);
         setError(null);
         
-        // Simulate API call - only on client side
+        // Simulate API call
         await new Promise(resolve => setTimeout(resolve, 500));
         
-        const restaurantData = mockRestaurants[restaurantId];
+        let resolvedRestaurantId = restaurantId;
+
+        // ตรวจสอบ UUID format
+        if (!isValidUUID(restaurantId)) {
+          if (legacyMapping[restaurantId]) {
+            console.warn(`⚠️ ใช้ legacy restaurant ID: ${restaurantId}. กรุณาเปลี่ยนเป็น UUID: ${legacyMapping[restaurantId]}`);
+            resolvedRestaurantId = legacyMapping[restaurantId];
+          } else {
+            throw new Error(`รูปแบบ Restaurant ID ไม่ถูกต้อง: ${restaurantId}. กรุณาใช้ UUID format`);
+          }
+        }
+        
+        const restaurantData = mockRestaurants[resolvedRestaurantId];
         
         if (!restaurantData) {
-          throw new Error(`ไม่พบร้านอาหาร: ${restaurantId}`);
+          throw new Error(`ไม่พบร้านอาหาร: ${resolvedRestaurantId}`);
         }
         
         setRestaurant(restaurantData);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
+        console.error('🚨 RestaurantProvider Error:', err);
       } finally {
         setLoading(false);
       }
@@ -245,22 +337,59 @@ export function RestaurantProvider({
     loadRestaurant();
   }, [restaurantId, mounted]);
 
-  const updateMenuItem = (itemId: string, updates: Partial<MenuItem>) => {
+  // คำนวณยอดรวมตะกร้า
+  const cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+
+  // เพิ่มสินค้าในตะกร้า
+  const addToCart = (item: MenuItem, quantity: number = 1) => {
     if (!restaurant) return;
-    
-    setRestaurant(prev => {
-      if (!prev) return null;
+
+    setCart(prevCart => {
+      const existingItemIndex = prevCart.findIndex(cartItem => cartItem.itemId === item.id);
       
-      return {
-        ...prev,
-        menu: prev.menu.map(category => ({
-          ...category,
-          items: category.items.map(item => 
-            item.id === itemId ? { ...item, ...updates } : item
-          )
-        }))
-      };
+      if (existingItemIndex >= 0) {
+        // สินค้ามีอยู่แล้ว ให้เพิ่มจำนวน
+        const updatedCart = [...prevCart];
+        updatedCart[existingItemIndex].quantity += quantity;
+        return updatedCart;
+      } else {
+        // สินค้าใหม่
+        const newCartItem: CartItem = {
+          itemId: item.id,
+          name: item.name,
+          price: item.price,
+          quantity,
+          restaurantId: restaurant.id
+        };
+        return [...prevCart, newCartItem];
+      }
     });
+  };
+
+  // ลบสินค้าจากตะกร้า
+  const removeFromCart = (itemId: string) => {
+    setCart(prevCart => prevCart.filter(item => item.itemId !== itemId));
+  };
+
+  // อัปเดตจำนวนสินค้าในตะกร้า
+  const updateCartItemQuantity = (itemId: string, quantity: number) => {
+    if (quantity <= 0) {
+      removeFromCart(itemId);
+      return;
+    }
+
+    setCart(prevCart => 
+      prevCart.map(item => 
+        item.itemId === itemId 
+          ? { ...item, quantity }
+          : item
+      )
+    );
+  };
+
+  // ล้างตะกร้า
+  const clearCart = () => {
+    setCart([]);
   };
 
   return (
@@ -268,7 +397,13 @@ export function RestaurantProvider({
       restaurant,
       loading,
       error,
-      updateMenuItem
+      cart,
+      cartTotal,
+      userRole,
+      addToCart,
+      removeFromCart,
+      updateCartItemQuantity,
+      clearCart
     }}>
       {children}
     </RestaurantContext.Provider>
@@ -281,4 +416,20 @@ export function useRestaurant() {
     throw new Error('useRestaurant must be used within a RestaurantProvider');
   }
   return context;
-} 
+}
+
+// Helper functions
+export const generateRestaurantId = (): string => {
+  return uuidv4();
+};
+
+export const validateRestaurantAccess = (restaurantId: string, userRole?: string): boolean => {
+  if (!isValidUUID(restaurantId) && !legacyMapping[restaurantId]) {
+    return false;
+  }
+  return true;
+};
+
+export const getAvailableRestaurants = (): Restaurant[] => {
+  return Object.values(mockRestaurants);
+}; 

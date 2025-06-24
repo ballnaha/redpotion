@@ -31,27 +31,47 @@ const nextConfig: NextConfig = {
   },
   async rewrites() {
     return [
-      // Local development subdomain simulation
+      // Local development subdomain simulation (รองรับทั้ง legacy และ shortcode)
       {
         source: '/:path*',
         has: [
           {
             type: 'host',
-            value: 'restaurant(?<id>\\w+)\\.localhost:3000',
+            value: 'restaurant(?<id>\\d+)\\.localhost:3000',
           },
         ],
         destination: '/restaurant-site/restaurant:id/:path*',
       },
-      // Production environment  
       {
         source: '/:path*',
         has: [
           {
             type: 'host',
-            value: 'restaurant(?<id>\\w+)\\.theredpotion\\.com',
+            value: 'r(?<id>\\d+)\\.localhost:3000',
+          },
+        ],
+        destination: '/restaurant-site/r:id/:path*',
+      },
+      // Production environment (รองรับทั้ง legacy และ shortcode)
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'host',
+            value: 'restaurant(?<id>\\d+)\\.theredpotion\\.com',
           },
         ],
         destination: '/restaurant-site/restaurant:id/:path*',
+      },
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'host',
+            value: 'r(?<id>\\d+)\\.theredpotion\\.com',
+          },
+        ],
+        destination: '/restaurant-site/r:id/:path*',
       },
     ];
   },
