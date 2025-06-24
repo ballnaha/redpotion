@@ -10,12 +10,13 @@ import { Box, Typography, Card, CardContent, CardMedia, Button, Chip,
 import { ShoppingCart, Add, Remove, Delete, Favorite, FavoriteBorder,
          Search, NotificationsNone, Restaurant, LocalPizza, RamenDining, 
          LocalBar, Category, Star, Home, Person, Receipt } from '@mui/icons-material';
-// Swiper imports (เฉพาะ Banner)
+// Swiper imports for smooth banner carousel
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Navigation, Pagination, Autoplay } from 'swiper/modules';
+import { Navigation, Pagination, Autoplay, EffectFade } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
+import 'swiper/css/effect-fade';
 
 interface Banner {
   id: string;
@@ -68,6 +69,14 @@ export default function CustomerMenuPage() {
   const [isMenuLoading, setIsMenuLoading] = useState<boolean>(false);
   const [loadingProgress, setLoadingProgress] = useState<number>(0);
   const [bannersReady, setBannersReady] = useState(false); // Block Swiper until ready
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0); // Current banner index
+  const [swiperInstance, setSwiperInstance] = useState<any>(null); // Swiper instance
+
+  // Swiper event handlers
+  const handleSlideChange = (swiper: any) => {
+    setCurrentBannerIndex(swiper.activeIndex);
+    console.log('📱 Banner changed to:', swiper.activeIndex);
+  };
 
   // Handle hydration
   useEffect(() => {
@@ -547,6 +556,28 @@ export default function CustomerMenuPage() {
       }
     }
   }, [activeTab, mounted, menuCategories, swiperRef]);
+
+  // Auto-slide banner every 5 seconds
+  useEffect(() => {
+    if (!bannersReady || getBanners().length <= 1 || !swiperInstance) return;
+
+    const interval = setInterval(() => {
+      if (swiperInstance && swiperInstance.slideNext) {
+        swiperInstance.slideNext();
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [bannersReady, swiperInstance]);
+
+  // Initialize banners when images are ready
+  useEffect(() => {
+    const banners = getBanners();
+    if (banners.length > 0 && preloadedImages.size >= Math.min(banners.length, 2)) {
+      setBannersReady(true);
+      console.log('🎯 Banners ready for Swiper');
+    }
+  }, [preloadedImages]);
 
   // สร้าง banners สำหรับ carousel
   const getBanners = (): Banner[] => {
@@ -1070,318 +1101,165 @@ export default function CustomerMenuPage() {
               /* Silent Loading - No UI shown */
               <Box sx={{ minHeight: '160px' }} />
             ) : (
-              <Swiper
-                modules={[Navigation, Pagination, Autoplay]}
-                spaceBetween={0}
-                slidesPerView={1}
-                navigation={false}
-                pagination={{ 
-                  clickable: true,
-                  bulletActiveClass: 'swiper-pagination-bullet-active',
-                  bulletClass: 'swiper-pagination-bullet'
-                }}
-                autoplay={{
-                  delay: 4000,
-                  disableOnInteraction: false,
-                  pauseOnMouseEnter: true,
-                  waitForTransition: true
-                }}
-                speed={600}
-                loop={true}
-                allowTouchMove={true}
-                grabCursor={true}
-                centeredSlides={false}
-                simulateTouch={true}
-                touchRatio={1}
-                resistance={true}
-                resistanceRatio={0.85}
-                style={{
-                  borderRadius: '12px',
-                  overflow: 'hidden',
-                  width: '100%'
-                }}
-              >
-              {getBanners().map((banner) => (
-                <SwiperSlide key={banner.id}>
-                  <Card 
-                    data-banner-id={banner.id}
-                    sx={{ 
-                      position: 'relative',
-                      borderRadius: '12px',
-                      overflow: 'hidden',
-                      minHeight: '160px',
-                      background: 'rgba(255, 255, 255, 0.95)',
-                      border: '1px solid rgba(16, 185, 129, 0.1)',
-                      boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
-                      cursor: 'pointer',
-                      transform: 'translateZ(0)', // Hardware acceleration
-                      backfaceVisibility: 'hidden',
-                      willChange: 'auto'
-                    }}
-                  >
-                    {/* Clean Background with Minimal Image */}
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        top: 0,
-                        right: 0,
-                        width: '40%',
-                        height: '100%',
-                        overflow: 'hidden',
-                        '&::after': {
-                          content: '""',
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          height: '100%',
-                          background: 'linear-gradient(90deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)',
-                          zIndex: 1
-                        }
-                      }}
-                    >
-                      {/* Skeleton Loading */}
-                      {imageLoadingStates[banner.id] && (
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '100%',
-                            height: '100%',
-                            background: 'linear-gradient(90deg, rgba(240,240,240,0.8) 25%, rgba(224,224,224,0.8) 50%, rgba(240,240,240,0.8) 75%)',
-                            backgroundSize: '200% 100%',
-                            animation: 'bannerShimmer 1.5s infinite ease-in-out',
-                            borderRadius: '12px'
-                          }}
-                        />
-                      )}
-                      
-                      {/* Fallback when image fails to load */}
-                      {imageErrors.has(banner.image) && !imageLoadingStates[banner.id] && (
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '100%',
-                            height: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)',
-                            cursor: 'pointer',
-                            transition: 'opacity 0.3s ease'
-                          }}
-                          onClick={() => retryImageLoad(banner)}
-                        >
-                          <Box sx={{ textAlign: 'center', color: '#6B7280' }}>
-                            <Typography sx={{ fontSize: '2rem', mb: 1 }}>🖼️</Typography>
-                            <Typography sx={{ fontSize: '0.75rem', mb: 1 }}>ภาพไม่สามารถโหลดได้</Typography>
-                            <Typography sx={{ fontSize: '0.625rem', textDecoration: 'underline' }}>แตะเพื่อลองใหม่</Typography>
-                          </Box>
-                        </Box>
-                      )}
-
-                      {/* Placeholder for instant appearance */}
-                      {!imageLoadingStates[banner.id] && !preloadedImages.has(banner.image) && !imageErrors.has(banner.image) && (
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '100%',
-                            height: '100%',
-                            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(5, 150, 105, 0.02) 100%)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        >
-                          <Box sx={{ 
-                            width: 40, 
-                            height: 40, 
-                            borderRadius: '50%', 
-                            background: 'rgba(16, 185, 129, 0.1)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}>
-                            <Typography sx={{ fontSize: '1.5rem' }}>🖼️</Typography>
-                          </Box>
-                        </Box>
-                      )}
-
-                      {/* Main Image with smooth reveal */}
-                      {(preloadedImages.has(banner.image) || imageCache.has(banner.image)) && (
-                        <Box
-                          component="img"
-                          src={banner.image}
-                          alt={banner.title}
-                          loading="eager"
-                          sx={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            opacity: 0.1,
-                            transition: 'opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-                            transform: 'translateZ(0)',
-                            backfaceVisibility: 'hidden',
-                            willChange: 'auto',
-                            animation: 'smoothFadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards'
-                          }}
-                          onLoad={() => handleImageLoad(banner.id, banner.image)}
-                          onError={() => handleImageError(banner.id, banner.image)}
-                        />
-                      )}
-                    </Box>
-                    
-                    {/* Clean Content */}
-                    <Box 
-                      sx={{ 
-                        position: 'relative',
-                        zIndex: 2,
-                        p: { xs: 2.5, sm: 3 },
-                        height: '160px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      <Typography 
-                        sx={{ 
-                          fontSize: { xs: '1.25rem', sm: '1.5rem' },
-                          fontWeight: 700,
-                          mb: 0.5,
-                          color: '#111827',
-                          lineHeight: 1.3
-                        }}
-                      >
-                        {banner.title}
-                      </Typography>
-                      <Typography 
-                        sx={{ 
-                          fontSize: { xs: '0.875rem', sm: '1rem' },
-                          fontWeight: 500,
-                          mb: 1,
-                          color: '#10B981'
-                        }}
-                      >
-                        {banner.subtitle}
-                      </Typography>
-                      <Typography 
-                        sx={{ 
-                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                          fontWeight: 400,
-                          mb: 2,
-                          color: '#6B7280',
-                          lineHeight: 1.4
-                        }}
-                      >
-                        {banner.description}
-                      </Typography>
-                      
-                      <Button
-                        variant="contained"
-                        size="small"
+              /* Swiper Banner Carousel */
+              <Box sx={{ position: 'relative' }}>
+                <Swiper
+                  modules={[Navigation, Pagination, Autoplay, EffectFade]}
+                  spaceBetween={0}
+                  slidesPerView={1}
+                  loop={getBanners().length > 1}
+                  autoplay={{
+                    delay: 5000,
+                    disableOnInteraction: false,
+                    pauseOnMouseEnter: true
+                  }}
+                  speed={1000}
+                  effect="slide"
+                  pagination={{
+                    clickable: true,
+                    bulletClass: 'swiper-pagination-bullet-custom',
+                    bulletActiveClass: 'swiper-pagination-bullet-active-custom'
+                  }}
+                  onSlideChange={handleSlideChange}
+                  onSwiper={setSwiperInstance}
+                  style={{
+                    borderRadius: '4px',
+                    overflow: 'hidden'
+                  }}
+                >
+                  {getBanners().map((banner, index) => (
+                    <SwiperSlide key={banner.id}>
+                      <Box
                         sx={{
-                          alignSelf: 'flex-start',
-                          px: 2.5,
-                          py: 0.75,
-                          borderRadius: '8px',
-                          background: '#10B981',
-                          color: 'white',
-                          fontWeight: 500,
-                          fontSize: '0.8rem',
-                          textTransform: 'none',
-                          boxShadow: 'none',
-                          '&:hover': {
-                            background: '#059669',
-                            boxShadow: 'none',
-                            transform: 'none'
-                          }
+                          position: 'relative',
+                          width: '100%',
+                          
+                          backgroundColor: '#FFFFFF',
+                          border: '1px solid #F3F4F6',
+                          borderRadius: 1,
+                          overflow: 'hidden',
+                          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
                         }}
                       >
-                        {banner.buttonText}
-                      </Button>
-                    </Box>
-                  </Card>
-                </SwiperSlide>
-              ))}
-            </Swiper>
+                        {/* Background Image with Smooth Loading */}
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            top: 0,
+                            right: 0,
+                            width: '40%',
+                            height: '100%',
+                            overflow: 'hidden',
+                            '&::after': {
+                              content: '""',
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              height: '100%',
+                              background: 'linear-gradient(90deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)',
+                              zIndex: 1
+                            }
+                          }}
+                        >
+                          <Box
+                            component="img"
+                            src={banner.image}
+                            alt={banner.title}
+                            sx={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                              opacity: preloadedImages.has(banner.image) ? 0.15 : 0,
+                              transition: 'opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                              filter: 'brightness(1.1) contrast(1.05)'
+                            }}
+                            onLoad={() => handleImageLoad(banner.id, banner.image)}
+                            onError={() => handleImageError(banner.id, banner.image)}
+                          />
+                        </Box>
+                        
+                        {/* Content */}
+                        <Box 
+                          sx={{ 
+                            position: 'relative',
+                            zIndex: 2,
+                            p: { xs: 2.5, sm: 3 },
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          <Typography 
+                            sx={{ 
+                              fontSize: { xs: '1.25rem', sm: '1.5rem' },
+                              fontWeight: 700,
+                              mb: 0.5,
+                              color: '#111827',
+                              lineHeight: 1.3
+                            }}
+                          >
+                            {banner.title}
+                          </Typography>
+                          <Typography 
+                            sx={{ 
+                              fontSize: { xs: '0.875rem', sm: '1rem' },
+                              fontWeight: 500,
+                              mb: 1,
+                              color: '#10B981'
+                            }}
+                          >
+                            {banner.subtitle}
+                          </Typography>
+                          <Typography 
+                            sx={{ 
+                              fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                              fontWeight: 400,
+                              mb: 2,
+                              color: '#6B7280',
+                              lineHeight: 1.4
+                            }}
+                          >
+                            {banner.description}
+                          </Typography>
+                          
+                          <Button
+                            variant="contained"
+                            size="small"
+                            sx={{
+                              alignSelf: 'flex-start',
+                              px: 2.5,
+                              py: 0.75,
+                              borderRadius: '8px',
+                              background: '#10B981',
+                              color: 'white',
+                              fontWeight: 500,
+                              fontSize: '0.8rem',
+                              textTransform: 'none',
+                              boxShadow: 'none',
+                              '&:hover': {
+                                background: '#059669',
+                                boxShadow: 'none'
+                              }
+                            }}
+                          >
+                            {banner.buttonText}
+                          </Button>
+                        </Box>
+                      </Box>
+                    </SwiperSlide>
+                  ))}
+                </Swiper>
+              </Box>
             )}
+ 
           </Box>
         </Box>
 
         {/* Menu Category Tabs */}
         <Box sx={{ mb: 4 }}>
-          {/* Performance Monitor */}
-          <Box sx={{ 
-            mb: 1, 
-            px: 2, 
-            fontSize: '0.7rem', 
-            color: '#9CA3AF',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {bannersReady && (
-                <>
-                  <Box 
-                    sx={{ 
-                      width: 6, 
-                      height: 6, 
-                      borderRadius: '50%', 
-                      bgcolor: '#10B981'
-                    }} 
-                  />
-                  {menuCategories.length > 3 && '← เลื่อนซ้าย-ขวาเพื่อดูเพิ่มเติม →'}
-                </>
-              )}
-            </Box>
-            
-            <Box sx={{ display: 'flex', gap: 2, fontSize: '0.6rem' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Box sx={{ 
-                  width: 4, 
-                  height: 4, 
-                  borderRadius: '50%', 
-                  bgcolor: '#10B981' 
-                }} />
-                <span>โหลดแล้ว: {preloadedImages.size}</span>
-              </Box>
-              
-              {Object.values(imageLoadingStates).some(loading => loading) && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <Box sx={{ 
-                    width: 4, 
-                    height: 4, 
-                    borderRadius: '50%', 
-                    bgcolor: '#F59E0B',
-                    animation: 'pulse 1s infinite'
-                  }} />
-                  <span>กำลังโหลด...</span>
-                </Box>
-              )}
-              
-              {imageErrors.size > 0 && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <Box sx={{ 
-                    width: 4, 
-                    height: 4, 
-                    borderRadius: '50%', 
-                    bgcolor: '#EF4444' 
-                  }} />
-                  <span>ข้อผิดพลาด: {imageErrors.size}</span>
-                </Box>
-              )}
-            </Box>
-          </Box>
-
+ 
           {/* Tab Navigation - Native Scroll */}
                      <Box 
              className="category-scroll"
