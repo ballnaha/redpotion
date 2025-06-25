@@ -122,166 +122,43 @@ export default function HomePage() {
         justifyContent: 'center', 
         alignItems: 'center', 
         height: '100vh',
-        background: 'linear-gradient(135deg, rgba(251, 113, 133, 0.1) 0%, rgba(253, 164, 175, 0.1) 100%)',
-        backdropFilter: 'blur(20px)'
+        background: 'linear-gradient(135deg, rgba(251, 113, 133, 0.05) 0%, rgba(253, 164, 175, 0.05) 100%)',
+        backdropFilter: 'blur(10px)'
       }}>
-        {/* Mobile Phone with Finger Tap Animation */}
+        {/* Logo Animation */}
         <Box sx={{ 
           position: 'relative',
           mb: 4,
           animation: 'float 3s ease-in-out infinite'
         }}>
-          {/* Mobile Phone */}
-          <Box sx={{
-            width: 200,
-            height: 360,
-            background: 'linear-gradient(145deg, #ffffff, #f0f0f0)',
-            borderRadius: 6,
-            border: '8px solid #2c3e50',
-            position: 'relative',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: 15,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              width: 60,
-              height: 4,
-              background: '#bdc3c7',
-              borderRadius: 2
-            },
-            '&::after': {
-              content: '""',
-              position: 'absolute',
-              bottom: 15,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              width: 40,
-              height: 40,
-              background: '#ecf0f1',
-              borderRadius: '50%',
-              border: '2px solid #bdc3c7'
-            }
-          }}>
-            {/* Screen */}
-            <Box sx={{
-              position: 'absolute',
-              top: 40,
-              left: 15,
-              right: 15,
-              bottom: 70,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              borderRadius: 3,
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white'
-            }}>
-              {/* App UI */}
-              <Box sx={{ textAlign: 'center', p: 2 }}>
-                <Box sx={{ 
-                  fontSize: '2rem', 
-                  mb: 1,
-                  animation: 'bounce 2s ease-in-out infinite'
-                }}>🍕</Box>
-                <Typography variant="body2" sx={{ fontSize: '0.7rem', mb: 1, fontWeight: 500 }}>
-                  เดอะ เรด โพชั่น
-                </Typography>
-                <Box sx={{
-                  width: 120,
-                  height: 8,
-                  background: 'rgba(255, 255, 255, 0.3)',
-                  borderRadius: 4,
-                  mb: 1
-                }} />
-                <Box sx={{
-                  width: 100,
-                  height: 6,
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  borderRadius: 3,
-                  mb: 2
-                }} />
-                
-                {/* Order Button */}
-                <Box sx={{
-                  width: 100,
-                  height: 30,
-                  background: 'linear-gradient(135deg, #F87171, #FDA4AF)',
-                  borderRadius: 15,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  animation: 'pulse 2s ease-in-out infinite',
-                  transform: 'scale(var(--scale, 1))',
-                  transition: 'transform 0.1s ease'
-                }}>
-                  <Typography variant="caption" sx={{ fontSize: '0.6rem', fontWeight: 600 }}>
-                    สั่งเลย!
-                  </Typography>
-                </Box>
-              </Box>
-            </Box>
-          </Box>
-
-          {/* Finger Tap Animation */}
+          <img 
+            src="/images/logo_trim.png" 
+            alt="เดอะ เรด โพชั่น" 
+            style={{ 
+              width: '80px', 
+              height: 'auto',
+              filter: 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1))'
+            }} 
+          />
+          
+          {/* Loading Ring */}
           <Box sx={{
             position: 'absolute',
-            bottom: 50,
-            right: -30,
-            animation: 'fingerTap 2s ease-in-out infinite'
-          }}>
-            {/* Hand/Finger */}
-            <Box sx={{
-              fontSize: '2.5rem',
-              transform: 'rotate(-15deg)',
-              filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2))'
-            }}>
-              👆
-            </Box>
-            
-            {/* Tap Ripple Effect */}
-            <Box sx={{
-              position: 'absolute',
-              bottom: -10,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              width: 20,
-              height: 20,
-              borderRadius: '50%',
-              background: 'rgba(248, 113, 113, 0.3)',
-              animation: 'ripple 2s ease-in-out infinite'
-            }} />
-          </Box>
-
-          {/* Floating Food Icons */}
-          <Box sx={{
-            position: 'absolute',
-            top: -20,
-            left: -40,
-            fontSize: '1.5rem',
-            animation: 'floatLeft 4s ease-in-out infinite'
-          }}>🍔</Box>
-          <Box sx={{
-            position: 'absolute',
-            top: -30,
-            right: -40,
-            fontSize: '1.2rem',
-            animation: 'floatRight 3s ease-in-out infinite'
-          }}>🍜</Box>
-          <Box sx={{
-            position: 'absolute',
-            bottom: -40,
-            left: -30,
-            fontSize: '1.3rem',
-            animation: 'floatLeft 3.5s ease-in-out infinite'
-          }}>🍱</Box>
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 100,
+            height: 100,
+            border: '2px solid rgba(248, 113, 113, 0.1)',
+            borderTop: '2px solid #F87171',
+            borderRadius: '50%',
+            animation: 'spin 1.5s linear infinite'
+          }} />
         </Box>
 
+        {/* Text */}
         <Typography sx={{ 
-          color: '#F87171', 
+          color: '#0F172A', 
           fontWeight: 500, 
           fontSize: '1rem',
           mb: 1,
@@ -291,67 +168,60 @@ export default function HomePage() {
         </Typography>
         
         <Typography sx={{ 
-          color: '#94A3B8', 
-          fontWeight: 300, 
-          fontSize: '0.75rem'
+          color: '#6B7280', 
+          fontWeight: 400, 
+          fontSize: '0.875rem'
         }}>
           โปรดรอสักครู่
         </Typography>
+
+        {/* Minimal Loading Dots */}
+        <Box sx={{ 
+          display: 'flex', 
+          gap: 1, 
+          mt: 3 
+        }}>
+          {[0, 1, 2].map((index) => (
+            <Box
+              key={index}
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: '#F87171',
+                animation: `pulse 1.5s ease-in-out infinite`,
+                animationDelay: `${index * 0.3}s`
+              }}
+            />
+          ))}
+        </Box>
 
         {/* CSS Animations */}
         <style jsx>{`
           @keyframes float {
             0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
+            50% { transform: translateY(-8px); }
           }
           
-          @keyframes fingerTap {
-            0%, 100% { 
-              transform: translateY(0px) scale(1); 
-              opacity: 1;
-            }
-            50% { 
-              transform: translateY(-15px) scale(0.9); 
-              opacity: 0.8;
-            }
-          }
-          
-          @keyframes ripple {
-            0% { 
-              transform: translateX(-50%) scale(0);
-              opacity: 1;
-            }
-            100% { 
-              transform: translateX(-50%) scale(4);
-              opacity: 0;
-            }
-          }
-          
-          @keyframes bounce {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-5px); }
+          @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
           }
           
           @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+            0%, 100% { 
+              opacity: 0.4;
+              transform: scale(1);
+            }
+            50% { 
+              opacity: 1;
+              transform: scale(1.2);
+            }
           }
           
           @keyframes fadeInOut {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
-          }
-          
-          @keyframes floatLeft {
-            0%, 100% { transform: translateX(0px) translateY(0px); }
-            33% { transform: translateX(-10px) translateY(-10px); }
-            66% { transform: translateX(5px) translateY(-5px); }
-          }
-          
-          @keyframes floatRight {
-            0%, 100% { transform: translateX(0px) translateY(0px); }
-            33% { transform: translateX(10px) translateY(-8px); }
-            66% { transform: translateX(-5px) translateY(-12px); }
+            50% { opacity: 0.7; }
           }
         `}</style>
       </Box>
@@ -566,7 +436,7 @@ export default function HomePage() {
                       fontWeight: 200,
                       mb: { xs: 2, sm: 2.5, md: 3 },
                       fontSize: { xs: '1.75rem', sm: '2.25rem', md: '3rem', lg: '4rem', xl: '5rem' },
-                      color: '#1E293B',
+                      color: '#0F172A',
                       lineHeight: 1.1,
                       letterSpacing: '-0.04em'
                     }}
@@ -575,7 +445,7 @@ export default function HomePage() {
                     <br />
                     <span style={{ 
                       fontWeight: 500, 
-                      background: 'linear-gradient(135deg, #ff3131, #a11717)',
+                      background: 'linear-gradient(135deg, #DC2626, #7F1D1D)',
                       backgroundClip: 'text', 
                       WebkitBackgroundClip: 'text', 
                       WebkitTextFillColor: 'transparent'
@@ -589,8 +459,8 @@ export default function HomePage() {
                     className={prompt.className}
                     sx={{ 
                       mb: { xs: 3, sm: 4, md: 6 },
-                      color: '#64748B',
-                      fontWeight: 300,
+                      color: '#374151',
+                      fontWeight: 400,
                       fontSize: { xs: '0.9rem', sm: '1rem', md: '1.125rem', lg: '1.25rem' },
                       lineHeight: 1.6,
                       maxWidth: { xs: '100%', sm: 500, md: 600 },
@@ -825,7 +695,7 @@ export default function HomePage() {
                       variant="h3" 
                       sx={{ 
                         fontWeight: 600, 
-                        color: '#1E293B',
+                        color: '#0F172A',
                         mb: 0.5,
                         fontSize: { xs: '1.25rem', sm: '1.4rem', md: '1.75rem', lg: '2rem' }
                       }}
@@ -835,8 +705,8 @@ export default function HomePage() {
                     <Typography 
                       variant="body2" 
                       sx={{ 
-                        color: '#64748B',
-                        fontWeight: 400,
+                        color: '#374151',
+                        fontWeight: 500,
                         fontSize: { xs: '0.65rem', sm: '0.7rem', md: '0.75rem' }
                       }}
                     >
@@ -863,9 +733,9 @@ export default function HomePage() {
             <Typography 
               variant="h2" 
               sx={{ 
-                fontWeight: 300,
+                fontWeight: 400,
                 mb: { xs: 2, sm: 2.5, md: 3 },
-                color: '#1E293B',
+                color: '#0F172A',
                 fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem', lg: '2.5rem' },
                 letterSpacing: '-0.02em'
               }}
@@ -875,10 +745,10 @@ export default function HomePage() {
             <Typography 
               variant="h6" 
               sx={{ 
-                color: '#64748B',
+                color: '#374151',
                 maxWidth: { xs: '100%', sm: 400, md: 500 },
                 mx: 'auto',
-                fontWeight: 300,
+                fontWeight: 400,
                 fontSize: { xs: '0.85rem', sm: '0.9rem', md: '1rem' },
                 lineHeight: 1.6,
                 px: { xs: 2, sm: 0 }
@@ -979,7 +849,7 @@ export default function HomePage() {
                       sx={{ 
                         fontWeight: 500,
                         mb: 1,
-                        color: '#1E293B',
+                        color: '#0F172A',
                         fontSize: '0.875rem',
                         position: 'relative',
                         zIndex: 1
@@ -990,10 +860,10 @@ export default function HomePage() {
                     <Typography 
                       variant="body2" 
                       sx={{ 
-                        color: '#64748B',
+                        color: '#374151',
                         lineHeight: 1.4,
                         fontSize: '0.75rem',
-                        fontWeight: 300,
+                        fontWeight: 400,
                         position: 'relative',
                         zIndex: 1
                       }}
@@ -1034,9 +904,9 @@ export default function HomePage() {
               <Typography 
                 variant="h2" 
                           sx={{ 
-                  fontWeight: 300,
+                  fontWeight: 400,
                             mb: 3,
-                  color: '#1E293B',
+                  color: '#0F172A',
                   fontSize: { xs: '2rem', md: '2.5rem' },
                   letterSpacing: '-0.02em'
                 }}
@@ -1046,10 +916,10 @@ export default function HomePage() {
               <Typography 
                 variant="h6" 
                 sx={{ 
-                  color: '#64748B',
+                  color: '#374151',
                   maxWidth: 600,
                   mx: 'auto',
-                  fontWeight: 300,
+                  fontWeight: 400,
                   fontSize: '1rem',
                   lineHeight: 1.6,
                   mb: 2
@@ -1106,7 +976,7 @@ export default function HomePage() {
                           sx={{ 
                             fontWeight: 500,
                           mb: 0.5,
-                          color: '#1E293B',
+                          color: '#0F172A',
                           fontSize: '0.875rem'
                           }}
                         >
@@ -1115,10 +985,10 @@ export default function HomePage() {
                         <Typography 
                           variant="body2" 
                           sx={{ 
-                          color: '#64748B',
+                          color: '#374151',
                           lineHeight: 1.4,
                           fontSize: '0.75rem',
-                          fontWeight: 300
+                          fontWeight: 400
                         }}
                       >
                         {feature.description}
