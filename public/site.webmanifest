@@ -1,0 +1,41 @@
+{
+  "name": "เดอะ เรด โพชั่น - แพลตฟอร์มให้เช่า Web Application สำหรับร้านอาหาร",
+  "short_name": "เดอะ เรด โพชั่น",
+  "description": "แพลตฟอร์มให้เช่า Web Application สำหรับร้านอาหาร แบบ Multi-Tenant ระบบครบครัน เริ่มใช้งานได้ทันที",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#F87171",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "th",
+  "categories": ["business", "food", "technology"],
+  "icons": [
+    {
+      "src": "/images/logo_trim.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/logo_trim.png", 
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/images/screenshot-mobile.jpg",
+      "sizes": "640x1136",
+      "type": "image/jpeg",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/images/screenshot-desktop.jpg",
+      "sizes": "1280x720", 
+      "type": "image/jpeg",
+      "form_factor": "wide"
+    }
+  ]
+} 
