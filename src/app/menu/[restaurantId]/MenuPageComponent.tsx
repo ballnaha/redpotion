@@ -6,20 +6,65 @@ import { useRouter } from 'next/navigation';
 import { Box, Typography, Card, CardContent, CardMedia, Button, Chip, 
          CircularProgress, Alert, IconButton, Drawer, List, ListItem, ListItemText,
          ListItemSecondaryAction, ButtonGroup, Avatar, InputBase, Badge, Paper,
-         BottomNavigation, BottomNavigationAction, Container } from '@mui/material';
+         Container } from '@mui/material';
 import NoSSR from '../../components/NoSSR';
+import FooterNavbar from '../../components/FooterNavbar';
 import { ShoppingCart, Add, Remove, Delete, Favorite, FavoriteBorder,
          Search, NotificationsNone, Restaurant, LocalPizza, RamenDining, 
-         LocalBar, Category, Star, Home, Person, Receipt, LocationOn,
-         AccessTime, Visibility } from '@mui/icons-material';
-// Swiper imports for smooth carousels
+         LocalBar, Category, Star, LocationOn, AccessTime, Visibility,
+         TrendingUp, Recommend, Fastfood, LocalDining, LunchDining,
+         LocalCafe, Icecream } from '@mui/icons-material';
+// Swiper imports for smooth carousels (for special offers)
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Navigation, Pagination, Autoplay, EffectFade, FreeMode } from 'swiper/modules';
+import { Navigation, Pagination, Autoplay, EffectFade } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import 'swiper/css/effect-fade';
-import 'swiper/css/free-mode';
+
+// Add custom styles for animations
+const globalStyles = `
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: scaleX(0);
+    }
+    to {
+      opacity: 1;
+      transform: scaleX(1);
+    }
+  }
+  
+  @keyframes fadeInUp {
+    0% {
+      opacity: 0;
+      transform: translateY(15px) scale(0.98);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  
+  .menu-items-container {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+  }
+  
+  .menu-items-container.changing {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+`;
+
+// Inject styles only once
+if (typeof document !== 'undefined' && !document.getElementById('menu-animations')) {
+  const styleSheet = document.createElement('style');
+  styleSheet.id = 'menu-animations';
+  styleSheet.textContent = globalStyles;
+  document.head.appendChild(styleSheet);
+}
 
 interface Banner {
   id: string;
@@ -97,6 +142,44 @@ function CartBadge({ cart }: { cart: any[] }) {
   );
 }
 
+// Function to render category icons
+function CategoryIcon({ iconName, selected, size = '18px' }: { iconName: string; selected: boolean; size?: string }) {
+  const iconProps = {
+    sx: { 
+      fontSize: size,
+      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+      opacity: selected ? 1 : 0.75,
+      color: selected 
+        ? 'rgba(16, 185, 129, 0.9)' 
+        : 'rgba(71, 85, 105, 0.7)',
+      filter: selected 
+        ? 'drop-shadow(0 2px 6px rgba(16, 185, 129, 0.25))' 
+        : 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1))'
+    }
+  };
+
+  switch (iconName) {
+    case 'TrendingUp':
+      return <TrendingUp {...iconProps} />;
+    case 'Recommend':
+      return <Recommend {...iconProps} />;
+    case 'Fastfood':
+      return <Fastfood {...iconProps} />;
+    case 'LocalDining':
+      return <LocalDining {...iconProps} />;
+    case 'LocalPizza':
+      return <LocalPizza {...iconProps} />;
+    case 'LunchDining':
+      return <LunchDining {...iconProps} />;
+    case 'LocalCafe':
+      return <LocalCafe {...iconProps} />;
+    case 'Icecream':
+      return <Icecream {...iconProps} />;
+    default:
+      return <Category {...iconProps} />;
+  }
+}
+
 export default function MenuPageComponent() {
   const router = useRouter();
   const { restaurant, loading, error, cart, cartTotal, addToCart, 
@@ -107,8 +190,9 @@ export default function MenuPageComponent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('popular');
-  const [bottomValue, setBottomValue] = useState(0);
   const [activeTab, setActiveTab] = useState<string>('popular');
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [animationKey, setAnimationKey] = useState(0);
   
   // Special offers data with multiple slides
   const specialOffers: SpecialOffer[] = [
@@ -144,55 +228,56 @@ export default function MenuPageComponent() {
   const categories: MenuCategory[] = [
     {
       id: 'popular',
-      name: '🔥 เมนูคนอังยอะ',
-      icon: '🔥',
+      name: 'ยอดนิยม',
+      icon: 'TrendingUp',
       items: []
     },
     {
       id: 'recommended',
-      name: '👍 ไปโรเซีย',
-      icon: '👍',
+      name: 'แนะนำ',
+      icon: 'Recommend',
       items: []
     },
     {
       id: 'snacks',
-      name: '🍎 อาหารร็อส',
-      icon: '🍎',
+      name: 'อาหารว่าง',
+      icon: 'Fastfood',
       items: []
     },
     {
       id: 'salad',
-      name: '🥗 สลัด',
-      icon: '🥗',
+      name: 'สลัด',
+      icon: 'LocalDining',
       items: []
     },
     {
       id: 'pizza',
-      name: '🍕 พิซซ่า',
-      icon: '🍕',
+      name: 'พิซซ่า',
+      icon: 'LocalPizza',
       items: []
     },
     {
       id: 'burger',
-      name: '🍔 เบอร์เกอร์',
-      icon: '🍔',
+      name: 'เบอร์เกอร์',
+      icon: 'LunchDining',
       items: []
     },
     {
       id: 'drink',
-      name: '🥤 เครื่องดื่ม',
-      icon: '🥤',
+      name: 'เครื่องดื่ม',
+      icon: 'LocalCafe',
       items: []
     },
     {
       id: 'dessert',
-      name: '🍰 ของหวาน',
-      icon: '🍰',
+      name: 'ของหวาน',
+      icon: 'Icecream',
       items: []
     }
   ];
 
   const menuItems: MenuItem[] = [
+    // Popular Items
     {
       id: '1',
       name: 'ผัดไกรเขียวสด',
@@ -245,6 +330,192 @@ export default function MenuPageComponent() {
       cookingTime: 18,
       isHit: true,
       tags: ['HIT']
+    },
+
+    // Recommended Items
+    {
+      id: '5',
+      name: 'แกงเผ็ดไก่',
+      description: 'แกงเผ็ดสูตรดั้งเดิม ไก่นุ่ม เผ็ดร้อนกำลังดี',
+      price: 110,
+      originalPrice: 140,
+      image: 'https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?w=400&h=300&fit=crop',
+      category: 'recommended',
+      available: true,
+      cookingTime: 20,
+      isPopular: false,
+      tags: ['แนะนำ']
+    },
+    {
+      id: '6',
+      name: 'ส้มตำไทย',
+      description: 'ส้มตำรสชาติแซ่บ เปรี้ยว หวาน เผ็ด กำลังดี',
+      price: 70,
+      originalPrice: 90,
+      image: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400&h=300&fit=crop',
+      category: 'recommended',
+      available: true,
+      cookingTime: 8,
+      isPopular: false,
+      tags: ['แนะนำ']
+    },
+
+    // Snacks
+    {
+      id: '7',
+      name: 'ปอเปี๊ยะทอด',
+      description: 'ปอเปี๊ยะทอดกรอบ ไส้หมูสับ กุ้ง ผักใส',
+      price: 45,
+      image: 'https://images.unsplash.com/photo-1563379091339-03246963d51a?w=400&h=300&fit=crop',
+      category: 'snacks',
+      available: true,
+      cookingTime: 12,
+      isPopular: false,
+      tags: ['ทอด']
+    },
+    {
+      id: '8',
+      name: 'ไก่ทอดกรอบ',
+      description: 'ไก่ทอดกรอบนอกนุ่มใน เสิร์ฟพร้อมซอสเผ็ด',
+      price: 85,
+      image: 'https://images.unsplash.com/photo-1562967914-608f82629710?w=400&h=300&fit=crop',
+      category: 'snacks',
+      available: true,
+      cookingTime: 15,
+      isPopular: false,
+      tags: ['ทอด', 'กรอบ']
+    },
+
+    // Salad
+    {
+      id: '9',
+      name: 'สลัดผักโขม',
+      description: 'สลัดผักโขมสด ราดด้วยน้ำสลัดงาขาว',
+      price: 65,
+      image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop',
+      category: 'salad',
+      available: true,
+      cookingTime: 5,
+      isPopular: false,
+      tags: ['สุขภาพ']
+    },
+    {
+      id: '10',
+      name: 'สลัดผลไม้',
+      description: 'สลัดผลไม้รวม สดใหม่ ราดน้ำผึ้งมะนาว',
+      price: 75,
+      image: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=400&h=300&fit=crop',
+      category: 'salad',
+      available: true,
+      cookingTime: 8,
+      isPopular: false,
+      tags: ['สุขภาพ', 'ผลไม้']
+    },
+
+    // Pizza
+    {
+      id: '11',
+      name: 'พิซซ่าซีฟู้ด',
+      description: 'พิซซ่าหน้าซีฟู้ดรวม กุ้ง หมึก ปู หน้าแน่น',
+      price: 285,
+      originalPrice: 320,
+      image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&h=300&fit=crop',
+      category: 'pizza',
+      available: true,
+      cookingTime: 25,
+      isPopular: false,
+      tags: ['พิซซ่า', 'ซีฟู้ด']
+    },
+    {
+      id: '12',
+      name: 'พิซซ่าฮาวายเอี้ยน',
+      description: 'พิซซ่าหน้าแฮมและสับปะรด รสชาติหวานมัน',
+      price: 250,
+      image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=300&fit=crop',
+      category: 'pizza',
+      available: true,
+      cookingTime: 22,
+      isPopular: false,
+      tags: ['พิซซ่า', 'หวาน']
+    },
+
+    // Burger
+    {
+      id: '13',
+      name: 'เบอร์เกอร์เนื้อ',
+      description: 'เบอร์เกอร์เนื้อวัวแบบคลาสสิค พร้อมชีสและผัก',
+      price: 135,
+      originalPrice: 160,
+      image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&h=300&fit=crop',
+      category: 'burger',
+      available: true,
+      cookingTime: 18,
+      isPopular: false,
+      tags: ['เบอร์เกอร์', 'เนื้อ']
+    },
+    {
+      id: '14',
+      name: 'เบอร์เกอร์ไก่ทอด',
+      description: 'เบอร์เกอร์ไก่ทอดกรอบ พร้อมซอสมายองเนส',
+      price: 115,
+      image: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=400&h=300&fit=crop',
+      category: 'burger',
+      available: true,
+      cookingTime: 15,
+      isPopular: false,
+      tags: ['เบอร์เกอร์', 'ไก่']
+    },
+
+    // Drinks
+    {
+      id: '15',
+      name: 'ชาเขียวเย็น',
+      description: 'ชาเขียวสดชื่น เพิ่มน้ำแข็งและน้ำตาล',
+      price: 35,
+      image: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400&h=300&fit=crop',
+      category: 'drink',
+      available: true,
+      cookingTime: 3,
+      isPopular: false,
+      tags: ['เย็น', 'ชา']
+    },
+    {
+      id: '16',
+      name: 'น้ำส้มคั้นสด',
+      description: 'น้ำส้มคั้นสด 100% ไม่ใส่น้ำตาล',
+      price: 45,
+      image: 'https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400&h=300&fit=crop',
+      category: 'drink',
+      available: true,
+      cookingTime: 5,
+      isPopular: false,
+      tags: ['สด', 'วิตามิน']
+    },
+
+    // Desserts
+    {
+      id: '17',
+      name: 'ขนมปังปิ้งน้ำผึ้ง',
+      description: 'ขนมปังปิ้งกรอบ ราดน้ำผึ้งแท้และเนย',
+      price: 55,
+      image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400&h=300&fit=crop',
+      category: 'dessert',
+      available: true,
+      cookingTime: 8,
+      isPopular: false,
+      tags: ['หวาน', 'ปิ้ง']
+    },
+    {
+      id: '18',
+      name: 'ไอศกรีมวนิลลา',
+      description: 'ไอศกรีมวนิลลาเนื้อเนียนนุ่ม รสชาติหอมหวาน',
+      price: 65,
+      image: 'https://images.unsplash.com/photo-1567206563064-6f60f40a2b57?w=400&h=300&fit=crop',
+      category: 'dessert',
+      available: true,
+      cookingTime: 2,
+      isPopular: false,
+      tags: ['เย็น', 'หวาน']
     }
   ];
 
@@ -261,6 +532,24 @@ export default function MenuPageComponent() {
     return cartItem ? cartItem.quantity : 0;
   };
 
+  // Handle category change with smooth animation
+  const handleCategoryChange = (categoryId: string) => {
+    if (categoryId === selectedCategory || isAnimating) return;
+    
+    setIsAnimating(true);
+    
+    // Smooth transition without jarring animations
+    setTimeout(() => {
+      setSelectedCategory(categoryId);
+      setAnimationKey(prev => prev + 1);
+      
+      // Reset animation state
+      setTimeout(() => {
+        setIsAnimating(false);
+      }, 100);
+    }, 150);
+  };
+
   const filteredItems = selectedCategory === 'popular' 
     ? menuItems.filter(item => item.isPopular)
     : menuItems.filter(item => item.category === selectedCategory);
@@ -274,6 +563,8 @@ export default function MenuPageComponent() {
 
 
 
+  // ลบการตรวจสอบ loading เพราะจัดการใน ClientMenuPage แล้ว
+  // จัดการเฉพาะ error และ !restaurant เท่านั้น
   if (error) {
     return (
       <Box sx={{ 
@@ -475,7 +766,7 @@ export default function MenuPageComponent() {
                   alignItems: 'center',
                   gap: 1,
                   background: 'rgba(255, 255, 255, 0.25)',
-                  backdropFilter: 'blur(15px)',
+                  backdropFilter: 'blur(5px)',
                   borderRadius: '20px',
                   px: 2,
                   py: 1,
@@ -483,54 +774,26 @@ export default function MenuPageComponent() {
                   boxShadow: '0 8px 25px rgba(0, 0, 0, 0.1)'
                 }}
               >
-                <Avatar 
-                  sx={{ 
-                    width: 24, 
-                    height: 24,
-                    background: 'linear-gradient(135deg, #10B981 0%, #34D399 100%)',
-                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
-                  }}
-                >
-                  <Restaurant sx={{ fontSize: 14, color: 'white' }} />
-                </Avatar>
+                
                 <Typography sx={{ 
-                  fontSize: '0.8rem', 
-                  fontWeight: 600, 
+                  fontSize: '0.9rem', 
+                  fontWeight: 500, 
                   color: 'rgba(0, 0, 0, 0.8)',
                   textShadow: '0 2px 4px rgba(255, 255, 255, 0.5)'
                 }}>
-                  ซูชิ โดนโฮ
+                  {restaurant?.name}
                 </Typography>
               </Box>
             </Box>
             
             <CardContent sx={{ px: 3, py: 3 }}>
               <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                <Avatar 
-                  sx={{ 
-                    width: 44, 
-                    height: 44,
-                    background: 'linear-gradient(135deg, #10B981 0%, #34D399 100%)',
-                    boxShadow: '0 8px 25px rgba(16, 185, 129, 0.3)',
-                    border: '2px solid rgba(255, 255, 255, 0.3)'
-                  }}
-                >
-                  <Restaurant sx={{ fontSize: 22, color: 'white' }} />
-                </Avatar>
                 
                 <Box sx={{ flex: 1 }}>
-                  <Typography variant="h6" sx={{ 
-                    fontWeight: 700, 
-                    color: 'rgba(0, 0, 0, 0.9)', 
-                    fontSize: '1.1rem',
-                    mb: 0.5
-                  }}>
-                    ซูชิ โดนโฮ
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                    <Typography sx={{ fontSize: '0.8rem', color: 'rgba(0, 0, 0, 0.6)' }}>
-                      456 คนเมื่อเล็บ กรุงเทพฯ 10500
-                    </Typography>
+                  
+                  
+                  {/* Status and Time */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                     <Chip 
                       label="เปิดอยู่" 
                       size="small"
@@ -544,37 +807,55 @@ export default function MenuPageComponent() {
                         fontWeight: 600
                       }}
                     />
+                    <Typography sx={{ fontSize: '0.75rem', color: 'rgba(0, 0, 0, 0.6)' }}>
+                      เปิด 08:00 - 22:00
+                    </Typography>
                   </Box>
                   
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mt: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <Star sx={{ color: '#FFD700', fontSize: 16 }} />
-                      <Typography sx={{ 
-                        fontSize: '0.85rem', 
-                        fontWeight: 600, 
-                        color: 'rgba(0, 0, 0, 0.8)' 
-                      }}>
-                        4.8
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.8rem', color: 'rgba(0, 0, 0, 0.6)' }}>
-                        (1.2k)
-                      </Typography>
-                    </Box>
-                    
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <AccessTime sx={{ color: 'rgba(0, 0, 0, 0.6)', fontSize: 16 }} />
-                      <Typography sx={{ fontSize: '0.8rem', color: 'rgba(0, 0, 0, 0.6)' }}>
-                        25-35 นาที
-                      </Typography>
-                    </Box>
-                    
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <Visibility sx={{ color: 'rgba(0, 0, 0, 0.6)', fontSize: 16 }} />
-                      <Typography sx={{ fontSize: '0.8rem', color: 'rgba(0, 0, 0, 0.6)' }}>
-                        ฟรีเดลิเวอร์รี
-                      </Typography>
-                    </Box>
+                  {/* Address */}
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1.5 }}>
+                    <LocationOn sx={{ 
+                      color: '#10B981', 
+                      fontSize: 16, 
+                      mt: 0.1,
+                      flexShrink: 0
+                    }} />
+                    <Typography sx={{ 
+                      fontSize: '0.85rem', 
+                      color: 'rgba(0, 0, 0, 0.7)',
+                      lineHeight: 1.4,
+                      fontWeight: 500
+                    }}>
+                      456 ถนนรามคำแหง แขวงหัวหมาก เขตบางกะปิ กรุงเทพฯ 10240
+                    </Typography>
                   </Box>
+                  
+                  {/* Phone */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <Box sx={{
+                      width: 16,
+                      height: 16,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <Typography sx={{ 
+                        fontSize: '14px', 
+                        color: '#10B981',
+                        fontWeight: 600
+                      }}>
+                        📞
+                      </Typography>
+                    </Box>
+                    <Typography sx={{ 
+                      fontSize: '0.85rem', 
+                      color: 'rgba(0, 0, 0, 0.7)',
+                      fontWeight: 500
+                    }}>
+                      02-123-4567
+                    </Typography>
+                  </Box>
+                  
                 </Box>
               </Box>
             </CardContent>
@@ -755,333 +1036,354 @@ export default function MenuPageComponent() {
           </Swiper>
         </Box>
 
-        {/* Category Swiper */}
-        <Box sx={{ px: 2, mb: 4 }}>
-          <Swiper
-            modules={[FreeMode]}
-            spaceBetween={12}
-            slidesPerView="auto"
-            freeMode={true}
-            style={{ 
-              paddingBottom: '8px',
-              overflow: 'visible'
-            }}
-          >
-            {categories.map((category) => (
-              <SwiperSlide key={category.id} style={{ width: 'auto' }}>
-                <Button
-                  onClick={() => setSelectedCategory(category.id)}
-                  sx={{
-                    minWidth: 'auto',
-                    borderRadius: '25px',
-                    px: 3,
-                    py: 1.5,
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    whiteSpace: 'nowrap',
-                    background: selectedCategory === category.id 
-                      ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.9) 0%, rgba(5, 150, 105, 0.9) 100%)'
-                      : 'rgba(255, 255, 255, 0.25)',
-                    backdropFilter: 'blur(15px)',
-                    color: selectedCategory === category.id ? 'white' : 'rgba(0, 0, 0, 0.7)',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    textTransform: 'none',
-                    boxShadow: selectedCategory === category.id 
-                      ? '0 8px 25px rgba(16, 185, 129, 0.3)'
-                      : '0 4px 15px rgba(0, 0, 0, 0.1)',
-                    '&:hover': {
-                      background: selectedCategory === category.id
-                        ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.9) 0%, rgba(5, 150, 105, 0.9) 100%)'
-                        : 'rgba(255, 255, 255, 0.35)',
-                      transform: 'translateY(-2px)',
-                      boxShadow: selectedCategory === category.id 
-                        ? '0 12px 30px rgba(16, 185, 129, 0.4)'
-                        : '0 8px 25px rgba(0, 0, 0, 0.15)'
-                    },
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-                  }}
-                >
-                  {category.name}
-                </Button>
-              </SwiperSlide>
-            ))}
-          </Swiper>
-        </Box>
-
-        {/* Liquid Section Title */}
+        {/* Premium Category Grid */}
         <Box sx={{ px: 2, mb: 3 }}>
-          <Box 
-            sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 1,
-              background: 'rgba(255, 255, 255, 0.25)',
-              backdropFilter: 'blur(15px)',
-              borderRadius: '20px',
-              px: 3,
-              py: 2,
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)'
-            }}
-          >
-            <Typography sx={{ fontSize: 20, fontWeight: 600 }}>
-              🔥
-            </Typography>
-            <Typography variant="h6" sx={{ 
-              fontWeight: 700, 
-              color: 'rgba(0, 0, 0, 0.9)',
-              fontSize: '1.1rem'
-            }}>
-              เมนูคนยังยอะ
-            </Typography>
-            <Typography sx={{ 
-              fontSize: '0.85rem', 
-              color: 'rgba(0, 0, 0, 0.6)',
-              background: 'rgba(16, 185, 129, 0.1)',
-              borderRadius: '15px',
-              px: 2,
-              py: 0.5,
-              fontWeight: 600
-            }}>
-              (4 รายการ)
-            </Typography>
-          </Box>
-        </Box>
-
-                {/* Menu Items Grid */}
-        <Box sx={{ px: 2 }}>
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: 2
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: 0.8,
+              maxWidth: '100%'
             }}
           >
-            {menuItems.map((item) => (
-              <Card
-                key={item.id}
-                onClick={() => router.push(`/menu/${restaurant?.id}/item/${item.id}`)}
+            {categories.map((category) => (
+              <Box
+                key={category.id}
+                onClick={() => handleCategoryChange(category.id)}
                 sx={{
-                  borderRadius: 2,
-                  overflow: 'hidden',
-                  background: 'rgba(255, 255, 255, 0.25)',
-                  backdropFilter: 'blur(20px)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  position: 'relative',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  py: 1.2,
+                  px: 0.5,
+                  borderRadius: '12px',
                   cursor: 'pointer',
+                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                  background: selectedCategory === category.id 
+                    ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%)'
+                    : 'rgba(248, 250, 252, 0.8)',
+                  border: selectedCategory === category.id 
+                    ? '1.5px solid rgba(16, 185, 129, 0.3)' 
+                    : '1px solid rgba(226, 232, 240, 0.6)',
+                  position: 'relative',
+                  minHeight: '48px',
+                  backdropFilter: 'blur(10px)',
+                  boxShadow: selectedCategory === category.id
+                    ? '0 4px 20px rgba(16, 185, 129, 0.15)'
+                    : '0 2px 8px rgba(0, 0, 0, 0.04)',
                   '&:hover': {
-                    transform: 'translateY(-4px)',
-                    boxShadow: '0 16px 32px rgba(0, 0, 0, 0.2)',
-                    background: 'rgba(255, 255, 255, 0.35)'
+                    transform: 'translateY(-2px)',
+                    background: selectedCategory === category.id 
+                      ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.08) 100%)'
+                      : 'rgba(255, 255, 255, 0.9)',
+                    border: selectedCategory === category.id 
+                      ? '1.5px solid rgba(16, 185, 129, 0.5)' 
+                      : '1px solid rgba(16, 185, 129, 0.2)',
+                    boxShadow: selectedCategory === category.id
+                      ? '0 8px 25px rgba(16, 185, 129, 0.25)'
+                      : '0 4px 15px rgba(0, 0, 0, 0.08)',
+                    '& .category-icon': {
+                      transform: 'scale(1.15)'
+                    },
+                    '& .category-text': {
+                      color: selectedCategory === category.id 
+                        ? 'rgba(16, 185, 129, 1)' 
+                        : 'rgba(16, 185, 129, 0.8)'
+                    }
+                  },
+                  '&:active': {
+                    transform: 'translateY(0px) scale(0.98)'
                   }
                 }}
               >
-                {/* Food Image */}
-                <Box sx={{ position: 'relative' }}>
-                  <CardMedia
-                    component="img"
-                    height="120"
-                    image={item.image}
-                    alt={item.name}
-                    sx={{ 
-                      objectFit: 'cover',
-                      filter: 'brightness(0.95)'
+                <Box 
+                  className="category-icon"
+                  sx={{ 
+                    mb: 0.5,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                >
+                  <CategoryIcon 
+                    iconName={category.icon} 
+                    selected={selectedCategory === category.id}
+                    size="18px"
+                  />
+                </Box>
+                <Typography 
+                  className="category-text"
+                  sx={{ 
+                    fontSize: '0.65rem', 
+                    fontWeight: selectedCategory === category.id ? 600 : 500,
+                    color: selectedCategory === category.id 
+                      ? 'rgba(16, 185, 129, 0.95)' 
+                      : 'rgba(71, 85, 105, 0.8)',
+                    textAlign: 'center',
+                    lineHeight: 1.1,
+                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                    letterSpacing: '0.01em',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: '100%'
+                  }}
+                >
+                  {category.name}
+                </Typography>
+                
+                {/* Subtle active indicator */}
+                {selectedCategory === category.id && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      bottom: '-1px',
+                      left: '20%',
+                      right: '20%',
+                      height: '2px',
+                      background: 'linear-gradient(90deg, transparent 0%, rgba(16, 185, 129, 0.8) 50%, transparent 100%)',
+                      borderRadius: '1px',
+                      animation: 'slideIn 0.3s ease-out'
                     }}
                   />
-                  
-                  {/* HIT Badge */}
-                  {item.isHit && (
-                    <Chip
-                      label="HIT"
-                      size="small"
-                      sx={{
-                        position: 'absolute',
-                        top: 8,
-                        left: 8,
-                        background: 'linear-gradient(135deg, #10B981 0%, #34D399 100%)',
-                        color: 'white',
-                        fontSize: '0.65rem',
-                        fontWeight: 700,
-                        height: '20px',
-                        minWidth: '28px',
-                        border: '1px solid rgba(255, 255, 255, 0.3)',
-                        boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)'
-                      }}
-                    />
-                  )}
-
-                  {/* Discount Badge */}
-                  {item.originalPrice && (
-                    <Chip
-                      label={`-${Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100)}%`}
-                      size="small"
-                      sx={{
-                        position: 'absolute',
-                        top: 8,
-                        right: 8,
-                        background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                        color: 'white',
-                        fontSize: '0.65rem',
-                        fontWeight: 700,
-                        height: '20px',
-                        minWidth: '36px',
-                        border: '1px solid rgba(255, 255, 255, 0.3)',
-                        boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)'
-                      }}
-                    />
-                  )}
-                </Box>
-
-                {/* Content */}
-                <CardContent sx={{ p: 2 }}>
-                  <Typography 
-                    variant="h6" 
-                    sx={{ 
-                      fontWeight: 700, 
-                      mb: 0.5,
-                      color: 'rgba(0, 0, 0, 0.9)',
-                      fontSize: '0.9rem',
-                      lineHeight: 1.3,
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden'
-                    }}
-                  >
-                    {item.name}
-                  </Typography>
-
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      color: 'rgba(0, 0, 0, 0.6)', 
-                      mb: 1.5,
-                      lineHeight: 1.4,
-                      fontSize: '0.75rem',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden'
-                    }}
-                  >
-                    {item.description}
-                  </Typography>
-
-                  {/* Price Section */}
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography 
-                        variant="h6" 
-                        sx={{ 
-                          color: '#10B981', 
-                          fontWeight: 800,
-                          fontSize: '1rem'
-                        }}
-                      >
-                        ฿{item.price}
-                      </Typography>
-                      {item.originalPrice && (
-                        <Typography 
-                          variant="body2" 
-                          sx={{ 
-                            color: 'rgba(0, 0, 0, 0.4)',
-                            textDecoration: 'line-through',
-                            fontSize: '0.8rem',
-                            fontWeight: 500
-                          }}
-                        >
-                          ฿{item.originalPrice}
-                        </Typography>
-                      )}
-                    </Box>
-                  </Box>
-                </CardContent>
-              </Card>
+                )}
+              </Box>
             ))}
           </Box>
         </Box>
+
+        {/* Minimal Section Title ตาม Category ที่เลือก */}
+        <Box sx={{ px: 2, mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <CategoryIcon 
+                  iconName={categories.find(cat => cat.id === selectedCategory)?.icon || 'TrendingUp'} 
+                  selected={true}
+                />
+              </Box>
+              <Typography variant="h6" sx={{ 
+                fontWeight: 600, 
+                color: 'rgba(0, 0, 0, 0.9)',
+                fontSize: '1.2rem'
+              }}>
+                {categories.find(cat => cat.id === selectedCategory)?.name || 'เมนูยอดนิยม'}
+              </Typography>
+            </Box>
+            <Typography sx={{ 
+              fontSize: '0.8rem', 
+              color: 'rgba(0, 0, 0, 0.5)',
+              fontWeight: 500
+            }}>
+              {searchFilteredItems.length} รายการ
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* Menu Items Grid - แสดงเฉพาะอาหารที่ตรงกับ category */}
+        <Box sx={{ px: 2 }}>
+          {searchFilteredItems.length > 0 ? (
+            <Box
+              key={animationKey}
+              className={`menu-items-container ${isAnimating ? 'changing' : ''}`}
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: 2
+              }}
+            >
+              {searchFilteredItems.map((item, index) => (
+                <Card
+                  key={item.id}
+                  onClick={() => router.push(`/menu/${restaurant?.id}/item/${item.id}`)}
+                  sx={{
+                    borderRadius: 1,
+                    overflow: 'hidden',
+                    background: 'rgba(255, 255, 255, 0.25)',
+                    backdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    position: 'relative',
+                    cursor: 'pointer',
+                    animation: !isAnimating ? `fadeInUp 0.4s ease-out ${index * 0.05}s both` : 'none',
+                    '&:hover': {
+                      transform: 'translateY(-4px)',
+                      boxShadow: '0 16px 32px rgba(0, 0, 0, 0.2)',
+                      background: 'rgba(255, 255, 255, 0.35)'
+                    }
+                  }}
+                >
+                  {/* Food Image */}
+                  <Box sx={{ position: 'relative' }}>
+                    <CardMedia
+                      component="img"
+                      height="120"
+                      image={item.image}
+                      alt={item.name}
+                      sx={{ 
+                        objectFit: 'cover',
+                        filter: 'brightness(0.95)'
+                      }}
+                    />
+                    
+                    {/* HIT Badge */}
+                    {item.isHit && (
+                      <Chip
+                        label="HIT"
+                        size="small"
+                        sx={{
+                          position: 'absolute',
+                          top: 8,
+                          left: 8,
+                          background: 'linear-gradient(135deg, #10B981 0%, #34D399 100%)',
+                          color: 'white',
+                          fontSize: '0.65rem',
+                          fontWeight: 700,
+                          height: '20px',
+                          minWidth: '28px',
+                          border: '1px solid rgba(255, 255, 255, 0.3)',
+                          boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)'
+                        }}
+                      />
+                    )}
+
+                    {/* Discount Badge */}
+                    {item.originalPrice && (
+                      <Chip
+                        label={`-${Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100)}%`}
+                        size="small"
+                        sx={{
+                          position: 'absolute',
+                          top: 8,
+                          right: 8,
+                          background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                          color: 'white',
+                          fontSize: '0.65rem',
+                          fontWeight: 700,
+                          height: '20px',
+                          minWidth: '36px',
+                          border: '1px solid rgba(255, 255, 255, 0.3)',
+                          boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)'
+                        }}
+                      />
+                    )}
+                  </Box>
+
+                  {/* Content */}
+                  <CardContent sx={{ p: 2 }}>
+                    <Typography 
+                      variant="h6" 
+                      sx={{ 
+                        fontWeight: 700, 
+                        mb: 0.5,
+                        color: 'rgba(0, 0, 0, 0.9)',
+                        fontSize: '0.9rem',
+                        lineHeight: 1.3,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      {item.name}
+                    </Typography>
+
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: 'rgba(0, 0, 0, 0.6)', 
+                        mb: 1.5,
+                        lineHeight: 1.4,
+                        fontSize: '0.75rem',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      {item.description}
+                    </Typography>
+
+                    {/* Price Section */}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography 
+                          variant="h6" 
+                          sx={{ 
+                            color: '#10B981', 
+                            fontWeight: 800,
+                            fontSize: '1rem'
+                          }}
+                        >
+                          ฿{item.price}
+                        </Typography>
+                        {item.originalPrice && (
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              color: 'rgba(0, 0, 0, 0.4)',
+                              textDecoration: 'line-through',
+                              fontSize: '0.8rem',
+                              fontWeight: 500
+                            }}
+                          >
+                            ฿{item.originalPrice}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+              ))}
+            </Box>
+          ) : (
+            // แสดงข้อความเมื่อไม่มีรายการในหมวดหมู่นี้
+            <Box 
+              key={`empty-${animationKey}`}
+              className={`menu-items-container ${isAnimating ? 'changing' : ''}`}
+              sx={{ 
+                textAlign: 'center', 
+                py: 8,
+                background: 'rgba(255, 255, 255, 0.25)',
+                backdropFilter: 'blur(15px)',
+                borderRadius: 3,
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                animation: !isAnimating ? 'fadeInUp 0.4s ease-out both' : 'none'
+              }}
+            >
+              <Box sx={{ 
+                mb: 2,
+                display: 'flex',
+                justifyContent: 'center'
+              }}>
+                <CategoryIcon 
+                  iconName={categories.find(cat => cat.id === selectedCategory)?.icon || 'Search'} 
+                  selected={false}
+                />
+              </Box>
+              <Typography variant="h6" sx={{ 
+                color: 'rgba(0, 0, 0, 0.7)', 
+                mb: 1,
+                fontWeight: 600
+              }}>
+                ไม่มีเมนูในหมวดหมู่นี้
+              </Typography>
+              <Typography sx={{ 
+                color: 'rgba(0, 0, 0, 0.5)', 
+                fontSize: '0.9rem' 
+              }}>
+                ลองเลือกหมวดหมู่อื่นดูสิค่ะ
+              </Typography>
+            </Box>
+          )}
+        </Box>
       </Box>
 
-      {/* Liquid Glass Bottom Navigation */}
-      <BottomNavigation
-        value={bottomValue}
-        onChange={(event, newValue) => setBottomValue(newValue)}
-        sx={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 999,
-          background: 'rgba(255, 255, 255, 0.25)',
-          backdropFilter: 'blur(20px)',
-          borderTop: '1px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 -8px 32px rgba(0, 0, 0, 0.1)',
-          '& .MuiBottomNavigationAction-root': {
-            color: 'rgba(0, 0, 0, 0.6)',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            '&.Mui-selected': {
-              color: '#10B981',
-              transform: 'translateY(-2px)'
-            },
-            '&:hover': {
-              transform: 'translateY(-1px)'
-            }
-          }
-        }}
-      >
-        <BottomNavigationAction 
-          label="Home" 
-          icon={<Home />}
-          sx={{
-            '& .MuiBottomNavigationAction-label': {
-              fontSize: '0.7rem',
-              fontWeight: 600
-            }
-          }}
-        />
-        <BottomNavigationAction 
-          label="สั่งอาหาร" 
-          icon={<Restaurant />}
-          sx={{
-            '& .MuiBottomNavigationAction-label': {
-              fontSize: '0.7rem',
-              fontWeight: 600
-            }
-          }}
-        />
-        <BottomNavigationAction 
-          label="ถูกใจ" 
-          icon={<Favorite />}
-          sx={{
-            '& .MuiBottomNavigationAction-label': {
-              fontSize: '0.7rem',
-              fontWeight: 600
-            }
-          }}
-        />
-        <BottomNavigationAction 
-          label="ประวัติ" 
-          icon={<Receipt />}
-          sx={{
-            '& .MuiBottomNavigationAction-label': {
-              fontSize: '0.7rem',
-              fontWeight: 600
-            }
-          }}
-        />
-        <BottomNavigationAction 
-          label="โปรไฟล์" 
-          icon={<Person />}
-          sx={{
-            '& .MuiBottomNavigationAction-label': {
-              fontSize: '0.7rem',
-              fontWeight: 600
-            }
-          }}
-        />
-      </BottomNavigation>
+      {/* Footer Navigation */}
+      <FooterNavbar initialValue={1} />
     </Box>
   );
 }

@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { useRestaurant } from './context/RestaurantContext';
 import MenuPageComponent from './MenuPageComponent';
+import GlobalLoading from '../../components/GlobalLoading';
 
 export default function ClientMenuPage() {
   const [mounted, setMounted] = useState(false);
-  const { loading, error } = useRestaurant();
+  const { loading, error, restaurant } = useRestaurant();
 
   useEffect(() => {
     setMounted(true);
@@ -19,23 +20,13 @@ export default function ClientMenuPage() {
     }
   }, []);
 
-  // แสดง loading เฉพาะเมื่อยัง mount ไม่เสร็จ
-  if (!mounted) {
+  // แสดง GlobalLoading ที่มี Red Potion logo เฉพาะเมื่อยัง mount ไม่เสร็จ หรือกำลังโหลดข้อมูลร้าน
+  if (!mounted || loading) {
     return (
-      <Box sx={{ 
-        minHeight: '100vh', 
-        background: 'linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 2
-      }}>
-        <CircularProgress sx={{ color: '#10B981' }} />
-        <Typography sx={{ color: 'rgba(0, 0, 0, 0.6)', fontSize: '0.9rem' }}>
-          กำลังโหลดเมนูอาหาร...
-        </Typography>
-      </Box>
+      <GlobalLoading 
+        message="กำลังโหลดเมนูอาหาร..." 
+        subMessage="เตรียมรายการอาหารให้คุณ"
+      />
     );
   }
 

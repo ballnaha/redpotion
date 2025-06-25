@@ -439,8 +439,8 @@ export function RestaurantProvider({
         setLoading(true);
         setError(null);
         
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Simulate API call - ลดเวลาลงเพื่อให้โหลดเร็วขึ้น
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         let resolvedRestaurantId = restaurantId;
 
