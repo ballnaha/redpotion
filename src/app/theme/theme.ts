@@ -64,19 +64,10 @@ const themeOptions: ThemeOptions = {
     },
   },
   typography: {
-    fontFamily: [
-      '"Prompt"',
-      '-apple-system',
-      'BlinkMacSystemFont',
-      '"SF Pro Display"',
-      '"SF Pro Text"',
-      '"Helvetica Neue"',
-      'Arial',
-      'sans-serif',
-    ].join(','),
+    fontFamily: 'var(--font-prompt)',
     h1: {
       fontSize: '1.75rem',
-      fontWeight: 700,
+      fontWeight: 400,
       letterSpacing: '-0.02em',
       color: colors.text.primary,
       '@media (min-width:600px)': {
@@ -85,7 +76,7 @@ const themeOptions: ThemeOptions = {
     },
     h2: {
       fontSize: '1.5rem',
-      fontWeight: 600,
+      fontWeight: 300,
       letterSpacing: '-0.01em',
       color: colors.text.primary,
       '@media (min-width:600px)': {

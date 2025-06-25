@@ -681,7 +681,7 @@ export default function CustomerMenuPage() {
     <Box 
       sx={{ 
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, rgba(240, 248, 255, 0.8) 0%, rgba(249, 250, 251, 0.9) 100%)',
+        background: 'linear-gradient(135deg, rgba(240, 248, 255, 0.8) 0%, rgba(241, 242, 246, 0.9) 100%)',
         position: 'relative',
         display: 'flex',
         flexDirection: 'column'
@@ -789,7 +789,7 @@ export default function CustomerMenuPage() {
                 color="error"
                 sx={{
                   '& .MuiBadge-badge': {
-                    backgroundColor: '#EF4444',
+                    backgroundColor: '#FF6F61',
                     color: 'white',
                     fontSize: '0.75rem',
                     minWidth: '18px',
@@ -1492,7 +1492,7 @@ export default function CustomerMenuPage() {
                             position: 'absolute',
                             top: 8,
                             left: 8,
-                            background: item.isPromotion ? '#EF4444' : '#10B981',
+                            background: item.isPromotion ? '#FF6F61' : '#10B981',
                             color: 'white',
                             px: 1,
                             py: 0.5,
@@ -1885,7 +1885,7 @@ export default function CustomerMenuPage() {
                           onClick={() => removeFromCart(item.itemId)}
                           size="small"
                           sx={{ 
-                            color: '#ef4444',
+                            color: '#FF6F61',
                             '&:hover': {
                               background: 'rgba(239, 68, 68, 0.1)'
                             }

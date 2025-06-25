@@ -591,7 +591,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                   size="small"
                   onClick={clearCart}
                   sx={{
-                    color: '#EF4444',
+                    color: '#FF6F61',
                     fontSize: '0.75rem',
                     fontWeight: 500,
                     px: 1.5,
@@ -907,7 +907,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                       <IconButton
                         size="small"
                         onClick={removePromo}
-                        sx={{ color: '#EF4444' }}
+                        sx={{ color: '#FF6F61' }}
                       >
                         <Delete sx={{ fontSize: 16 }} />
                       </IconButton>

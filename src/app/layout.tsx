@@ -1,6 +1,16 @@
 import type { Metadata } from 'next'
+import { Prompt } from 'next/font/google'
 import { ThemeRegistry } from './components/ThemeRegistry'
 import './globals.css'
+
+// Configure Prompt font with maximum Next.js optimization
+const prompt = Prompt({
+  weight: ['200', '300', '400', '500'],
+  subsets: ['thai', 'latin'],
+  display: 'swap',
+  preload: true,
+  variable: '--font-prompt'
+})
 
 export const metadata: Metadata = {
   title: 'The Red Potion - Customer',
@@ -13,27 +23,24 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="th" suppressHydrationWarning>
+    <html lang="th" suppressHydrationWarning className={prompt.variable}>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         <meta name="theme-color" content="#ffffff" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap"
-          rel="stylesheet"
-        />
+
         <script 
           src="https://static.line-scdn.net/liff/edge/2/sdk.js"
           async
         ></script>
       </head>
-      <body suppressHydrationWarning style={{ fontFamily: "'Prompt', sans-serif" }}>
+      <body suppressHydrationWarning className={prompt.className}>
         <ThemeRegistry>
           <div 
             style={{ 
               width: '100%',
               minHeight: '100vh',
               backgroundColor: '#ffffff',
-              overflow: 'hidden',
+              overflow: 'hidden'
             }}
           >
             {children}

@@ -167,8 +167,8 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
             position: 'absolute',
             bottom: 30,
             left: 16,
-            background: '#EF4444',
-            color: 'white',
+            background: '#FF6F61',
+           
             px: 1.5,
             py: 0.3,
             borderRadius: '6px',
@@ -179,6 +179,7 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
           <Typography 
             sx={{ 
               fontWeight: 600,
+              color: '#FFFFFF',
               fontSize: { xs: '0.7rem', sm: '0.7rem' }
             }}
           >
@@ -234,7 +235,7 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
               color="error"
               sx={{
                 '& .MuiBadge-badge': {
-                  backgroundColor: '#EF4444',
+                  backgroundColor: '#FF6F61',
                   color: 'white',
                   fontSize: '0.6rem',
                   minWidth: '16px',
