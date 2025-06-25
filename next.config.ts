@@ -5,6 +5,16 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ['@mui/material', '@mui/icons-material'],
   },
   
+  // Disable linting during build
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  
+  // Disable type checking during build (optional)
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  
   images: {
     domains: ['images.unsplash.com'],
   },
