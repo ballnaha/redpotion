@@ -355,9 +355,12 @@ const getCartStorageKey = (restaurantId: string, userRole: string) =>
   `redpotion_cart_${userRole}_${restaurantId}`;
 
 const saveCartToStorage = (restaurantId: string, cart: CartItem[], userRole: string) => {
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
     try {
-      localStorage.setItem(getCartStorageKey(restaurantId, userRole), JSON.stringify(cart));
+      // ตรวจสอบว่า cart เป็น array ก่อนบันทึก
+      if (Array.isArray(cart)) {
+        localStorage.setItem(getCartStorageKey(restaurantId, userRole), JSON.stringify(cart));
+      }
     } catch (error) {
       console.warn('ไม่สามารถบันทึกตะกร้าได้:', error);
     }
@@ -365,13 +368,24 @@ const saveCartToStorage = (restaurantId: string, cart: CartItem[], userRole: str
 };
 
 const loadCartFromStorage = (restaurantId: string, userRole: string): CartItem[] => {
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
     try {
       const saved = localStorage.getItem(getCartStorageKey(restaurantId, userRole));
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsedCart = JSON.parse(saved);
+        // ตรวจสอบว่าข้อมูลที่โหลดมาเป็น array ที่ถูกต้อง
+        if (Array.isArray(parsedCart)) {
+          return parsedCart;
+        }
+      }
     } catch (error) {
       console.warn('ไม่สามารถโหลดตะกร้าได้:', error);
-      return [];
+      // ลบข้อมูลที่เสียหายออก
+      try {
+        localStorage.removeItem(getCartStorageKey(restaurantId, userRole));
+      } catch (e) {
+        console.warn('ไม่สามารถลบข้อมูลที่เสียหายได้:', e);
+      }
     }
   }
   return [];
@@ -397,12 +411,17 @@ export function RestaurantProvider({
     setMounted(true);
   }, []);
 
-  // โหลดตะกร้าจาก localStorage เมื่อเปลี่ยนร้าน
+  // โหลดตะกร้าจาก localStorage เมื่อเปลี่ยนร้าน (หลัง hydration เท่านั้น)
   useEffect(() => {
     if (!mounted || !restaurant) return;
     
-    const savedCart = loadCartFromStorage(restaurant.id, userRole);
-    setCart(savedCart);
+    // รอให้ hydration เสร็จก่อนโหลด localStorage
+    const timer = setTimeout(() => {
+      const savedCart = loadCartFromStorage(restaurant.id, userRole);
+      setCart(savedCart);
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [restaurant?.id, mounted, userRole]);
 
   // บันทึกตะกร้าลง localStorage เมื่อมีการเปลี่ยนแปลง

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Prompt } from 'next/font/google';
+import GlobalLoading from './components/GlobalLoading';
 
 // Configure Prompt font
 const prompt = Prompt({
@@ -115,117 +116,7 @@ export default function HomePage() {
   ];
 
   if (!isMounted) {
-    return (
-      <Box sx={{ 
-        display: 'flex', 
-        flexDirection: 'column',
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        background: 'linear-gradient(135deg, rgba(251, 113, 133, 0.05) 0%, rgba(253, 164, 175, 0.05) 100%)',
-        backdropFilter: 'blur(10px)'
-      }}>
-        {/* Logo Animation */}
-        <Box sx={{ 
-          position: 'relative',
-          mb: 4,
-          animation: 'float 3s ease-in-out infinite'
-        }}>
-          <img 
-            src="/images/logo_trim.png" 
-            alt="เดอะ เรด โพชั่น" 
-            style={{ 
-              width: '80px', 
-              height: 'auto',
-              filter: 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1))'
-            }} 
-          />
-          
-          {/* Loading Ring */}
-          <Box sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: 100,
-            height: 100,
-            border: '2px solid rgba(248, 113, 113, 0.1)',
-            borderTop: '2px solid #F87171',
-            borderRadius: '50%',
-            animation: 'spin 1.5s linear infinite'
-          }} />
-        </Box>
-
-        {/* Text */}
-        <Typography sx={{ 
-          color: '#0F172A', 
-          fontWeight: 500, 
-          fontSize: '1rem',
-          mb: 1,
-          animation: 'fadeInOut 2s ease-in-out infinite'
-        }}>
-          กำลังเตรียมระบบ...
-        </Typography>
-        
-        <Typography sx={{ 
-          color: '#6B7280', 
-          fontWeight: 400, 
-          fontSize: '0.875rem'
-        }}>
-          โปรดรอสักครู่
-        </Typography>
-
-        {/* Minimal Loading Dots */}
-        <Box sx={{ 
-          display: 'flex', 
-          gap: 1, 
-          mt: 3 
-        }}>
-          {[0, 1, 2].map((index) => (
-            <Box
-              key={index}
-              sx={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: '#F87171',
-                animation: `pulse 1.5s ease-in-out infinite`,
-                animationDelay: `${index * 0.3}s`
-              }}
-            />
-          ))}
-        </Box>
-
-        {/* CSS Animations */}
-        <style jsx>{`
-          @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-8px); }
-          }
-          
-          @keyframes spin {
-            0% { transform: translate(-50%, -50%) rotate(0deg); }
-            100% { transform: translate(-50%, -50%) rotate(360deg); }
-          }
-          
-          @keyframes pulse {
-            0%, 100% { 
-              opacity: 0.4;
-              transform: scale(1);
-            }
-            50% { 
-              opacity: 1;
-              transform: scale(1.2);
-            }
-          }
-          
-          @keyframes fadeInOut {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-          }
-        `}</style>
-      </Box>
-    );
+    return <GlobalLoading />;
   }
 
   return (
@@ -261,9 +152,9 @@ export default function HomePage() {
 
       <Box
         component="main"
-        sx={{
-          minHeight: '100vh',
-          background: `
+      sx={{
+        minHeight: '100vh',
+        background: `
             url('https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=1920&h=1080&fit=crop&crop=center') center/cover,
             radial-gradient(circle at 20% 80%, rgba(251, 113, 133, 0.05) 0%, transparent 50%),
             radial-gradient(circle at 80% 20%, rgba(253, 164, 175, 0.05) 0%, transparent 50%),
@@ -283,13 +174,13 @@ export default function HomePage() {
             pointerEvents: 'none',
             zIndex: 0
           }
-        }}
-      >
-        {/* Hero Section */}
+      }}
+    >
+      {/* Hero Section */}
         <Box
           component="section"
           aria-label="หน้าแรก"
-          sx={{
+        sx={{
             position: 'relative',
             zIndex: 1,
             py: { xs: 4, sm: 6, md: 8, lg: 16 },
@@ -429,10 +320,10 @@ export default function HomePage() {
                     />
                   </Box>
                   
-                              <Typography 
+            <Typography 
                     variant="h1" 
                     className={prompt.className}
-                    sx={{ 
+              sx={{ 
                       fontWeight: 200,
                       mb: { xs: 2, sm: 2.5, md: 3 },
                       fontSize: { xs: '1.75rem', sm: '2.25rem', md: '3rem', lg: '4rem', xl: '5rem' },
@@ -452,12 +343,12 @@ export default function HomePage() {
                     }}>
                      เรด โพชั่น
                     </span>
-                  </Typography>
+            </Typography>
                   
-                                      <Typography 
-                    variant="h5" 
+            <Typography 
+              variant="h5" 
                     className={prompt.className}
-                    sx={{ 
+              sx={{ 
                       mb: { xs: 3, sm: 4, md: 6 },
                       color: '#374151',
                       fontWeight: 400,
@@ -473,9 +364,9 @@ export default function HomePage() {
                     สำหรับร้านอาหาร แบบ Multi-Tenant
                     <br />
                     เริ่มต้นธุรกิจออนไลน์ได้ทันที
-                  </Typography>
-              
-                  <Box sx={{ 
+            </Typography>
+            
+            <Box sx={{ 
                     display: 'flex', 
                     gap: { xs: 2, sm: 2.5, md: 3 }, 
                     justifyContent: 'center', 
@@ -546,8 +437,8 @@ export default function HomePage() {
 
               {/* Video Modal */}
               {isVideoPlaying && (
-                <Box
-                  sx={{
+                    <Box
+                      sx={{
                     position: 'fixed',
                     top: 0,
                     left: 0,
@@ -634,34 +525,34 @@ export default function HomePage() {
                           <Box sx={{
                             width: 80,
                             height: 80,
-                            borderRadius: '50%',
+                        borderRadius: '50%',
                             background: 'rgba(255, 255, 255, 0.2)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            mx: 'auto',
-                            mb: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        mx: 'auto',
+                        mb: 2,
                             backdropFilter: 'blur(10px)'
                           }}>
                             <PlayArrow sx={{ fontSize: 40 }} />
-                          </Box>
+                    </Box>
                           <Typography variant="h6" sx={{ fontWeight: 300 }}>
                             เรื่องราวของเดอะ เรด โพชั่น
-                          </Typography>
+                    </Typography>
                           <Typography variant="body2" sx={{ opacity: 0.8, mt: 1 }}>
                             การเดินทางสู่อาหารสุขภาพระดับพรีเมียม
-                          </Typography>
-                        </Box>
+                    </Typography>
+                  </Box>
                         
                         {/* Floating Food Elements */}
                         <Box sx={{ position: 'absolute', top: '20%', left: '15%', fontSize: '2rem', opacity: 0.6 }}>🥗</Box>
                         <Box sx={{ position: 'absolute', top: '30%', right: '20%', fontSize: '1.5rem', opacity: 0.5 }}>🥑</Box>
                         <Box sx={{ position: 'absolute', bottom: '25%', left: '25%', fontSize: '1.8rem', opacity: 0.4 }}>🍓</Box>
                         <Box sx={{ position: 'absolute', bottom: '35%', right: '15%', fontSize: '1.3rem', opacity: 0.6 }}>🥬</Box>
-                      </Box>
+            </Box>
                     </video>
                   </Card>
-                </Box>
+          </Box>
               )}
 
                           {/* Stats Glass Cards */}
@@ -691,9 +582,9 @@ export default function HomePage() {
                         }
                       }}
                     >
-                                      <Typography 
-                      variant="h3" 
-                      sx={{ 
+          <Typography 
+            variant="h3" 
+            sx={{ 
                         fontWeight: 600, 
                         color: '#0F172A',
                         mb: 0.5,
@@ -741,10 +632,10 @@ export default function HomePage() {
               }}
             >
 ฟีเจอร์หลักของระบบ
-            </Typography>
-            <Typography 
-              variant="h6" 
-              sx={{ 
+          </Typography>
+          <Typography 
+            variant="h6" 
+            sx={{ 
                 color: '#374151',
                 maxWidth: { xs: '100%', sm: 400, md: 500 },
                 mx: 'auto',
@@ -757,42 +648,42 @@ export default function HomePage() {
 ระบบครบครันสำหรับร้านอาหาร
               <br />
               ที่ต้องการขายออนไลน์
-            </Typography>
-          </Box>
+          </Typography>
+        </Box>
 
-          <Box sx={{ 
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
+        <Box sx={{ 
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
             gap: { xs: 1.5, sm: 2, md: 2.5 }
-          }}>
+        }}>
             {categories.map((category, index) => {
               const IconComponent = category.icon;
-              return (
-                  <Card
+            return (
+                <Card
                   key={index}
-                    sx={{
+                  sx={{
                     background: 'rgba(255, 255, 255, 0.6)',
                     backdropFilter: 'blur(20px)',
                     border: '1px solid rgba(255, 255, 255, 0.3)',
                     borderRadius: 3,
-                      overflow: 'hidden',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     boxShadow: '0 4px 16px rgba(0, 0, 0, 0.04)',
-                      '&:hover': {
+                    '&:hover': {
                       transform: 'translateY(-4px)',
                       background: 'rgba(255, 255, 255, 0.8)',
                       boxShadow: `0 12px 24px ${category.color}15`,
                       borderColor: `${category.color}30`,
                     },
                     height: '100%',
-                      position: 'relative',
-                      '&::before': {
-                        content: '""',
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
+                    position: 'relative',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
                       height: 2,
                       background: `linear-gradient(90deg, ${category.color}, transparent)`,
                       opacity: 0,
@@ -825,15 +716,15 @@ export default function HomePage() {
                       {category.image}
                     </Box>
                     
-                    <Box 
-                      sx={{ 
+                      <Box 
+                        sx={{ 
                         width: 40,
                         height: 40,
                         borderRadius: 2,
                         background: `linear-gradient(135deg, ${category.color}20, ${category.color}10)`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                         mx: 'auto',
                         mb: 2,
                         border: `1px solid ${category.color}25`,
@@ -842,24 +733,24 @@ export default function HomePage() {
                       }}
                     >
                       <IconComponent sx={{ fontSize: 20, color: category.color }} />
-                    </Box>
+                      </Box>
 
-                    <Typography 
+                      <Typography 
                       variant="h6" 
-                      sx={{ 
+                        sx={{ 
                         fontWeight: 500,
-                        mb: 1,
+                          mb: 1,
                         color: '#0F172A',
                         fontSize: '0.875rem',
                         position: 'relative',
                         zIndex: 1
-                      }}
-                    >
+                        }}
+                      >
                       {category.title}
-                    </Typography>
-                    <Typography 
+                      </Typography>
+                      <Typography 
                       variant="body2" 
-                      sx={{ 
+                        sx={{ 
                         color: '#374151',
                         lineHeight: 1.4,
                         fontSize: '0.75rem',
@@ -869,7 +760,7 @@ export default function HomePage() {
                       }}
                     >
                       {category.description}
-                    </Typography>
+                      </Typography>
                   </CardContent>
                 </Card>
               );
@@ -901,9 +792,9 @@ export default function HomePage() {
         }}>
           <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 2 }}>
             <Box sx={{ textAlign: 'center', mb: { xs: 6, md: 8 } }}>
-              <Typography 
+                      <Typography 
                 variant="h2" 
-                          sx={{ 
+                        sx={{ 
                   fontWeight: 400,
                             mb: 3,
                   color: '#0F172A',
@@ -926,8 +817,8 @@ export default function HomePage() {
                 }}
               >
 เทคโนโลยีทันสมัย เพื่อความสำเร็จของธุรกิจคุณ
-              </Typography>
-            </Box>
+                      </Typography>
+                    </Box>
 
             <Box sx={{ 
               display: 'grid', 
@@ -949,7 +840,7 @@ export default function HomePage() {
                     backdropFilter: 'blur(20px)',
                     border: '1px solid rgba(255, 255, 255, 0.4)',
                     transition: 'all 0.3s ease',
-                    '&:hover': {
+                        '&:hover': {
                       background: 'rgba(255, 255, 255, 0.7)',
                       transform: 'translateY(-2px)',
                       boxShadow: '0 8px 24px rgba(0, 0, 0, 0.08)'
@@ -994,21 +885,21 @@ export default function HomePage() {
                         {feature.description}
                       </Typography>
                     </Box>
-                </Box>
-              );
-            })}
-          </Box>
-        </Container>
+              </Box>
+            );
+          })}
+        </Box>
+      </Container>
         </Box>
 
         {/* CTA Section */}
         <Container maxWidth="lg" sx={{ py: { xs: 8, md: 12 }, position: 'relative', zIndex: 1 }}>
-          <Card sx={{ 
+        <Card sx={{ 
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backdropFilter: 'blur(20px)',
-            color: 'white',
-            textAlign: 'center',
+          color: 'white',
+          textAlign: 'center',
             p: { xs: 8, md: 12 },
             borderRadius: 6,
             position: 'relative',
@@ -1035,7 +926,7 @@ export default function HomePage() {
                 }}
               >
 พร้อมเริ่มต้นธุรกิจออนไลน์แล้วหรือยัง?
-              </Typography>
+          </Typography>
               <Typography 
                 variant="h6" 
                 sx={{ 
@@ -1051,13 +942,13 @@ export default function HomePage() {
 เข้าร่วมกับร้านอาหารกว่า 1,000+ ร้าน
                 <br />
                 ที่เชื่อใจและใช้งานระบบของเรา
-              </Typography>
+          </Typography>
               <Box sx={{ display: 'flex', gap: 4, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Button
-                variant="contained"
+          <Button
+            variant="contained"
                     size="large"
                     endIcon={<ShoppingBag />}
-                    sx={{
+            sx={{
                       background: 'rgba(255, 255, 255, 0.9)',
                       backdropFilter: 'blur(20px)',
                       color: '#1E293B',
@@ -1068,16 +959,16 @@ export default function HomePage() {
                       border: '1px solid rgba(255, 255, 255, 0.2)',
                       borderRadius: 3,
                       boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
-                      '&:hover': {
+              '&:hover': {
                         background: 'rgba(255, 255, 255, 1)',
                         transform: 'translateY(-2px)',
                         boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)'
-                      },
+              },
                       transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
-                    }}
-                                >
+            }}
+          >
 เริ่มใช้งานเลย
-                    </Button>
+          </Button>
                     <Button
                       variant="outlined"
                       size="large"
@@ -1104,7 +995,7 @@ export default function HomePage() {
                   </Button>
               </Box>
             </Box>
-          </Card>
+        </Card>
         </Container>
 
         {/* Minimal Footer */}
@@ -1124,7 +1015,7 @@ export default function HomePage() {
         }}>
           <Container maxWidth="lg">
             {/* Main Footer Content */}
-            <Box sx={{ 
+          <Box sx={{ 
               display: 'flex',
               flexDirection: { xs: 'column', md: 'row' },
               justifyContent: 'space-between',
@@ -1137,7 +1028,7 @@ export default function HomePage() {
               <Box sx={{ flex: 1 }}>
                 <Typography 
                   variant="h4" 
-                  sx={{ 
+                sx={{ 
                     fontWeight: 300,
                     mb: 2,
                     fontSize: '1.5rem',
@@ -1148,10 +1039,10 @@ export default function HomePage() {
                   }}
                 >
                   เดอะ เรด โพชั่น
-                </Typography>
+              </Typography>
                 <Typography 
                   variant="body2" 
-                  sx={{ 
+                sx={{ 
                     color: '#64748B',
                     lineHeight: 1.6,
                     maxWidth: 300,
@@ -1162,7 +1053,7 @@ export default function HomePage() {
                 >
 แพลตฟอร์มให้เช่า Web Application สำหรับร้านอาหาร
                   ระบบครบครัน เริ่มใช้งานได้ทันที
-                </Typography>
+              </Typography>
                 
                 {/* Social Icons */}
                 <Box sx={{ display: 'flex', gap: 1, justifyContent: { xs: 'center', md: 'flex-start' } }}>
@@ -1170,7 +1061,7 @@ export default function HomePage() {
                     <IconButton
                       key={index}
                       size="small"
-                      sx={{
+                sx={{ 
                         width: 36,
                         height: 36,
                         background: 'rgba(251, 113, 133, 0.08)',
@@ -1187,13 +1078,13 @@ export default function HomePage() {
                     </IconButton>
                   ))}
                 </Box>
-              </Box>
+            </Box>
 
               {/* Contact Info */}
               <Box sx={{ flex: 1, maxWidth: 200 }}>
                 <Typography 
                   variant="h6" 
-                  sx={{ 
+                sx={{ 
                     mb: 3, 
                     fontWeight: 500, 
                     fontSize: '1rem',
@@ -1211,15 +1102,15 @@ export default function HomePage() {
                   </Typography>
                   <Typography variant="body2" sx={{ color: '#64748B', fontSize: '0.75rem', fontWeight: 300 }}>
                     📍 กรุงเทพมหานคร ประเทศไทย
-                  </Typography>
-                </Box>
-              </Box>
+              </Typography>
+            </Box>
+          </Box>
 
               {/* Quick Links */}
               <Box sx={{ flex: 1, maxWidth: 200 }}>
-                <Typography 
-                  variant="h6" 
-                  sx={{ 
+            <Typography 
+              variant="h6" 
+              sx={{ 
                     mb: 3, 
                     fontWeight: 500, 
                     fontSize: '1rem',
@@ -1227,13 +1118,13 @@ export default function HomePage() {
                   }}
                 >
                   ลิงก์ด่วน
-                </Typography>
+            </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                   {['ราคาแพ็คเกจ', 'เกี่ยวกับเรา', 'ติดต่อเรา', 'นโยบายความเป็นส่วนตัว'].map((link) => (
-                    <Typography 
+            <Typography 
                       key={link}
-                      variant="body2" 
-                      sx={{ 
+              variant="body2" 
+              sx={{ 
                         color: '#64748B', 
                         fontSize: '0.75rem', 
                         fontWeight: 300,
@@ -1245,7 +1136,7 @@ export default function HomePage() {
                       }}
                     >
                       {link}
-                    </Typography>
+            </Typography>
                   ))}
                 </Box>
               </Box>
@@ -1307,10 +1198,10 @@ export default function HomePage() {
                   }} 
                 />
               </Box>
-            </Box>
-          </Container>
-        </Box>
+          </Box>
+        </Container>
       </Box>
+    </Box>
     </>
   );
 } 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, use } from 'react';
+import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Box, 
@@ -35,10 +35,16 @@ interface AddOn {
 
 export default function ItemPage({ params }: { params: Promise<{ restaurantId: string; itemId: string }> }) {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const { cart, cartTotal, restaurant, setCartItemQuantity } = useRestaurant();
+
+  // Handle hydration
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   
   const resolvedParams = use(params);
 
@@ -231,7 +237,7 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
             }}
           >
             <Badge 
-              badgeContent={cart.reduce((total, item) => total + item.quantity, 0)} 
+              badgeContent={0} 
               color="error"
               sx={{
                 '& .MuiBadge-badge': {
@@ -239,7 +245,8 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
                   color: 'white',
                   fontSize: '0.6rem',
                   minWidth: '16px',
-                  height: '16px'
+                  height: '16px',
+                  display: 'none' // ซ่อน badge ชั่วคราวเพื่อป้องกัน hydration mismatch
                 }
               }}
             >
