@@ -3,6 +3,9 @@ import { Prompt } from 'next/font/google'
 import { ThemeRegistry } from './components/ThemeRegistry'
 import './globals.css'
 
+// Force page to revalidate every 5 minutes (300 seconds)
+export const revalidate = 300
+
 // Configure Prompt font with maximum Next.js optimization
 const prompt = Prompt({
   weight: ['200', '300', '400', '500'],
