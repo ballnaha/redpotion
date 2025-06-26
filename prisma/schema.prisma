@@ -100,6 +100,21 @@ model Restaurant {
   imageUrl    String?
   status      RestaurantStatus @default(PENDING)
   
+  // Location information
+  latitude    Float?           // ละติจูด
+  longitude   Float?           // ลองจิจูด
+  locationName String?         // ชื่อสถานที่จาก Google Maps
+  
+  // Business information
+  businessType String?          // ประเภทธุรกิจ
+  taxId        String?          // เลขประจำตัวผู้เสียภาษี
+  bankAccount  String?          // เลขบัญชีธนาคาร
+  bankName     String?          // ชื่อธนาคาร
+  
+  // Registration documents (simplified to 2 required files)
+  ownerIdCard   String?         // บัตรประชาชนเจ้าของร้าน
+  bankStatement String?         // หนังสือรับรองบัญชีธนาคาร
+  
   // Opening hours
   openTime    String?  // "09:00"
   closeTime   String?  // "22:00"
