@@ -22,8 +22,18 @@ import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import 'swiper/css/effect-fade';
 
-// Add custom styles for animations
+// Add custom styles for animations and smooth scrolling
 const globalStyles = `
+  html {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
   @keyframes slideIn {
     from {
       opacity: 0;
@@ -38,7 +48,7 @@ const globalStyles = `
   @keyframes fadeInUp {
     0% {
       opacity: 0;
-      transform: translateY(15px) scale(0.98);
+      transform: translateY(8px) scale(0.99);
     }
     100% {
       opacity: 1;
@@ -49,12 +59,13 @@ const globalStyles = `
   .menu-items-container {
     opacity: 1;
     transform: translateY(0);
-    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: opacity, transform;
   }
   
   .menu-items-container.changing {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(5px);
   }
 `;
 
@@ -64,16 +75,6 @@ if (typeof document !== 'undefined' && !document.getElementById('menu-animations
   styleSheet.id = 'menu-animations';
   styleSheet.textContent = globalStyles;
   document.head.appendChild(styleSheet);
-}
-
-interface Banner {
-  id: string;
-  title: string;
-  subtitle: string;
-  description: string;
-  image: string;
-  buttonText: string;
-  buttonLink?: string;
 }
 
 interface MenuCategory {
@@ -99,14 +100,9 @@ interface MenuItem {
   isHit?: boolean;
 }
 
-interface SpecialOffer {
+interface GalleryImage {
   id: string;
-  title: string;
-  subtitle: string;
-  description: string;
-  buttonText: string;
   background: string;
-  image: string;
 }
 
 // Cart Badge Component ที่ป้องกัน hydration mismatch
@@ -194,34 +190,19 @@ export default function MenuPageComponent() {
   const [isAnimating, setIsAnimating] = useState(false);
   const [animationKey, setAnimationKey] = useState(0);
   
-  // Special offers data with multiple slides
-  const specialOffers: SpecialOffer[] = [
+  // Gallery images for banner slider
+  const galleryImages: GalleryImage[] = [
     {
       id: '1',
-      title: '',
-      subtitle: '',
-      description: ' ',
-      buttonText: 'สั่งเลย',
-      background: '/images/banner-1.png',
-      image: ''
+      background: '/images/banner-1.png'
     },
     {
       id: '2',
-      title: 'โปรโมชั่นพิเศษ',
-      subtitle: 'ลด 30% เมนูยอดนิยม',
-      description: 'สำหรับสมาชิกใหม่เท่านั้น วันนี้ - 31 ธ.ค.',
-      buttonText: 'รับส่วนลด',
-      background: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&h=400&fit=crop',
-      image: ''
+      background: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&h=400&fit=crop'
     },
     {
       id: '3',
-      title: 'เมนูใหม่มาแล้ว',
-      subtitle: 'สูตรเชฟพิเศษ',
-      description: 'ลิ้มลองรสชาติใหม่ที่คุณไม่เคยลอง',
-      buttonText: 'ลองเลย',
-      background: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=800&h=400&fit=crop',
-      image: ''
+      background: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=800&h=400&fit=crop'
     }
   ];
 
@@ -538,16 +519,20 @@ export default function MenuPageComponent() {
     
     setIsAnimating(true);
     
-    // Smooth transition without jarring animations
-    setTimeout(() => {
-      setSelectedCategory(categoryId);
-      setAnimationKey(prev => prev + 1);
-      
-      // Reset animation state
+    // Smooth transition with optimized timing
+    requestAnimationFrame(() => {
       setTimeout(() => {
-        setIsAnimating(false);
-      }, 100);
-    }, 150);
+        setSelectedCategory(categoryId);
+        setAnimationKey(prev => prev + 1);
+        
+        // Reset animation state after transition completes
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            setIsAnimating(false);
+          }, 50);
+        });
+      }, 200);
+    });
   };
 
   const filteredItems = selectedCategory === 'popular' 
@@ -599,7 +584,11 @@ export default function MenuPageComponent() {
         background: 'linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%)',
         position: 'relative',
         display: 'flex',
-        flexDirection: 'column'
+        flexDirection: 'column',
+        overflowX: 'hidden',
+        overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        scrollBehavior: 'smooth'
       }}
     >
       {/* Fixed Header with Glass Effect */}
@@ -803,12 +792,12 @@ export default function MenuPageComponent() {
                       label="เปิดอยู่" 
                       size="small"
                       sx={{ 
-                        background: 'rgba(46, 125, 50, 0.2)',
+                        background: 'rgba(16, 185, 129, 0.2)',
                         backdropFilter: 'blur(10px)',
-                        color: '#2E7D32',
+                        color: '#10B981',
                         fontSize: '0.7rem',
                         height: '22px',
-                        border: '1px solid rgba(46, 125, 50, 0.3)',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
                         fontWeight: 600
                       }}
                     />
@@ -904,15 +893,23 @@ export default function MenuPageComponent() {
             modules={[Navigation, Pagination, Autoplay]}
             spaceBetween={16}
             slidesPerView={1.1}
+            speed={800}
             autoplay={{
-              delay: 3000,
+              delay: 4000,
               disableOnInteraction: false,
+              pauseOnMouseEnter: true,
             }}
             pagination={{
               clickable: true,
               dynamicBullets: true,
             }}
             loop={true}
+            grabCursor={true}
+            touchRatio={1}
+            touchAngle={45}
+            threshold={10}
+            longSwipes={true}
+            longSwipesRatio={0.5}
             breakpoints={{
               640: {
                 slidesPerView: 1.2,
@@ -928,7 +925,7 @@ export default function MenuPageComponent() {
               overflow: 'visible'
             }}
           >
-            {specialOffers.map((offer) => (
+            {galleryImages.map((offer) => (
               <SwiperSlide key={offer.id}>
                 <Card 
                   sx={{ 
@@ -1126,14 +1123,19 @@ export default function MenuPageComponent() {
                     backdropFilter: 'blur(20px)',
                     border: '1px solid rgba(255, 255, 255, 0.2)',
                     boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    transition: 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
                     position: 'relative',
                     cursor: 'pointer',
-                    animation: !isAnimating ? `fadeInUp 0.4s ease-out ${index * 0.05}s both` : 'none',
+                    animation: !isAnimating ? `fadeInUp 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${index * 0.08}s both` : 'none',
+                    willChange: 'transform, box-shadow, background',
                     '&:hover': {
-                      transform: 'translateY(-4px)',
-                      boxShadow: '0 16px 32px rgba(0, 0, 0, 0.2)',
-                      background: 'rgba(255, 255, 255, 0.35)'
+                      transform: 'translateY(-6px) scale(1.02)',
+                      boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
+                      background: 'rgba(255, 255, 255, 0.4)'
+                    },
+                    '&:active': {
+                      transform: 'translateY(-2px) scale(0.98)',
+                      transition: 'all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
                     }
                   }}
                 >
