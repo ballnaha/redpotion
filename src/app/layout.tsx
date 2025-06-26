@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Prompt } from 'next/font/google'
 import { ThemeRegistry } from './components/ThemeRegistry'
+import SessionProvider from './components/SessionProvider'
 import './globals.css'
 
 // Force page to revalidate every 5 minutes (300 seconds)
@@ -183,18 +184,20 @@ export default function RootLayout({
         />
       </head>
       <body suppressHydrationWarning className={prompt.className}>
-        <ThemeRegistry>
-          <div 
-            style={{ 
-              width: '100%',
-              minHeight: '100vh',
-              backgroundColor: '#ffffff',
-              overflow: 'hidden'
-            }}
-          >
-            {children}
-          </div>
-        </ThemeRegistry>
+        <SessionProvider>
+          <ThemeRegistry>
+            <div 
+              style={{ 
+                width: '100%',
+                minHeight: '100vh',
+                backgroundColor: '#ffffff',
+                overflow: 'hidden'
+              }}
+            >
+              {children}
+            </div>
+          </ThemeRegistry>
+        </SessionProvider>
       </body>
     </html>
   )

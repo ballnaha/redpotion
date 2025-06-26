@@ -43,13 +43,15 @@ const glassMorphism = {
   backdrop: 'blur(20px) saturate(180%)',
   backdropStrong: 'blur(40px) saturate(200%)',
   shadow: {
-    soft: '0 4px 16px rgba(0, 0, 0, 0.04)',
-    medium: '0 8px 24px rgba(0, 0, 0, 0.08)',
-    strong: '0 12px 40px rgba(0, 0, 0, 0.12)',
-    glass: '0 8px 32px rgba(31, 38, 135, 0.15)',
+    soft: '0 2px 8px rgba(16, 185, 129, 0.08), 0 1px 4px rgba(0, 0, 0, 0.06)',
+    medium: '0 4px 16px rgba(16, 185, 129, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08)',
+    strong: '0 8px 32px rgba(16, 185, 129, 0.16), 0 4px 16px rgba(0, 0, 0, 0.12)',
+    glass: '0 8px 32px rgba(16, 185, 129, 0.1), 0 4px 16px rgba(255, 255, 255, 0.15)',
+    elevation: '0 12px 40px rgba(16, 185, 129, 0.2), 0 8px 32px rgba(0, 0, 0, 0.15)',
   },
-  border: 'rgba(255, 255, 255, 0.18)',
-  borderStrong: 'rgba(255, 255, 255, 0.3)',
+  border: 'rgba(255, 255, 255, 0.25)',
+  borderStrong: 'rgba(255, 255, 255, 0.4)',
+  borderAccent: 'rgba(16, 185, 129, 0.3)',
 };
 
 const themeOptions: ThemeOptions = {
@@ -66,67 +68,84 @@ const themeOptions: ThemeOptions = {
   typography: {
     fontFamily: 'var(--font-prompt)',
     h1: {
-      fontSize: '1.75rem',
-      fontWeight: 400,
+      fontSize: '2rem',
+      fontWeight: 700,
       letterSpacing: '-0.02em',
       color: colors.text.primary,
+      textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
       '@media (min-width:600px)': {
-        fontSize: '2.5rem',
+        fontSize: '2.75rem',
       },
     },
     h2: {
-      fontSize: '1.5rem',
-      fontWeight: 300,
+      fontSize: '1.75rem',
+      fontWeight: 600,
       letterSpacing: '-0.01em',
       color: colors.text.primary,
+      textShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
       '@media (min-width:600px)': {
-        fontSize: '2rem',
+        fontSize: '2.25rem',
       },
     },
     h3: {
-      fontSize: '1.375rem',
+      fontSize: '1.5rem',
       fontWeight: 600,
       color: colors.text.primary,
+      textShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
       '@media (min-width:600px)': {
-        fontSize: '1.75rem',
+        fontSize: '1.875rem',
       },
     },
     h4: {
-      fontSize: '1.25rem',
+      fontSize: '1.375rem',
       fontWeight: 600,
       color: colors.text.primary,
+      textShadow: '0 1px 3px rgba(0, 0, 0, 0.06)',
       '@media (min-width:600px)': {
-        fontSize: '1.5rem',
+        fontSize: '1.625rem',
       },
     },
     h5: {
+      fontSize: '1.25rem',
+      fontWeight: 600,
+      color: colors.text.primary,
+      textShadow: '0 1px 2px rgba(0, 0, 0, 0.06)',
+      '@media (min-width:600px)': {
+        fontSize: '1.375rem',
+      },
+    },
+    h6: {
       fontSize: '1.125rem',
       fontWeight: 600,
       color: colors.text.primary,
+      textShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
       '@media (min-width:600px)': {
         fontSize: '1.25rem',
       },
     },
-    h6: {
+    body1: {
       fontSize: '1rem',
-      fontWeight: 600,
+      lineHeight: 1.7,
       color: colors.text.primary,
+      fontWeight: 400,
       '@media (min-width:600px)': {
         fontSize: '1.125rem',
       },
     },
-    body1: {
+    body2: {
       fontSize: '0.875rem',
       lineHeight: 1.6,
-      color: colors.text.primary,
+      color: colors.text.secondary,
+      fontWeight: 400,
       '@media (min-width:600px)': {
         fontSize: '1rem',
       },
     },
-    body2: {
+    caption: {
       fontSize: '0.75rem',
       lineHeight: 1.5,
       color: colors.text.secondary,
+      fontWeight: 500,
       '@media (min-width:600px)': {
         fontSize: '0.875rem',
       },
@@ -191,12 +210,13 @@ const themeOptions: ThemeOptions = {
           WebkitBackdropFilter: glassMorphism.backdropStrong,
           border: `1px solid ${glassMorphism.border}`,
           borderRadius: 20,
-          boxShadow: glassMorphism.shadow.glass,
+          boxShadow: glassMorphism.shadow.soft,
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           '&:hover': {
-            transform: 'translateY(-2px)',
-            boxShadow: glassMorphism.shadow.strong,
+            transform: 'translateY(-4px)',
+            boxShadow: glassMorphism.shadow.elevation,
             backgroundColor: colors.background.paper,
+            borderColor: glassMorphism.borderAccent,
           },
         },
       },

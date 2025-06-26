@@ -74,280 +74,101 @@ interface RestaurantContextType {
 
 const RestaurantContext = createContext<RestaurantContextType | undefined>(undefined);
 
-// ฟังก์ชันตรวจสอบ UUID format
-const isValidUUID = (str: string): boolean => {
+// ฟังก์ชันตรวจสอบ ID format (รองรับทั้ง UUID และ CUID)
+const isValidId = (str: string): boolean => {
+  // UUID format
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(str);
+  // CUID format (Prisma default)
+  const cuidRegex = /^c[a-z0-9]{24}$/i;
+  
+  return uuidRegex.test(str) || cuidRegex.test(str);
 };
 
-// Mock data สำหรับร้านอาหารต่างๆ ใช้ UUID
-const mockRestaurants: Record<string, Restaurant> = {
-  // ร้านข้าวแกงใต้แท้
-  '550e8400-e29b-41d4-a716-446655440001': {
-    id: '550e8400-e29b-41d4-a716-446655440001',
-    name: 'ข้าวแกงใต้แท้',
-    description: 'อาหารใต้แท้รสจัดจ้าน ครบครันทุกเมนู',
-    logo: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=200&h=200&fit=crop',
-    banner: 'https://images.unsplash.com/photo-1559847844-5315695dadae?w=800&h=400&fit=crop',
+// Interface สำหรับข้อมูลที่ดึงจาก API
+interface ApiRestaurant {
+  id: string;
+  name: string;
+  description?: string;
+  address: string;
+  phone: string;
+  email?: string;
+  imageUrl?: string;
+  status: string;
+  openTime?: string;
+  closeTime?: string;
+  isOpen: boolean;
+  categories: ApiCategory[];
+}
+
+interface ApiCategory {
+  id: string;
+  name: string;
+  description?: string;
+  imageUrl?: string;
+  sortOrder: number;
+  isActive: boolean;
+  menuItems: ApiMenuItem[];
+}
+
+interface ApiMenuItem {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  imageUrl?: string;
+  isAvailable: boolean;
+  sortOrder: number;
+  calories?: number;
+  isVegetarian: boolean;
+  isSpicy: boolean;
+}
+
+// ฟังก์ชันแปลงข้อมูลจาก API เป็น Restaurant interface
+const transformApiToRestaurant = (apiData: ApiRestaurant): Restaurant => {
+  return {
+    id: apiData.id,
+    name: apiData.name,
+    description: apiData.description || '',
+    logo: apiData.imageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=200&h=200&fit=crop',
+    banner: apiData.imageUrl || 'https://images.unsplash.com/photo-1559847844-5315695dadae?w=800&h=400&fit=crop',
     theme: {
       primaryColor: '#e53e3e',
       secondaryColor: '#fc8181',
     },
     contact: {
-      phone: '02-123-4567',
-      address: '123 ถนนสุขุมวิท กรุงเทพฯ 10110',
-      hours: '08:00 - 22:00',
+      phone: apiData.phone || '',
+      address: apiData.address || '',
+      hours: apiData.openTime && apiData.closeTime 
+        ? `${apiData.openTime} - ${apiData.closeTime}` 
+        : '08:00 - 22:00',
     },
-    menu: [
-      {
-        id: 'southern',
-        name: 'อาหารใต้',
-        items: [
-          {
-            id: 'gaeng-som',
-            name: 'แกงส้มปลาช่อน',
-            description: 'แกงส้มรสเปรื้อย ปลาช่อนสดใหม่',
-            price: 89,
-            originalPrice: 120,
-            image: 'https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?w=300&h=200&fit=crop',
-            category: 'southern',
-            available: true,
+    menu: apiData.categories
+      .filter(cat => cat.isActive)
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map(category => ({
+        id: category.id,
+        name: category.name,
+        items: category.menuItems
+          .filter(item => item.isAvailable)
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .map(item => ({
+            id: item.id,
+            name: item.name,
+            description: item.description || '',
+            price: item.price,
+            originalPrice: undefined,
+            image: item.imageUrl || 'https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?w=300&h=200&fit=crop',
+            category: category.id,
+            available: item.isAvailable,
             cookingTime: 15,
-            isRecommended: true,
-            tags: ['เผ็ด', 'เปรื้อย']
-          },
-          {
-            id: 'gaeng-tai-pla',
-            name: 'แกงไตปลา',
-            description: 'แกงไตปลารสจัดจ้าน เผ็ดร้อนแท้ใต้',
-            price: 95,
-            originalPrice: 130,
-            image: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=300&h=200&fit=crop',
-            category: 'southern',
-            available: true,
-            cookingTime: 18,
-            tags: ['เผ็ดมาก', 'แท้ใต้']
-          }
-        ]
-      }
-    ]
-  },
-  // ร้านซูชิ โตเกียว
-  '550e8400-e29b-41d4-a716-446655440002': {
-    id: '550e8400-e29b-41d4-a716-446655440002',
-    name: 'ซูชิ โตเกียว',
-    description: 'ซูชิสไตล์ญี่ปุ่นแท้ วัตถุดิบนำเข้าจากญี่ปุ่น',
-    logo: 'https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?w=200&h=200&fit=crop',
-    banner: 'https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?w=800&h=400&fit=crop',
-    theme: {
-      primaryColor: '#2d3748',
-      secondaryColor: '#4a5568',
-    },
-    contact: {
-      phone: '02-234-5678',
-      address: '456 ถนนสีลม กรุงเทพฯ 10500',
-      hours: '11:00 - 23:00',
-    },
-    menu: [
-      {
-        id: 'sushi',
-        name: 'ซูชิ',
-        items: [
-          {
-            id: 'salmon-sushi',
-            name: 'ซูชิแซลมอน',
-            description: 'แซลมอนนอร์เวย์สดใหม่ ข้าวญี่ปุ่นแท้',
-            price: 149,
-            originalPrice: 180,
-            image: 'https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?w=300&h=200&fit=crop',
-            category: 'sushi',
-            available: true,
-            cookingTime: 5,
-            isRecommended: true,
-            tags: ['สด', 'พรีเมี่ยม']
-          },
-          {
-            id: 'tuna-sushi',
-            name: 'ซูชิทูน่า',
-            description: 'ทูน่าชั้นดี เนื้อแน่น รสชาติเข้มข้น',
-            price: 169,
-            originalPrice: 200,
-            image: 'https://images.unsplash.com/photo-1553621042-f6e147245754?w=300&h=200&fit=crop',
-            category: 'sushi',
-            available: true,
-            cookingTime: 5,
-            tags: ['พรีเมี่ยม', 'เนื้อแน่น']
-          }
-        ]
-      }
-    ]
-  },
-  // ร้านอาหารสุขภาพ Green Bowl
-  '550e8400-e29b-41d4-a716-446655440004': {
-    id: '550e8400-e29b-41d4-a716-446655440004',
-    name: 'Green Bowl - Healthy Food',
-    description: 'อาหารสุขภาพ คลีน ออร์แกนิค โลว์แคลอรี่',
-    logo: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=200&h=200&fit=crop',
-    banner: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=800&h=400&fit=crop',
-    theme: {
-      primaryColor: '#10B981',
-              secondaryColor: '#34D399',
-    },
-    contact: {
-      phone: '02-456-7890',
-      address: '999 ถนนเพลินจิต กรุงเทพฯ 10330',
-      hours: '07:00 - 21:00',
-    },
-    menu: [
-      {
-        id: 'healthy-bowls',
-        name: 'Healthy Bowls',
-        items: [
-          {
-            id: 'quinoa-bowl',
-            name: 'Quinoa Power Bowl',
-            description: 'ควินัว ผักสด อโวคาโด้ เมล็ดชีอา โปรตีนสูง',
-            price: 189,
-            originalPrice: 220,
-            image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&h=200&fit=crop',
-            category: 'healthy-bowls',
-            available: true,
-            cookingTime: 10,
-            isRecommended: true,
-            tags: ['โปรตีนสูง', 'ออร์แกนิค', 'ไม่มีแป้ง']
-          },
-          {
-            id: 'salmon-bowl',
-            name: 'Grilled Salmon Bowl',
-            description: 'แซลมอนย่าง ข้าวกล้อง ผักโบราณ น้ำสลัดมะนาว',
-            price: 259,
-            originalPrice: 290,
-            image: 'https://images.unsplash.com/photo-1559181567-c3190ca9959b?w=300&h=200&fit=crop',
-            category: 'healthy-bowls',
-            available: true,
-            cookingTime: 15,
-            isRecommended: true,
-            tags: ['โอเมก้า3', 'โปรตีนสูง', 'สด']
-          },
-          {
-            id: 'chicken-bowl',
-            name: 'Grilled Chicken Bowl',
-            description: 'ไก่ย่างเสียบไผ่ ผักสดหลากสี ข้าวไรซ์เบอร์รี่',
-            price: 169,
-            originalPrice: 200,
-            image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=300&h=200&fit=crop',
-            category: 'healthy-bowls',
-            available: true,
-            cookingTime: 12,
-            tags: ['โปรตีนสูง', 'ไขมันต่ำ']
-          },
-          {
-            id: 'avocado-bowl',
-            name: 'Avocado Toast Bowl',
-            description: 'ขนมปังโฮลวีท อโวคาโด้สด ไข่ออนเซ็น ผักใบเขียว',
-            price: 149,
-            originalPrice: 180,
-            image: 'https://images.unsplash.com/photo-1581833971358-2c8b550f87b3?w=300&h=200&fit=crop',
-            category: 'healthy-bowls',
-            available: true,
-            cookingTime: 8,
-            tags: ['ไฟเบอร์สูง', 'วีแกน', 'ดีต็อกซ์']
-          }
-        ]
-      },
-      {
-        id: 'smoothies',
-        name: 'Smoothies & Juices',
-        items: [
-          {
-            id: 'green-smoothie',
-            name: 'Green Detox Smoothie',
-            description: 'ผักโขม แอปเปิ้ล เซเลอรี่ มะนาว ชีอา',
-            price: 89,
-            originalPrice: 110,
-            image: 'https://images.unsplash.com/photo-1610970881699-44a5587cabec?w=300&h=200&fit=crop',
-            category: 'smoothies',
-            available: true,
-            cookingTime: 5,
-            isRecommended: true,
-            tags: ['ดีต็อกซ์', 'วีแกน', 'ไฟเบอร์สูง']
-          },
-          {
-            id: 'protein-smoothie',
-            name: 'Protein Berry Smoothie',
-            description: 'เบอร์รี่รวม โปรตีนเวย์ กล้วยหอม อัลมอนด์มิลค์',
-            price: 119,
-            originalPrice: 140,
-            image: 'https://images.unsplash.com/photo-1553530666-ba11a7da3888?w=300&h=200&fit=crop',
-            category: 'smoothies',
-            available: true,
-            cookingTime: 5,
-            tags: ['โปรตีนสูง', 'แอนติออกซิแดนท์']
-          }
-        ]
-      }
-    ]
-  },
-  // ร้านเจ๊หนู ส้มตำ
-  '550e8400-e29b-41d4-a716-446655440003': {
-    id: '550e8400-e29b-41d4-a716-446655440003',
-    name: 'เจ๊หนู ส้มตำ',
-    description: 'ส้มตำอีสาน รสชาติต้นตำรับ เผ็ดจี๊ดจ๊าด',
-    logo: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=200&h=200&fit=crop',
-    banner: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800&h=400&fit=crop',
-    theme: {
-      primaryColor: '#38a169',
-      secondaryColor: '#68d391',
-    },
-    contact: {
-      phone: '02-345-6789',
-      address: '789 ถนนรามคำแหง กรุงเทพฯ 10240',
-      hours: '10:00 - 21:00',
-    },
-    menu: [
-      {
-        id: 'isaan',
-        name: 'อาหารอีสาน',
-        items: [
-          {
-            id: 'som-tam',
-            name: 'ส้มตำไทย',
-            description: 'ส้มตำรสชาติต้นตำรับ เผ็ดกำลังดี',
-            price: 59,
-            originalPrice: 80,
-            image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=300&h=200&fit=crop',
-            category: 'isaan',
-            available: true,
-            cookingTime: 10,
-            isRecommended: true,
-            tags: ['เผ็ด', 'อีสาน']
-          },
-          {
-            id: 'larb-moo',
-            name: 'ลาบหมู',
-            description: 'ลาบหมูสับละเอียด เครื่องเทศครบ',
-            price: 79,
-            originalPrice: 100,
-            image: 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=300&h=200&fit=crop',
-            category: 'isaan',
-            available: true,
-            cookingTime: 12,
-            tags: ['เผ็ด', 'หอม']
-          }
-        ]
-      }
-    ]
-  }
-};
-
-// Mapping เก่าไปใหม่สำหรับ backward compatibility
-const legacyMapping: Record<string, string> = {
-  'restaurant1': '550e8400-e29b-41d4-a716-446655440001',
-  'restaurant2': '550e8400-e29b-41d4-a716-446655440002',
-  'restaurant3': '550e8400-e29b-41d4-a716-446655440003',
-  'r1': '550e8400-e29b-41d4-a716-446655440001',
-  'r2': '550e8400-e29b-41d4-a716-446655440002',
-  'r3': '550e8400-e29b-41d4-a716-446655440003'
+            isRecommended: false,
+            tags: [
+              ...(item.isSpicy ? ['เผ็ด'] : []),
+              ...(item.isVegetarian ? ['มังสวิรัติ'] : [])
+            ]
+          }))
+      }))
+  };
 };
 
 // ฟังก์ชันจัดการ localStorage แยกตามร้าน
@@ -359,10 +180,15 @@ const saveCartToStorage = (restaurantId: string, cart: CartItem[], userRole: str
     try {
       // ตรวจสอบว่า cart เป็น array ก่อนบันทึก
       if (Array.isArray(cart)) {
-        localStorage.setItem(getCartStorageKey(restaurantId, userRole), JSON.stringify(cart));
+        const key = getCartStorageKey(restaurantId, userRole);
+        console.log('💾 saveCartToStorage:', { key, cartLength: cart.length, cart });
+        localStorage.setItem(key, JSON.stringify(cart));
+        console.log('✅ บันทึกสำเร็จ');
+      } else {
+        console.warn('⚠️ Cart ไม่ใช่ array:', cart);
       }
     } catch (error) {
-      console.warn('ไม่สามารถบันทึกตะกร้าได้:', error);
+      console.warn('❌ ไม่สามารถบันทึกตะกร้าได้:', error);
     }
   }
 };
@@ -370,16 +196,25 @@ const saveCartToStorage = (restaurantId: string, cart: CartItem[], userRole: str
 const loadCartFromStorage = (restaurantId: string, userRole: string): CartItem[] => {
   if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
     try {
-      const saved = localStorage.getItem(getCartStorageKey(restaurantId, userRole));
+      const key = getCartStorageKey(restaurantId, userRole);
+      const saved = localStorage.getItem(key);
+      console.log('📂 loadCartFromStorage:', { key, saved });
+      
       if (saved) {
         const parsedCart = JSON.parse(saved);
+        console.log('📋 ParsedCart:', parsedCart);
         // ตรวจสอบว่าข้อมูลที่โหลดมาเป็น array ที่ถูกต้อง
         if (Array.isArray(parsedCart)) {
+          console.log('✅ โหลดตะกร้าสำเร็จ:', parsedCart.length, 'รายการ');
           return parsedCart;
+        } else {
+          console.warn('⚠️ ข้อมูลใน localStorage ไม่ใช่ array');
         }
+      } else {
+        console.log('📋 ไม่มีข้อมูลตะกร้าใน localStorage');
       }
     } catch (error) {
-      console.warn('ไม่สามารถโหลดตะกร้าได้:', error);
+      console.warn('❌ ไม่สามารถโหลดตะกร้าได้:', error);
       // ลบข้อมูลที่เสียหายออก
       try {
         localStorage.removeItem(getCartStorageKey(restaurantId, userRole));
@@ -388,6 +223,7 @@ const loadCartFromStorage = (restaurantId: string, userRole: string): CartItem[]
       }
     }
   }
+  console.log('📋 ส่งกลับตะกร้าว่าง');
   return [];
 };
 
@@ -418,6 +254,11 @@ export function RestaurantProvider({
     // รอให้ hydration เสร็จก่อนโหลด localStorage
     const timer = setTimeout(() => {
       const savedCart = loadCartFromStorage(restaurant.id, userRole);
+      console.log('📂 โหลดตะกร้าจาก localStorage:', {
+        restaurantId: restaurant.id,
+        savedItems: savedCart.length,
+        savedCart: savedCart
+      });
       setCart(savedCart);
     }, 100);
 
@@ -428,6 +269,11 @@ export function RestaurantProvider({
   useEffect(() => {
     if (!mounted || !restaurant) return;
     
+    console.log('💾 บันทึกตะกร้าลง localStorage:', {
+      restaurantId: restaurant.id,
+      cartItems: cart.length,
+      cart: cart
+    });
     saveCartToStorage(restaurant.id, cart, userRole);
   }, [cart, restaurant?.id, mounted, userRole]);
 
@@ -439,28 +285,34 @@ export function RestaurantProvider({
         setLoading(true);
         setError(null);
         
-        // Simulate API call - ลดเวลาลงเพื่อให้โหลดเร็วขึ้น
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        let resolvedRestaurantId = restaurantId;
+        // ตรวจสอบรูปแบบ ID ก่อน
+        if (!isValidId(restaurantId)) {
+          throw new Error(`รูปแบบ Restaurant ID ไม่ถูกต้อง: ${restaurantId}. กรุณาใช้ CUID หรือ UUID`);
+        }
 
-        // ตรวจสอบ UUID format
-        if (!isValidUUID(restaurantId)) {
-          if (legacyMapping[restaurantId]) {
-            console.warn(`⚠️ ใช้ legacy restaurant ID: ${restaurantId}. กรุณาเปลี่ยนเป็น UUID: ${legacyMapping[restaurantId]}`);
-            resolvedRestaurantId = legacyMapping[restaurantId];
+        // เรียก API เพื่อดึงข้อมูลร้านจาก database
+        try {
+          const response = await fetch(`/api/restaurant/${restaurantId}`);
+          if (response.ok) {
+            const apiData = await response.json();
+            
+            // ใช้ function transformApiToRestaurant เพื่อแปลงข้อมูล
+            const restaurant = transformApiToRestaurant(apiData);
+            setRestaurant(restaurant);
+            return;
+          } else if (response.status === 404) {
+            throw new Error(`ไม่พบร้านอาหารที่มี ID: ${restaurantId}`);
           } else {
-            throw new Error(`รูปแบบ Restaurant ID ไม่ถูกต้อง: ${restaurantId}. กรุณาใช้ UUID format`);
+            throw new Error(`เกิดข้อผิดพลาดในการดึงข้อมูลร้าน: ${response.status}`);
           }
+        } catch (apiError) {
+          console.error('API Error:', apiError);
+          throw new Error(
+            apiError instanceof Error 
+              ? apiError.message 
+              : 'ไม่สามารถเชื่อมต่อกับฐานข้อมูลได้'
+          );
         }
-        
-        const restaurantData = mockRestaurants[resolvedRestaurantId];
-        
-        if (!restaurantData) {
-          throw new Error(`ไม่พบร้านอาหาร: ${resolvedRestaurantId}`);
-        }
-        
-        setRestaurant(restaurantData);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
         console.error('🚨 RestaurantProvider Error:', err);
@@ -512,19 +364,35 @@ export function RestaurantProvider({
 
   // ตั้งจำนวนสินค้าในตะกร้า (ใช้สำหรับหน้า item - ตั้งค่าจำนวนรวม)
   const setCartItemQuantity = (item: MenuItem & { addOns?: Array<{id: string, name: string, price: number}> }, totalQuantity: number) => {
-    if (!restaurant) return;
+    if (!restaurant) {
+      console.log('❌ setCartItemQuantity: ไม่มีข้อมูลร้าน');
+      return;
+    }
+
+    console.log('🛒 setCartItemQuantity:', {
+      itemId: item.id,
+      itemName: item.name,
+      quantity: totalQuantity,
+      restaurantId: restaurant.id,
+      addOns: item.addOns
+    });
 
     setCart(prevCart => {
+      console.log('📋 Cart ก่อนเพิ่ม:', prevCart);
+      
       // ใช้ item.id เป็น unique identifier สำหรับสินค้า + add-ons
       const existingItemIndex = prevCart.findIndex(cartItem => cartItem.itemId === item.id);
       
       if (existingItemIndex >= 0) {
         // สินค้ามีอยู่แล้ว - ตั้งค่าจำนวนรวม
+        console.log('♻️ อัปเดตสินค้าเดิม');
         const updatedCart = [...prevCart];
         updatedCart[existingItemIndex].quantity = totalQuantity;
+        console.log('📋 Cart หลังอัปเดต:', updatedCart);
         return updatedCart;
       } else {
         // สินค้าใหม่
+        console.log('➕ เพิ่มสินค้าใหม่');
         const newCartItem: CartItem = {
           itemId: item.id,
           name: item.name,
@@ -537,7 +405,9 @@ export function RestaurantProvider({
           category: item.category,
           addOns: item.addOns // เพิ่ม add-ons
         };
-        return [...prevCart, newCartItem];
+        const newCart = [...prevCart, newCartItem];
+        console.log('📋 Cart หลังเพิ่มใหม่:', newCart);
+        return newCart;
       }
     });
   };
@@ -601,12 +471,19 @@ export const generateRestaurantId = (): string => {
 };
 
 export const validateRestaurantAccess = (restaurantId: string, userRole?: string): boolean => {
-  if (!isValidUUID(restaurantId) && !legacyMapping[restaurantId]) {
-    return false;
-  }
-  return true;
+  return isValidId(restaurantId);
 };
 
-export const getAvailableRestaurants = (): Restaurant[] => {
-  return Object.values(mockRestaurants);
+export const getAvailableRestaurants = async (): Promise<Restaurant[]> => {
+  try {
+    const response = await fetch('/api/restaurant');
+    if (response.ok) {
+      const restaurants = await response.json();
+      return restaurants.map(transformApiToRestaurant);
+    }
+    return [];
+  } catch (error) {
+    console.error('ไม่สามารถดึงรายการร้านได้:', error);
+    return [];
+  }
 }; 

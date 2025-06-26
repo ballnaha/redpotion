@@ -91,6 +91,9 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
   };
 
   const handleAddToCart = () => {
+    console.log('🔄 handleAddToCart เริ่มทำงาน');
+    console.log('🏪 restaurant:', restaurant);
+    
     if (restaurant) {
       // สร้าง unique ID สำหรับสินค้าที่มี add-ons ต่างกัน
       const addOnIds = selectedAddOns.sort().join('-');
@@ -129,12 +132,16 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
       const newQuantity = existingCartItem ? existingCartItem.quantity + quantity : quantity;
       
       // เพิ่มสินค้าลงตะกร้า - สะสมจำนวน
+      console.log('📤 เรียก setCartItemQuantity');
       setCartItemQuantity(menuItem, newQuantity);
       
       // แสดง snackbar
+      console.log('📢 แสดง snackbar');
       setSnackbarOpen(true);
       
       // ไม่รีเซ็ตค่า - ให้ user เลือกต่อได้
+    } else {
+      console.log('❌ ไม่มีข้อมูลร้าน - ไม่สามารถเพิ่มสินค้าได้');
     }
   };
 
@@ -237,7 +244,7 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
             }}
           >
             <Badge 
-              badgeContent={0} 
+              badgeContent={mounted ? cart.reduce((total, item) => total + item.quantity, 0) : 0} 
               color="error"
               sx={{
                 '& .MuiBadge-badge': {
@@ -246,7 +253,7 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
                   fontSize: '0.6rem',
                   minWidth: '16px',
                   height: '16px',
-                  display: 'none' // ซ่อน badge ชั่วคราวเพื่อป้องกัน hydration mismatch
+                  display: mounted && cart.length > 0 ? 'flex' : 'none'
                 }
               }}
             >
@@ -601,6 +608,36 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
           </Button>
         </Box>
       </Box>
+
+      {/* Debug Panel */}
+      {mounted && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 100,
+            right: 16,
+            background: 'rgba(0,0,0,0.8)',
+            color: 'white',
+            p: 1,
+            borderRadius: 1,
+            fontSize: '0.7rem',
+            zIndex: 1000
+          }}
+        >
+          <Typography variant="caption" sx={{ display: 'block', color: 'white' }}>
+            Debug:
+          </Typography>
+          <Typography variant="caption" sx={{ display: 'block', color: 'white' }}>
+            Restaurant: {restaurant ? '✅' : '❌'}
+          </Typography>
+          <Typography variant="caption" sx={{ display: 'block', color: 'white' }}>
+            Cart Items: {cart.length}
+          </Typography>
+          <Typography variant="caption" sx={{ display: 'block', color: 'white' }}>
+            Total Qty: {cart.reduce((total, item) => total + item.quantity, 0)}
+          </Typography>
+        </Box>
+      )}
 
       {/* Snackbar */}
       <Snackbar
