@@ -378,6 +378,7 @@ export default function HomePage() {
                       variant="contained"
                       size="large"
                       endIcon={<ArrowForward />}
+                      onClick={() => router.push('/menu/550e8400-e29b-41d4-a716-446655440002')}
                       sx={{
                         background: 'rgba(251, 113, 133, 0.8)',
                         backdropFilter: 'blur(20px)',

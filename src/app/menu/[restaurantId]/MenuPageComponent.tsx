@@ -198,12 +198,12 @@ export default function MenuPageComponent() {
   const specialOffers: SpecialOffer[] = [
     {
       id: '1',
-      title: 'แนะนำผัดไทยพิเศษ',
-      subtitle: 'เส้นหมี่แห้งยอดนิยม',
-      description: 'ผัดไทยสูตรดั้งเดิม หอมหวานกำลังดี',
+      title: '',
+      subtitle: '',
+      description: ' ',
       buttonText: 'สั่งเลย',
-      background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.9) 0%, rgba(5, 150, 105, 0.9) 100%)',
-      image: 'https://images.unsplash.com/photo-1569562211093-4ed0d0758f12?w=400&h=200&fit=crop'
+      background: '/images/banner-1.png',
+      image: ''
     },
     {
       id: '2',
@@ -211,8 +211,8 @@ export default function MenuPageComponent() {
       subtitle: 'ลด 30% เมนูยอดนิยม',
       description: 'สำหรับสมาชิกใหม่เท่านั้น วันนี้ - 31 ธ.ค.',
       buttonText: 'รับส่วนลด',
-      background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.9) 0%, rgba(220, 38, 38, 0.9) 100%)',
-      image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=200&fit=crop'
+      background: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&h=400&fit=crop',
+      image: ''
     },
     {
       id: '3',
@@ -220,8 +220,8 @@ export default function MenuPageComponent() {
       subtitle: 'สูตรเชฟพิเศษ',
       description: 'ลิ้มลองรสชาติใหม่ที่คุณไม่เคยลอง',
       buttonText: 'ลองเลย',
-      background: 'linear-gradient(135deg, rgba(147, 51, 234, 0.9) 0%, rgba(124, 58, 237, 0.9) 100%)',
-      image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=200&fit=crop'
+      background: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=800&h=400&fit=crop',
+      image: ''
     }
   ];
 
@@ -791,9 +791,14 @@ export default function MenuPageComponent() {
                 
                 <Box sx={{ flex: 1 }}>
                   
+                  {/* Welcome Message */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <Typography sx={{ fontSize: '0.9rem', color: 'rgba(0, 0, 0, 0.6)', fontWeight: 600 }}>สวัสดี คุณ</Typography>
+                  </Box>
                   
                   {/* Status and Time */}
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    
                     <Chip 
                       label="เปิดอยู่" 
                       size="small"
@@ -870,7 +875,7 @@ export default function MenuPageComponent() {
               color: 'rgba(0, 0, 0, 0.9)',
               fontSize: '1.2rem'
             }}>
-              Special Offers
+              แกลเลอรี่
             </Typography>
             <Button 
               sx={{ 
@@ -898,7 +903,7 @@ export default function MenuPageComponent() {
           <Swiper
             modules={[Navigation, Pagination, Autoplay]}
             spaceBetween={16}
-            slidesPerView={1.2}
+            slidesPerView={1.1}
             autoplay={{
               delay: 3000,
               disableOnInteraction: false,
@@ -910,7 +915,7 @@ export default function MenuPageComponent() {
             loop={true}
             breakpoints={{
               640: {
-                slidesPerView: 1.5,
+                slidesPerView: 1.2,
                 spaceBetween: 20,
               },
               768: {
@@ -927,10 +932,11 @@ export default function MenuPageComponent() {
               <SwiperSlide key={offer.id}>
                 <Card 
                   sx={{ 
-                    borderRadius: 1,
-                    background: offer.background,
-                    backdropFilter: 'blur(20px)',
-                    color: 'white',
+                    borderRadius: 0.5,
+                    backgroundImage: `url(${offer.background})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat',
                     position: 'relative',
                     overflow: 'hidden',
                     minHeight: 160,
@@ -943,93 +949,8 @@ export default function MenuPageComponent() {
                     }
                   }}
                 >
-                  {/* Background Image */}
-                  <Box sx={{
-                    position: 'absolute',
-                    top: 0,
-                    right: -20,
-                    width: '50%',
-                    height: '100%',
-                    backgroundImage: `url(${offer.image})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    opacity: 0.3,
-                    borderRadius: '50px 0 0 50px'
-                  }} />
-                  
-                  {/* Floating Elements for Liquid Effect */}
-                  <Box sx={{
-                    position: 'absolute',
-                    top: -20,
-                    right: -20,
-                    width: 60,
-                    height: 60,
-                    borderRadius: '50%',
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    backdropFilter: 'blur(10px)'
-                  }} />
-                  <Box sx={{
-                    position: 'absolute',
-                    bottom: -10,
-                    left: -10,
-                    width: 40,
-                    height: 40,
-                    borderRadius: '50%',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    backdropFilter: 'blur(10px)'
-                  }} />
-                  
-                  <CardContent sx={{ p: 3, position: 'relative', zIndex: 2 }}>
-                    <Typography variant="h6" sx={{ 
-                      fontWeight: 700, 
-                      mb: 0.5,
-                      textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
-                      fontSize: '1rem'
-                    }}>
-                      {offer.title}
-                    </Typography>
-                    <Typography sx={{ 
-                      fontSize: '0.9rem', 
-                      opacity: 0.9, 
-                      mb: 0.5,
-                      fontWeight: 500
-                    }}>
-                      {offer.subtitle}
-                    </Typography>
-                    <Typography sx={{ 
-                      fontSize: '0.8rem', 
-                      opacity: 0.8, 
-                      mb: 2.5,
-                      lineHeight: 1.4
-                    }}>
-                      {offer.description}
-                    </Typography>
-                    
-                    <Button 
-                      variant="contained"
-                      sx={{ 
-                        background: 'rgba(255, 255, 255, 0.25)',
-                        backdropFilter: 'blur(15px)',
-                        color: 'white',
-                        border: '1px solid rgba(255, 255, 255, 0.3)',
-                        borderRadius: '25px',
-                        px: 3,
-                        py: 0.8,
-                        textTransform: 'none',
-                        fontWeight: 600,
-                        fontSize: '0.85rem',
-                        boxShadow: '0 4px 15px rgba(255, 255, 255, 0.2)',
-                        '&:hover': {
-                          background: 'rgba(255, 255, 255, 0.35)',
-                          transform: 'translateY(-1px)',
-                          boxShadow: '0 6px 20px rgba(255, 255, 255, 0.3)'
-                        },
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-                      }}
-                    >
-                      {offer.buttonText}
-                    </Button>
-                  </CardContent>
+
+
                 </Card>
               </SwiperSlide>
             ))}
