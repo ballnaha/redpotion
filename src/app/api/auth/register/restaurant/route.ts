@@ -28,9 +28,8 @@ export async function POST(request: NextRequest) {
       longitude,
       locationName,
       
-      // Documents (only 2 required)
-      ownerIdCard,
-      bankStatement,
+      // Documents (multi-upload array)
+      documents,
     } = await request.json()
 
     // Validate required fields
@@ -41,9 +40,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (password.length < 8) {
+    // Validate documents
+    if (!documents || !Array.isArray(documents) || documents.length === 0) {
       return NextResponse.json(
-        { error: 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร' },
+        { error: 'กรุณาอัพโหลดเอกสารอย่างน้อย 1 ไฟล์' },
+        { status: 400 }
+      )
+    }
+
+    if (password.length < 6) {
+      return NextResponse.json(
+        { error: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' },
         { status: 400 }
       )
     }
@@ -76,21 +83,6 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
       }
-    }
-
-    // Validate required documents
-    if (!ownerIdCard) {
-      return NextResponse.json(
-        { error: 'กรุณาอัพโหลดสำเนาบัตรประชาชนเจ้าของร้าน' },
-        { status: 400 }
-      )
-    }
-
-    if (!bankStatement) {
-      return NextResponse.json(
-        { error: 'กรุณาอัพโหลดหนังสือรับรองบัญชีธนาคาร' },
-        { status: 400 }
-      )
     }
 
     // Check if user already exists
@@ -141,12 +133,32 @@ export async function POST(request: NextRequest) {
           latitude: latitude || null,
           longitude: longitude || null,
           locationName: locationName || null,
-          
-          // Documents (only 2 files)
-          ownerIdCard: ownerIdCard || null,
-          bankStatement: bankStatement || null,
         }
       })
+
+      // Create documents if provided
+      if (documents && Array.isArray(documents) && documents.length > 0) {
+        const documentPromises = documents.map((doc: any, index: number) => {
+          // Try to determine document type based on order
+          let documentType = 'OTHER'
+          if (index === 0) documentType = 'OWNER_ID_CARD'
+          else if (index === 1) documentType = 'BANK_STATEMENT'
+          
+          return tx.document.create({
+            data: {
+              fileName: doc.fileName || doc.originalName || `document_${index + 1}`,
+              fileUrl: doc.url || doc,
+              fileSize: doc.fileSize || 0,
+              mimeType: doc.mimeType || 'application/octet-stream',
+              documentType: documentType as any,
+              description: `เอกสารที่ ${index + 1}: ${doc.originalName || doc.fileName || ''}`,
+              restaurantId: restaurant.id,
+            }
+          })
+        })
+        
+        await Promise.all(documentPromises)
+      }
 
       return { user, restaurant }
     })
@@ -160,10 +172,30 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     )
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Restaurant registration error:', error)
+    
+    // Log more detailed error information
+    if (error.code) {
+      console.error('Error code:', error.code)
+    }
+    if (error.meta) {
+      console.error('Error meta:', error.meta)
+    }
+    
+    // Handle specific Prisma errors
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'ข้อมูลนี้ถูกใช้แล้ว กรุณาตรวจสอบอีเมลหรือข้อมูลร้าน' },
+        { status: 400 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'เกิดข้อผิดพลาดในการสมัครสมาชิก' },
+      { 
+        error: 'เกิดข้อผิดพลาดในการสมัครสมาชิก',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
       { status: 500 }
     )
   }

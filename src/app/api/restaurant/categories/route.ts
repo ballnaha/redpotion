@@ -1,32 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../../auth/[...nextauth]/route';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(req: NextRequest) {
+// GET - ดึงรายการ categories
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session || !session.user) {
-      return NextResponse.json({ message: 'กรุณาเข้าสู่ระบบ' }, { status: 401 });
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    if (session.user.role !== 'RESTAURANT_OWNER') {
-      return NextResponse.json({ message: 'คุณไม่มีสิทธิ์เข้าถึงข้อมูลนี้' }, { status: 403 });
-    }
-
-    // Get restaurant for this owner
-    const restaurant = await prisma.restaurant.findFirst({
+    // ตรวจสอบว่าเป็น restaurant owner
+    const restaurant = await prisma.restaurant.findUnique({
       where: {
         ownerId: session.user.id
       }
     });
 
     if (!restaurant) {
-      return NextResponse.json({ message: 'ไม่พบข้อมูลร้าน' }, { status: 404 });
+      return NextResponse.json({ message: 'Restaurant not found' }, { status: 404 });
     }
 
-    // Get categories with menu item count
     const categories = await prisma.category.findMany({
       where: {
         restaurantId: restaurant.id
@@ -44,46 +40,44 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json(categories);
-
   } catch (error) {
     console.error('Error fetching categories:', error);
     return NextResponse.json(
-      { message: 'เกิดข้อผิดพลาดในการดึงข้อมูลหมวดหมู่' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }
 }
 
-export async function POST(req: NextRequest) {
+// POST - เพิ่ม category ใหม่
+export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session || !session.user) {
-      return NextResponse.json({ message: 'กรุณาเข้าสู่ระบบ' }, { status: 401 });
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    if (session.user.role !== 'RESTAURANT_OWNER') {
-      return NextResponse.json({ message: 'คุณไม่มีสิทธิ์เข้าถึงข้อมูลนี้' }, { status: 403 });
-    }
-
-    const { name, description } = await req.json();
-
-    if (!name?.trim()) {
-      return NextResponse.json({ message: 'กรุณาระบุชื่อหมวดหมู่' }, { status: 400 });
-    }
-
-    // Get restaurant for this owner
-    const restaurant = await prisma.restaurant.findFirst({
+    // ตรวจสอบว่าเป็น restaurant owner
+    const restaurant = await prisma.restaurant.findUnique({
       where: {
         ownerId: session.user.id
       }
     });
 
     if (!restaurant) {
-      return NextResponse.json({ message: 'ไม่พบข้อมูลร้าน' }, { status: 404 });
+      return NextResponse.json({ message: 'Restaurant not found' }, { status: 404 });
     }
 
-    // Check if category name already exists
+    const body = await request.json();
+    const { name, description, imageUrl, isActive = true } = body;
+
+    // Validation
+    if (!name?.trim()) {
+      return NextResponse.json({ message: 'Category name is required' }, { status: 400 });
+    }
+
+    // ตรวจสอบชื่อหมวดหมู่ซ้ำ
     const existingCategory = await prisma.category.findFirst({
       where: {
         restaurantId: restaurant.id,
@@ -92,10 +86,10 @@ export async function POST(req: NextRequest) {
     });
 
     if (existingCategory) {
-      return NextResponse.json({ message: 'ชื่อหมวดหมู่นี้มีอยู่แล้ว' }, { status: 400 });
+      return NextResponse.json({ message: 'Category name already exists' }, { status: 400 });
     }
 
-    // Get next sort order
+    // หา sortOrder ล่าสุด
     const lastCategory = await prisma.category.findFirst({
       where: {
         restaurantId: restaurant.id
@@ -105,32 +99,24 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    const nextSortOrder = (lastCategory?.sortOrder || 0) + 1;
+    const sortOrder = (lastCategory?.sortOrder || 0) + 1;
 
-    // Create new category
     const category = await prisma.category.create({
       data: {
         name: name.trim(),
         description: description?.trim() || null,
-        restaurantId: restaurant.id,
-        sortOrder: nextSortOrder,
-        isActive: true
-      },
-      include: {
-        _count: {
-          select: {
-            menuItems: true
-          }
-        }
+        imageUrl: imageUrl || null,
+        isActive,
+        sortOrder,
+        restaurantId: restaurant.id
       }
     });
 
     return NextResponse.json(category, { status: 201 });
-
   } catch (error) {
     console.error('Error creating category:', error);
     return NextResponse.json(
-      { message: 'เกิดข้อผิดพลาดในการสร้างหมวดหมู่' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }

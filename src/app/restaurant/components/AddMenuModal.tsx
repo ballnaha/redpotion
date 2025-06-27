@@ -62,9 +62,7 @@ export default function AddMenuModal({
     price: '',
     categoryId: '',
     imageUrl: '',
-    calories: '',
-    isVegetarian: false,
-    isSpicy: false
+    calories: ''
   });
 
   useEffect(() => {
@@ -81,9 +79,7 @@ export default function AddMenuModal({
       price: '',
       categoryId: '',
       imageUrl: '',
-      calories: '',
-      isVegetarian: false,
-      isSpicy: false
+      calories: ''
     });
     setNewCategoryName('');
     setShowNewCategory(false);
@@ -206,9 +202,7 @@ export default function AddMenuModal({
         price: parseFloat(formData.price),
         categoryId,
         imageUrl: uploadedImageUrl?.trim() || null,
-        calories: formData.calories ? parseInt(formData.calories) : null,
-        isVegetarian: formData.isVegetarian,
-        isSpicy: formData.isSpicy
+        calories: formData.calories ? parseInt(formData.calories) : null
       };
 
       const response = await fetch('/api/restaurant/menu-items', {
@@ -418,35 +412,6 @@ export default function AddMenuModal({
             )}
           </Box>
 
-          {/* คุณสมบัติเพิ่มเติม */}
-          <Box>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-              คุณสมบัติ
-            </Typography>
-            
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={formData.isVegetarian}
-                    onChange={handleChange('isVegetarian')}
-                    color="success"
-                  />
-                }
-                label="อาหารมังสวิรัติ"
-              />
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={formData.isSpicy}
-                    onChange={handleChange('isSpicy')}
-                    color="error"
-                  />
-                }
-                label="อาหารเผ็ด"
-              />
-            </Box>
-          </Box>
         </Box>
       </DialogContent>
 

@@ -4,6 +4,7 @@ import { authOptions } from '../../auth/[...nextauth]/route';
 import { prisma } from '@/lib/prisma';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
+import sharp from 'sharp';
 
 export async function POST(req: NextRequest) {
   try {
@@ -70,11 +71,11 @@ export async function POST(req: NextRequest) {
       fullPath: fullPath
     });
 
-    // Save file to public/uploads folder
+    // Save file to public/uploads folder with resizing
     try {
       // Get file buffer
       const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
+      const inputBuffer = Buffer.from(arrayBuffer);
 
       // Create full directory path
       const publicPath = path.join(process.cwd(), 'public', 'uploads', folder);
@@ -85,16 +86,61 @@ export async function POST(req: NextRequest) {
       // Create full file path
       const filePath = path.join(publicPath, fileName);
       
-      // Write file to disk
-      await writeFile(filePath, buffer);
+      // Configure image processing based on variant and category
+      let processedBuffer: Buffer;
+      
+      if (variant === 'banner' || category === 'banner') {
+        // Banner image: resize to 1200x675 (16:9 aspect ratio) for web optimization
+        processedBuffer = await sharp(inputBuffer)
+          .resize(1200, 675, {
+            fit: 'cover',
+            position: 'center'
+          })
+          .jpeg({ 
+            quality: 85,
+            progressive: true 
+          })
+          .toBuffer();
+      } else if (variant === 'avatar' || category === 'profile' || category === 'menu') {
+        // Avatar/Profile/Menu image: resize to 400x400 (square)
+        processedBuffer = await sharp(inputBuffer)
+          .resize(400, 400, {
+            fit: 'cover',
+            position: 'center'
+          })
+          .jpeg({ 
+            quality: 85,
+            progressive: true 
+          })
+          .toBuffer();
+      } else {
+        // General: resize to max 800px width while maintaining aspect ratio
+        processedBuffer = await sharp(inputBuffer)
+          .resize(800, 800, {
+            fit: 'inside',
+            withoutEnlargement: true
+          })
+          .jpeg({ 
+            quality: 85,
+            progressive: true 
+          })
+          .toBuffer();
+      }
+      
+      // Write processed file to disk
+      await writeFile(filePath, processedBuffer);
       
       // Generate public URL path
       const imageUrl = `/uploads/${folder}/${fileName}`;
       
-      console.log('✅ File saved successfully:', {
+      console.log('✅ File saved and processed successfully:', {
         filePath: filePath,
         publicUrl: imageUrl,
-        fileSize: buffer.length
+        originalSize: inputBuffer.length,
+        processedSize: processedBuffer.length,
+        variant: variant,
+        category: category,
+        compression: `${((1 - processedBuffer.length / inputBuffer.length) * 100).toFixed(1)}%`
       });
 
     } catch (saveError) {

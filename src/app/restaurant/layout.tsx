@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box, 
   AppBar, 
@@ -12,7 +12,13 @@ import {
   ListItemIcon, 
   ListItemText,
   IconButton,
-  useMediaQuery
+  useMediaQuery,
+  Avatar,
+  Menu,
+  MenuItem,
+  Divider,
+  Button,
+  CircularProgress
 } from '@mui/material';
 import { 
   Dashboard, 
@@ -22,12 +28,344 @@ import {
   Settings, 
   Notifications,
   Menu as MenuIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  AccountCircle,
+  Logout,
+  Person
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { SessionProvider } from 'next-auth/react';
+import { SessionProvider, useSession, signOut } from 'next-auth/react';
+import { usePathname, useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 const drawerWidth = 280;
+
+// Hook to check restaurant status
+function useRestaurantStatus() {
+  const { data: session } = useSession();
+  const [restaurantStatus, setRestaurantStatus] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRestaurantStatus = async () => {
+      if (!session?.user?.id || session.user.role !== 'RESTAURANT_OWNER') {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/restaurant/my-restaurant');
+        if (response.ok) {
+          const restaurant = await response.json();
+          setRestaurantStatus(restaurant.status);
+        }
+      } catch (error) {
+        console.error('Error fetching restaurant status:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRestaurantStatus();
+  }, [session]);
+
+  return { restaurantStatus, loading };
+}
+
+// Simplified Layout for non-active restaurants
+function SimplifiedLayout({ children }: { children: React.ReactNode }) {
+  const theme = useTheme();
+  const { data: session } = useSession();
+
+  const handleLogout = async () => {
+    try {
+      await signOut({ 
+        callbackUrl: '/auth/signin',
+        redirect: true 
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  return (
+    <Box 
+      sx={{ 
+        minHeight: '100vh',
+        background: `
+          linear-gradient(135deg, 
+            rgba(74, 144, 226, 0.1) 0%, 
+            rgba(102, 126, 234, 0.1) 100%
+          )
+        `,
+        display: 'flex',
+        flexDirection: 'column'
+      }}
+    >
+      {/* Simple Header */}
+      <AppBar
+        position="static"
+        sx={{
+          backgroundColor: 'rgba(255, 255, 255, 0.25)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          border: 'none',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.18)',
+          boxShadow: 'none',
+          color: theme.palette.text.primary,
+        }}
+      >
+        <Toolbar>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+           <Image src="/images/logo_trim.png" alt="TheRedPotion" width={100} height={60} />
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+              Restaurant Portal
+            </Typography>
+          </Box>
+          
+          <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 2 }}>
+            {session?.user && (
+              <>
+                <Avatar 
+                  sx={{ 
+                    width: 32, 
+                    height: 32,
+                    bgcolor: 'primary.main'
+                  }}
+                >
+                  {session.user.name?.charAt(0) || session.user.email?.charAt(0) || 'U'}
+                </Avatar>
+                <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' } }}>
+                  {session.user.name || session.user.email}
+                </Typography>
+                <Button
+                  variant="outlined"
+                  startIcon={<Logout />}
+                  onClick={handleLogout}
+                  size="small"
+                  sx={{
+                    color: 'error.main',
+                    borderColor: 'error.main',
+                    '&:hover': {
+                      backgroundColor: 'rgba(211, 47, 47, 0.1)',
+                      borderColor: 'error.dark',
+                    }
+                  }}
+                >
+                  ออกจากระบบ
+                </Button>
+              </>
+            )}
+          </Box>
+        </Toolbar>
+      </AppBar>
+
+      {/* Main Content */}
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: { xs: 2, sm: 3 },
+          maxWidth: '800px',
+          mx: 'auto',
+          width: '100%'
+        }}
+      >
+        {children}
+      </Box>
+    </Box>
+  );
+}
+
+// Mobile User Section Component
+function MobileUserSection() {
+  const { data: session } = useSession();
+
+  const handleLogout = async () => {
+    try {
+      await signOut({ 
+        callbackUrl: '/auth/signin',
+        redirect: true 
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  if (!session?.user) {
+    return null;
+  }
+
+  return (
+    <Box>
+
+      
+      <Button
+        variant="outlined"
+        fullWidth
+        startIcon={<Logout />}
+        onClick={handleLogout}
+        sx={{
+          color: 'error.main',
+          borderColor: 'error.main',
+          '&:hover': {
+            backgroundColor: 'rgba(211, 47, 47, 0.1)',
+            borderColor: 'error.dark',
+          }
+        }}
+      >
+        ออกจากระบบ
+      </Button>
+    </Box>
+  );
+}
+
+// Desktop User Section Component
+function DesktopUserSection() {
+  const { data: session } = useSession();
+
+  if (!session?.user) {
+    return null;
+  }
+
+  return null;
+}
+
+// User Menu Component
+function UserMenu() {
+  const { data: session } = useSession();
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+
+  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut({ 
+        callbackUrl: '/auth/signin',
+        redirect: true 
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+    handleClose();
+  };
+
+  if (!session?.user) {
+    return null;
+  }
+
+  return (
+    <>
+      <IconButton
+        onClick={handleClick}
+        size="small"
+        sx={{ 
+          ml: 2,
+          background: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(10px)',
+          '&:hover': {
+            background: 'rgba(255, 255, 255, 0.2)',
+          }
+        }}
+      >
+        <Avatar 
+          sx={{ 
+            width: 32, 
+            height: 32,
+            bgcolor: 'primary.main',
+            fontSize: '0.875rem'
+          }}
+        >
+          {session.user.name?.charAt(0) || session.user.email?.charAt(0) || 'U'}
+        </Avatar>
+      </IconButton>
+      
+      <Menu
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleClose}
+        onClick={handleClose}
+        PaperProps={{
+          elevation: 0,
+          sx: {
+            overflow: 'visible',
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            border: '1px solid rgba(255, 255, 255, 0.18)',
+            borderRadius: 2,
+            mt: 1.5,
+            minWidth: 200,
+            '&:before': {
+              content: '""',
+              display: 'block',
+              position: 'absolute',
+              top: 0,
+              right: 14,
+              width: 10,
+              height: 10,
+              bgcolor: 'rgba(255, 255, 255, 0.95)',
+              transform: 'translateY(-50%) rotate(45deg)',
+              zIndex: 0,
+              border: '1px solid rgba(255, 255, 255, 0.18)',
+              borderBottom: 'none',
+              borderRight: 'none',
+            },
+          },
+        }}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+      >
+        <Box sx={{ p: 2, borderBottom: '1px solid rgba(0, 0, 0, 0.1)' }}>
+          <Typography sx={{ fontWeight: 600, fontSize: '0.95rem' }}>
+            {session.user.name || 'ผู้ใช้'}
+          </Typography>
+          <Typography sx={{ fontSize: '0.85rem', color: 'text.secondary' }}>
+            {session.user.email}
+          </Typography>
+        </Box>
+        
+        <MenuItem onClick={handleClose} sx={{ py: 1.5 }}>
+          <ListItemIcon>
+            <Person fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="โปรไฟล์" />
+        </MenuItem>
+        
+        <MenuItem onClick={handleClose} sx={{ py: 1.5 }}>
+          <ListItemIcon>
+            <Settings fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="ตั้งค่า" />
+        </MenuItem>
+        
+        <Divider />
+        
+        <MenuItem 
+          onClick={handleLogout} 
+          sx={{ 
+            py: 1.5,
+            color: 'error.main',
+            '&:hover': {
+              backgroundColor: 'rgba(211, 47, 47, 0.1)'
+            }
+          }}
+        >
+          <ListItemIcon>
+            <Logout fontSize="small" sx={{ color: 'error.main' }} />
+          </ListItemIcon>
+          <ListItemText primary="ออกจากระบบ" />
+        </MenuItem>
+      </Menu>
+    </>
+  );
+}
 
 export default function RestaurantLayout({
   children,
@@ -38,22 +376,90 @@ export default function RestaurantLayout({
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isTablet = useMediaQuery(theme.breakpoints.between('md', 'lg'));
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { restaurantStatus, loading } = useRestaurantStatus();
+  
+  // Move hooks to the top before any conditional returns
+  const pathname = usePathname();
+  const router = useRouter();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
+  // Show loading while checking restaurant status
+  if (loading) {
+    return (
+      <SessionProvider>
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          minHeight: '100vh',
+          background: `
+            linear-gradient(135deg, 
+              rgba(74, 144, 226, 0.1) 0%, 
+              rgba(102, 126, 234, 0.1) 100%
+            )
+          `,
+        }}>
+          <CircularProgress size={60} />
+        </Box>
+      </SessionProvider>
+    );
+  }
+
+  // Use simplified layout if restaurant status is not ACTIVE
+  if (restaurantStatus && restaurantStatus !== 'ACTIVE') {
+    return (
+      <SessionProvider>
+        <SimplifiedLayout>
+          {children}
+        </SimplifiedLayout>
+      </SessionProvider>
+    );
+  }
+
   const menuItems = [
-    { text: 'Dashboard', icon: <Dashboard />, active: true },
-    { text: 'Menu Management', icon: <MenuBook />, active: false },
-    { text: 'Orders', icon: <DeliveryDining />, active: false },
-    { text: 'Analytics', icon: <Analytics />, active: false },
-    { text: 'Notifications', icon: <Notifications />, active: false },
-    { text: 'Settings', icon: <Settings />, active: false },
+    { 
+      text: 'Dashboard', 
+      icon: <Dashboard />, 
+      href: '/restaurant',
+      active: pathname === '/restaurant' 
+    },
+    { 
+      text: 'Menu Management', 
+      icon: <MenuBook />, 
+      href: '/restaurant/menu',
+      active: pathname.startsWith('/restaurant/menu')
+    },
+    { 
+      text: 'Orders', 
+      icon: <DeliveryDining />, 
+      href: '/restaurant/orders',
+      active: pathname.startsWith('/restaurant/orders')
+    },
+    { 
+      text: 'Analytics', 
+      icon: <Analytics />, 
+      href: '/restaurant/analytics',
+      active: pathname.startsWith('/restaurant/analytics')
+    },
+    { 
+      text: 'Notifications', 
+      icon: <Notifications />, 
+      href: '/restaurant/notifications',
+      active: pathname.startsWith('/restaurant/notifications')
+    },
+    { 
+      text: 'Settings', 
+      icon: <Settings />, 
+      href: '/restaurant/settings',
+      active: pathname.startsWith('/restaurant/settings')
+    },
   ];
 
   const drawerContent = (
-    <>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <Box sx={{ 
         p: isMobile ? 2 : 3, 
         borderBottom: '1px solid rgba(255, 255, 255, 0.18)',
@@ -62,18 +468,7 @@ export default function RestaurantLayout({
         justifyContent: 'space-between'
       }}>
         <Box>
-          <Typography 
-            variant={isMobile ? "h6" : "h5"}
-            sx={{ 
-              fontWeight: 900,
-              background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}
-          >
-            RedPotion
-          </Typography>
+          <Image src="/images/logo_trim.png" alt="TheRedPotion" width={100} height={60} />
           <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
             Restaurant Portal
           </Typography>
@@ -85,11 +480,14 @@ export default function RestaurantLayout({
         )}
       </Box>
       
-      <List sx={{ pt: 2 }}>
+      <List sx={{ pt: 2, flex: 1 }}>
         {menuItems.map((item) => (
           <ListItem
             key={item.text}
-            onClick={isMobile ? handleDrawerToggle : undefined}
+            onClick={() => {
+              router.push(item.href);
+              if (isMobile) handleDrawerToggle();
+            }}
             sx={{
               mx: 2,
               mb: 1,
@@ -127,7 +525,16 @@ export default function RestaurantLayout({
           </ListItem>
         ))}
       </List>
-    </>
+      
+      {/* User Section */}
+      <Box sx={{ 
+        mt: 'auto', 
+        p: 2, 
+        borderTop: '1px solid rgba(255, 255, 255, 0.18)' 
+      }}>
+        {isMobile ? <MobileUserSection /> : <DesktopUserSection />}
+      </Box>
+    </Box>
   );
 
   return (
@@ -178,9 +585,16 @@ export default function RestaurantLayout({
                 <MenuIcon />
               </IconButton>
             )}
-            <Typography variant="h6" sx={{ fontWeight: 700, fontSize: isMobile ? '1rem' : '1.25rem' }}>
+            <Typography variant="h6" sx={{ 
+              fontWeight: 700, 
+              fontSize: isMobile ? '1rem' : '1.25rem',
+              flexGrow: 1 
+            }}>
               Restaurant Dashboard
             </Typography>
+            
+            {/* User Menu */}
+            <UserMenu />
           </Toolbar>
         </AppBar>
 

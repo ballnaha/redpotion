@@ -236,7 +236,7 @@ export default function HomePage() {
               opacity: 0.6
             }}
           >
-            <source src="/images/bg_clip.mp4" type="video/mp4" />
+            <source src="/images/bg_clip2.mp4" type="video/mp4" />
             {/* Fallback for unsupported browsers */}
             <Box
               sx={{

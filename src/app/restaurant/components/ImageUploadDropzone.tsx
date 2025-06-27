@@ -13,6 +13,11 @@ import {
   useMediaQuery,
   Fade,
   Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
 } from '@mui/material';
 import { 
   PhotoCamera, 
@@ -35,6 +40,7 @@ interface ImageUploadDropzoneProps {
   category?: 'profile' | 'menu' | 'banner' | 'temp';
   maxFileSize?: number;
   accept?: string[];
+  allowParentDelete?: boolean; // ให้ parent component จัดการการลบ
 }
 
 export default function ImageUploadDropzone({
@@ -46,7 +52,8 @@ export default function ImageUploadDropzone({
   restaurantId,
   category = 'profile',
   maxFileSize = 15 * 1024 * 1024, // 15MB
-  accept = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+  accept = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+  allowParentDelete = false
 }: ImageUploadDropzoneProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -55,12 +62,14 @@ export default function ImageUploadDropzone({
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentImageUrl || null);
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Enhanced size configurations
   const sizeConfig = {
     small: variant === 'banner' ? { width: 140, height: 79 } : { width: 80, height: 80 },
     medium: variant === 'banner' ? { width: 200, height: 112 } : { width: 120, height: 120 },
-    large: variant === 'banner' ? { width: 280, height: 157 } : { width: 160, height: 160 }
+    large: variant === 'banner' ? { width: '100%', height: 200 } : { width: 160, height: 160 }
   };
 
   // Create preview URL from file
@@ -136,15 +145,72 @@ export default function ImageUploadDropzone({
     onDragLeave: () => setIsDragOver(false),
   });
 
-  // Remove image
-  const handleRemoveImage = () => {
-    if (previewUrl && selectedFile) {
-      URL.revokeObjectURL(previewUrl);
+  // Handle delete button click
+  const handleDeleteClick = () => {
+    setDeleteDialogOpen(true);
+  };
+
+  // Confirm delete
+  const handleConfirmDelete = async () => {
+    if (!previewUrl) return;
+
+    // If it's a new file (blob URL), just remove locally
+    if (previewUrl.startsWith('blob:')) {
+      if (previewUrl && selectedFile) {
+        URL.revokeObjectURL(previewUrl);
+      }
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      setError(null);
+      onImageChange(null);
+      setDeleteDialogOpen(false);
+      return;
     }
-    setSelectedFile(null);
-    setPreviewUrl(null);
-    setError(null);
-    onImageChange(null);
+
+    // If it's an existing image (server URL)
+    if (previewUrl.startsWith('/uploads/') && restaurantId) {
+      if (allowParentDelete) {
+        // Let parent component handle the deletion (for restaurant settings)
+        setSelectedFile(null);
+        setPreviewUrl(null);
+        setError(null);
+        onImageChange(null);
+        setDeleteDialogOpen(false);
+        console.log('✅ Image deletion handled by parent component');
+      } else {
+        // Handle deletion internally (for menu items, categories)
+        try {
+          setDeleting(true);
+          
+          const response = await fetch('/api/restaurant/delete-image', {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              imageUrl: previewUrl,
+              category: category
+            }),
+          });
+
+          if (response.ok) {
+            setSelectedFile(null);
+            setPreviewUrl(null);
+            setError(null);
+            onImageChange(null);
+            console.log('✅ Image deleted successfully');
+          } else {
+            const errorData = await response.json();
+            setError(errorData.message || 'ไม่สามารถลบรูปภาพได้');
+          }
+        } catch (error) {
+          console.error('❌ Delete error:', error);
+          setError('เกิดข้อผิดพลาดในการลบรูปภาพ');
+        } finally {
+          setDeleting(false);
+        }
+      }
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -156,10 +222,10 @@ export default function ImageUploadDropzone({
   };
 
   const currentSize = sizeConfig[size];
-  const borderRadius = variant === 'avatar' ? '50%' : 3;
+  const borderRadius = variant === 'avatar' ? '50%' : (variant === 'banner' && size === 'large' ? 0 : 1);
 
   return (
-    <Box sx={{ width: '100%', maxWidth: 350 }}>
+    <Box sx={{ width: '100%', maxWidth: variant === 'banner' && size === 'large' ? 'none' : 350 }}>
       {/* Current Image Preview */}
       {previewUrl && (
         <Fade in timeout={500}>
@@ -167,11 +233,9 @@ export default function ImageUploadDropzone({
             sx={{ 
               mb: 2, 
               position: 'relative', 
-              display: 'inline-block',
-              '&:hover .delete-button': {
-                opacity: 1,
-                transform: 'scale(1)',
-              }
+              display: variant === 'banner' && size === 'large' ? 'block' : 'inline-block',
+              width: variant === 'banner' && size === 'large' ? '100%' : 'auto',
+              // ลบ hover effect เพราะปุ่มแสดงตลอดแล้ว
             }}
           >
             <Box
@@ -200,8 +264,8 @@ export default function ImageUploadDropzone({
             />
             <IconButton
               className="delete-button"
-              onClick={handleRemoveImage}
-              disabled={disabled}
+              onClick={handleDeleteClick}
+              disabled={disabled || deleting}
               sx={{
                 position: 'absolute',
                 top: -8,
@@ -210,8 +274,8 @@ export default function ImageUploadDropzone({
                 color: 'white',
                 width: 32,
                 height: 32,
-                opacity: 0,
-                transform: 'scale(0.8)',
+                opacity: 1, // แสดงตลอดเวลา
+                transform: 'scale(1)', // ขนาดปกติ
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                 boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
                 '&:hover': {
@@ -221,11 +285,49 @@ export default function ImageUploadDropzone({
                 }
               }}
             >
-              <Delete sx={{ fontSize: 16 }} />
+              {deleting ? (
+                <CircularProgress size={16} sx={{ color: 'white' }} />
+              ) : (
+                <Delete sx={{ fontSize: 16 }} />
+              )}
             </IconButton>
           </Box>
         </Fade>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        aria-labelledby="delete-dialog-title"
+        aria-describedby="delete-dialog-description"
+      >
+        <DialogTitle id="delete-dialog-title">
+          ยืนยันการลบรูปภาพ
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="delete-dialog-description">
+            คุณแน่ใจหรือไม่ที่ต้องการลบรูปภาพนี้?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setDeleteDialogOpen(false)}
+            disabled={deleting}
+          >
+            ยกเลิก
+          </Button>
+          <Button 
+            onClick={handleConfirmDelete} 
+            color="error" 
+            variant="contained"
+            disabled={deleting}
+            startIcon={deleting ? <CircularProgress size={16} /> : null}
+          >
+            {deleting ? 'กำลังลบ...' : 'ลบ'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Enhanced Upload Area */}
       {!previewUrl && (

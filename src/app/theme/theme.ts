@@ -190,6 +190,42 @@ const themeOptions: ThemeOptions = {
         },
       },
     },
+    MuiTextField: {
+      styleOverrides: {
+        root: {
+          '& .MuiInputBase-input::placeholder': {
+            color: '#9ca3af',
+            opacity: 0.7,
+          },
+          '& .MuiInputBase-input::-webkit-input-placeholder': {
+            color: '#9ca3af',
+            opacity: 0.7,
+          },
+          '& .MuiInputBase-input::-moz-placeholder': {
+            color: '#9ca3af',
+            opacity: 0.7,
+          },
+        },
+      },
+    },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        input: {
+          '&::placeholder': {
+            color: '#9ca3af',
+            opacity: 0.7,
+          },
+          '&::-webkit-input-placeholder': {
+            color: '#9ca3af',
+            opacity: 0.7,
+          },
+          '&::-moz-placeholder': {
+            color: '#9ca3af',
+            opacity: 0.7,
+          },
+        },
+      },
+    },
     MuiPaper: {
       styleOverrides: {
         root: {

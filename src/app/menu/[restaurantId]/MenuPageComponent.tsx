@@ -546,33 +546,108 @@ export default function MenuPageComponent() {
       )
     : filteredItems;
 
-
-
-  // ลบการตรวจสอบ loading เพราะจัดการใน ClientMenuPage แล้ว
-  // จัดการเฉพาะ error และ !restaurant เท่านั้น
-  if (error) {
-    return (
-      <Box sx={{ 
-        minHeight: '100vh', 
-        background: 'linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%)',
-        p: 4 
-      }}>
-        <Alert severity="error" variant="filled">
-          <Typography variant="h6">เกิดข้อผิดพลาด</Typography>
-          <Typography>{error}</Typography>
-        </Alert>
-      </Box>
-    );
-  }
-
+  // หลังจากมี redirect ใน RestaurantContext แล้ว 
+  // ไม่จำเป็นต้องแสดง error state ที่นี่อีก เพราะจะ redirect ไปหน้าหลักแล้ว
+  // จัดการเฉพาะกรณี !restaurant (กำลังรอ redirect)
   if (!restaurant) {
     return (
       <Box sx={{ 
         minHeight: '100vh', 
         background: 'linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%)',
-        p: 4 
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        p: 3,
+        position: 'relative',
+        overflow: 'hidden'
       }}>
-        <Alert severity="warning">ไม่พบข้อมูลร้านอาหาร</Alert>
+        {/* Background decoration */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: -50,
+            right: -50,
+            width: 200,
+            height: 200,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%)',
+            filter: 'blur(40px)',
+            animation: 'liquidFloat 6s ease-in-out infinite'
+          }}
+        />
+
+        {/* Redirect Loading Card */}
+        <Card
+          sx={{
+            maxWidth: 400,
+            width: '100%',
+            background: 'rgba(255, 255, 255, 0.25)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            border: '1px solid rgba(255, 255, 255, 0.18)',
+            borderRadius: 4,
+            boxShadow: '0 8px 32px rgba(31, 38, 135, 0.15)',
+            p: 4,
+            textAlign: 'center',
+            position: 'relative',
+            overflow: 'hidden',
+            animation: 'fadeInUp 0.6s ease-out both'
+          }}
+        >
+          {/* Loading Icon */}
+          <Box
+            sx={{
+              width: 80,
+              height: 80,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(245, 158, 11, 0.1) 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 24px',
+              border: '2px solid rgba(251, 191, 36, 0.2)',
+              animation: 'pulseGlow 2s ease-in-out infinite'
+            }}
+          >
+            <Search 
+              sx={{ 
+                fontSize: 40, 
+                color: '#f59e0b',
+                filter: 'drop-shadow(0 2px 8px rgba(245, 158, 11, 0.3))'
+              }} 
+            />
+          </Box>
+
+          <Typography 
+            variant="h5" 
+            sx={{ 
+              fontWeight: 700,
+              mb: 2,
+              color: 'rgba(0, 0, 0, 0.9)',
+              textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            กำลังตรวจสอบข้อมูล...
+          </Typography>
+
+          <Typography 
+            sx={{ 
+              color: 'rgba(0, 0, 0, 0.7)',
+              mb: 3,
+              fontSize: '1rem'
+            }}
+          >
+            กรุณารอสักครู่
+          </Typography>
+
+          <CircularProgress 
+            sx={{ 
+              color: '#10B981',
+              '& .MuiCircularProgress-circle': {
+                filter: 'drop-shadow(0 2px 8px rgba(16, 185, 129, 0.3))'
+              }
+            }} 
+          />
+        </Card>
       </Box>
     );
   }

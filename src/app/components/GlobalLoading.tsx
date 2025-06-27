@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, Card } from '@mui/material';
 
 interface GlobalLoadingProps {
   message?: string;
@@ -18,96 +18,191 @@ export default function GlobalLoading({
       justifyContent: 'center', 
       alignItems: 'center', 
       height: '100vh',
-      background: 'linear-gradient(135deg, rgba(251, 113, 133, 0.05) 0%, rgba(253, 164, 175, 0.05) 100%)',
-      backdropFilter: 'blur(10px)'
+      background: 'linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%)',
+      position: 'relative',
+      overflow: 'hidden'
     }}>
-      {/* Logo Animation */}
-      <Box sx={{ 
-        position: 'relative',
-        mb: 4,
-        animation: 'float 3s ease-in-out infinite'
-      }}>
-        <img 
-          src="/images/logo_trim.png" 
-          alt="เดอะ เรด โพชั่น" 
-          style={{ 
-            width: '80px', 
-            height: 'auto',
-            filter: 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1))'
-          }} 
-        />
-        
-        {/* Loading Ring */}
-        <Box sx={{
+      {/* Background decoration */}
+      <Box
+        sx={{
           position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 100,
-          height: 100,
-          border: '2px solid rgba(248, 113, 113, 0.1)',
-          borderTop: '2px solid #F87171',
+          top: -50,
+          right: -50,
+          width: 200,
+          height: 200,
           borderRadius: '50%',
-          animation: 'spin 1.5s linear infinite'
-        }} />
-      </Box>
+          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(52, 211, 153, 0.05) 100%)',
+          filter: 'blur(40px)',
+          animation: 'liquidFloat 6s ease-in-out infinite'
+        }}
+      />
+      <Box
+        sx={{
+          position: 'absolute',
+          bottom: -100,
+          left: -100,
+          width: 300,
+          height: 300,
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(129, 140, 248, 0.05) 100%)',
+          filter: 'blur(60px)',
+          animation: 'liquidFloat 8s ease-in-out infinite reverse'
+        }}
+      />
 
-      {/* Text */}
-      <Typography sx={{ 
-        color: '#0F172A', 
-        fontWeight: 500, 
-        fontSize: '1rem',
-        mb: 1,
-        animation: 'fadeInOut 2s ease-in-out infinite'
-      }}>
-        {message}
-      </Typography>
-      
-      <Typography sx={{ 
-        color: '#6B7280', 
-        fontWeight: 400, 
-        fontSize: '0.875rem'
-      }}>
-        {subMessage}
-      </Typography>
+      {/* Loading Card */}
+      <Card
+        sx={{
+          background: 'rgba(255, 255, 255, 0.25)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          border: '1px solid rgba(255, 255, 255, 0.18)',
+          borderRadius: 4,
+          boxShadow: '0 8px 32px rgba(31, 38, 135, 0.15)',
+          p: 5,
+          textAlign: 'center',
+          position: 'relative',
+          overflow: 'hidden',
+          animation: 'fadeInUp 0.6s ease-out both',
+          minWidth: 300
+        }}
+      >
+        {/* Shimmer effect */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: '-100%',
+            width: '100%',
+            height: '100%',
+            background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent)',
+            animation: 'shimmer 2s infinite'
+          }}
+        />
 
-      {/* Minimal Loading Dots */}
-      <Box sx={{ 
-        display: 'flex', 
-        gap: 1, 
-        mt: 3 
-      }}>
-        {[0, 1, 2].map((index) => (
+        {/* Logo Animation */}
+        <Box sx={{ 
+          position: 'relative',
+          mb: 4,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
           <Box
-            key={index}
             sx={{
-              width: 8,
-              height: 8,
+              width: 100,
+              height: 100,
               borderRadius: '50%',
-              background: '#F87171',
-              animation: `pulse 1.5s ease-in-out infinite`,
-              animationDelay: `${index * 0.3}s`
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(52, 211, 153, 0.1) 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '2px solid rgba(16, 185, 129, 0.2)',
+              animation: 'liquidFloat 3s ease-in-out infinite',
+              position: 'relative'
             }}
-          />
-        ))}
-      </Box>
+          >
+            <img 
+              src="/images/logo_trim.png" 
+              alt="เดอะ เรด โพชั่น" 
+              style={{ 
+                width: '50px', 
+                height: 'auto',
+                filter: 'drop-shadow(0 4px 12px rgba(16, 185, 129, 0.3))',
+                
+              }} 
+            />
+            
+            {/* Loading Ring */}
+            <Box sx={{
+              position: 'absolute',
+              top: -10,
+              left: -10,
+              width: 120,
+              height: 120,
+              border: '3px solid transparent',
+              borderTop: '3px solid #10B981',
+              borderRight: '3px solid rgba(16, 185, 129, 0.3)',
+              borderRadius: '50%',
+              animation: 'spin 2s linear infinite'
+            }} />
+          </Box>
+        </Box>
+
+        {/* Text */}
+        <Typography sx={{ 
+          color: 'rgba(0, 0, 0, 0.9)', 
+          fontWeight: 600, 
+          fontSize: '1.2rem',
+          mb: 1,
+          textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+        }}>
+          {message}
+        </Typography>
+        
+        <Typography sx={{ 
+          color: 'rgba(0, 0, 0, 0.6)', 
+          fontWeight: 400, 
+          fontSize: '1rem',
+          mb: 3
+        }}>
+          {subMessage}
+        </Typography>
+
+        {/* Elegant Loading Dots */}
+        <Box sx={{ 
+          display: 'flex', 
+          gap: 1.5, 
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          {[0, 1, 2].map((index) => (
+            <Box
+              key={index}
+              sx={{
+                width: 12,
+                height: 12,
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #10B981 0%, #34D399 100%)',
+                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)',
+                animation: `elegantPulse 1.8s ease-in-out infinite`,
+                animationDelay: `${index * 0.3}s`
+              }}
+            />
+          ))}
+        </Box>
+      </Card>
 
       {/* CSS Animations */}
       <style jsx>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-8px); }
+        @keyframes liquidFloat {
+          0%, 100% { 
+            transform: translateY(0px) rotate(0deg); 
+          }
+          25% { 
+            transform: translateY(-10px) rotate(1deg); 
+          }
+          50% { 
+            transform: translateY(-5px) rotate(-1deg); 
+          }
+          75% { 
+            transform: translateY(-15px) rotate(0.5deg); 
+          }
+        }
+        
+        @keyframes logoSpin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
         
         @keyframes spin {
-          0% { transform: translate(-50%, -50%) rotate(0deg); }
-          100% { transform: translate(-50%, -50%) rotate(360deg); }
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
         
-        @keyframes pulse {
+        @keyframes elegantPulse {
           0%, 100% { 
-            opacity: 0.4;
-            transform: scale(1);
+            opacity: 0.3;
+            transform: scale(0.8);
           }
           50% { 
             opacity: 1;
@@ -115,9 +210,20 @@ export default function GlobalLoading({
           }
         }
         
-        @keyframes fadeInOut {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.7; }
+        @keyframes fadeInUp {
+          0% { 
+            opacity: 0; 
+            transform: translateY(20px); 
+          }
+          100% { 
+            opacity: 1; 
+            transform: translateY(0); 
+          }
+        }
+
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
         }
       `}</style>
     </Box>

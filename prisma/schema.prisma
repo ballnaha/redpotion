@@ -79,6 +79,7 @@ enum RestaurantStatus {
   ACTIVE
   SUSPENDED
   CLOSED
+  REJECTED
 }
 
 enum OrderStatus {
@@ -111,10 +112,6 @@ model Restaurant {
   bankAccount  String?          // เลขบัญชีธนาคาร
   bankName     String?          // ชื่อธนาคาร
   
-  // Registration documents (simplified to 2 required files)
-  ownerIdCard   String?         // บัตรประชาชนเจ้าของร้าน
-  bankStatement String?         // หนังสือรับรองบัญชีธนาคาร
-  
   // Opening hours
   openTime    String?  // "09:00"
   closeTime   String?  // "22:00"
@@ -131,6 +128,7 @@ model Restaurant {
   categories  Category[]
   menuItems   MenuItem[]
   orders      Order[]
+  documents   Document[]    // เอกสารที่อัพโหลด
   
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -158,23 +156,39 @@ model MenuItem {
   id           String      @id @default(cuid())
   name         String
   description  String?
-  price        Float
+  price        Float       // ราคาหลังลด
+  originalPrice Float?     // ราคาเต็ม (ก่อนลด)
   imageUrl     String?
   isAvailable  Boolean     @default(true)
   sortOrder    Int         @default(0)
   
   // Nutritional info (optional)
   calories     Int?
-  isVegetarian Boolean     @default(false)
-  isSpicy      Boolean     @default(false)
   
   restaurantId String
   restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   
   categoryId   String
-  category     Category    @relation(fields: [categoryId], references: [id])
+  category     Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   
   orderItems   OrderItem[]
+  addons       Addon[]     // Add-ons สำหรับเมนูนี้
+  
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model Addon {
+  id           String      @id @default(cuid())
+  name         String      // ชื่อ Add-on เช่น "เพิ่มชีส", "เพิ่มไข่ดาว"
+  price        Float       // ราคาเพิ่ม
+  isAvailable  Boolean     @default(true)
+  sortOrder    Int         @default(0)
+  
+  menuItemId   String
+  menuItem     MenuItem    @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  
+  orderItemAddons OrderItemAddon[]
   
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
@@ -232,5 +246,48 @@ model OrderItem {
   menuItemId String
   menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
   
+  addons     OrderItemAddon[]  // Add-ons ที่เลือกสำหรับ order item นี้
+  
   createdAt  DateTime @default(now())
+}
+
+model OrderItemAddon {
+  id         String   @id @default(cuid())
+  quantity   Int      @default(1)
+  price      Float    // ราคา addon ขณะสั่ง
+  
+  orderItemId String
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  
+  addonId     String
+  addon       Addon     @relation(fields: [addonId], references: [id])
+  
+  createdAt   DateTime  @default(now())
+  
+  @@unique([orderItemId, addonId])
+}
+
+enum DocumentType {
+  OWNER_ID_CARD        // บัตรประชาชนเจ้าของ
+  BANK_STATEMENT       // หนังสือรับรองบัญชีธนาคาร
+  BUSINESS_LICENSE     // ใบอนุญาตประกอบธุรกิจ
+  TAX_CERTIFICATE      // หนังสือรับรองการจดทะเบียนภาษี
+  OTHER                // อื่นๆ
+}
+
+model Document {
+  id           String       @id @default(cuid())
+  fileName     String       // ชื่อไฟล์ต้นฉบับ
+  fileUrl      String       // URL ของไฟล์ที่อัพโหลด
+  fileSize     Int          // ขนาดไฟล์ (bytes)
+  mimeType     String       // ประเภทไฟล์ (image/jpeg, application/pdf, etc.)
+  documentType DocumentType @default(OTHER)
+  description  String?      // คำอธิบายเอกสาร
+  
+  // Relations
+  restaurantId String
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 }

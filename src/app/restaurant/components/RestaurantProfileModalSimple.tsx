@@ -27,9 +27,24 @@ interface RestaurantData {
   phone: string;
   email?: string;
   imageUrl?: string;
+  
+  // Location information
+  latitude?: number;
+  longitude?: number;
+  locationName?: string;
+  
+  // Business information
+  businessType?: string;
+  taxId?: string;
+  bankAccount?: string;
+  bankName?: string;
+  
+  // Opening hours
   openTime?: string;
   closeTime?: string;
   isOpen: boolean;
+  
+  // Settings
   minOrderAmount?: number;
   deliveryFee?: number;
   deliveryRadius?: number;
@@ -60,6 +75,13 @@ export default function RestaurantProfileModal({
     phone: '',
     email: '',
     imageUrl: '',
+    latitude: '',
+    longitude: '',
+    locationName: '',
+    businessType: '',
+    taxId: '',
+    bankAccount: '',
+    bankName: '',
     openTime: '',
     closeTime: '',
     isOpen: true,
@@ -77,6 +99,13 @@ export default function RestaurantProfileModal({
         phone: restaurant.phone || '',
         email: restaurant.email || '',
         imageUrl: restaurant.imageUrl || '',
+        latitude: restaurant.latitude?.toString() || '',
+        longitude: restaurant.longitude?.toString() || '',
+        locationName: restaurant.locationName || '',
+        businessType: restaurant.businessType || '',
+        taxId: restaurant.taxId || '',
+        bankAccount: restaurant.bankAccount || '',
+        bankName: restaurant.bankName || '',
         openTime: restaurant.openTime || '',
         closeTime: restaurant.closeTime || '',
         isOpen: restaurant.isOpen,
@@ -130,6 +159,13 @@ export default function RestaurantProfileModal({
         phone: formData.phone.trim(),
         email: formData.email.trim() || null,
         imageUrl: uploadedImageUrl?.trim() || null,
+        latitude: formData.latitude ? parseFloat(formData.latitude) : null,
+        longitude: formData.longitude ? parseFloat(formData.longitude) : null,
+        locationName: formData.locationName.trim() || null,
+        businessType: formData.businessType.trim() || null,
+        taxId: formData.taxId.trim() || null,
+        bankAccount: formData.bankAccount.trim() || null,
+        bankName: formData.bankName.trim() || null,
         openTime: formData.openTime || null,
         closeTime: formData.closeTime || null,
         isOpen: formData.isOpen,
@@ -248,55 +284,143 @@ export default function RestaurantProfileModal({
                 value={formData.email}
                 onChange={handleChange('email')}
               />
+            </Box>
+          </Box>
 
-              <Box>
-                <Typography 
-                  variant="subtitle2" 
-                  sx={{ 
-                    mb: 2, 
-                    fontWeight: 600,
-                    color: 'text.primary',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1
-                  }}
-                >
-                  🖼️ รูปภาพหน้าปกร้าน
-                </Typography>
-                <Box sx={{
-                  p: 3,
-                  borderRadius: 3,
-                  background: `linear-gradient(135deg, 
-                    ${theme.palette.grey[50]}, 
-                    ${theme.palette.grey[100]})`,
-                  border: `1px solid ${theme.palette.divider}`,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 2
-                }}>
-                  <Typography 
-                    variant="body2" 
-                    color="text.secondary" 
-                    align="center"
-                    sx={{ mb: 1 }}
-                  >
-                    อัปโหลดรูปภาพหน้าปกสำหรับร้านของคุณ (แนะนำขนาด 16:9)
-                  </Typography>
-                  <ImageUploadDropzone
-                    currentImageUrl={formData.imageUrl || undefined}
-                    onImageChange={(url: string | null, file?: File) => {
-                      setFormData(prev => ({ ...prev, imageUrl: url || '' }));
-                      setSelectedImageFile(file || null);
-                    }}
-                    disabled={loading}
-                    size="large"
-                    variant="banner"
-                    restaurantId={restaurant?.id}
-                    category="banner"
-                  />
-                </Box>
+          {/* ข้อมูลธุรกิจ */}
+          <Box>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+              ข้อมูลธุรกิจ
+            </Typography>
+            
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ 
+                display: 'flex', 
+                gap: 2, 
+                flexDirection: isMobile ? 'column' : 'row',
+                flexWrap: 'wrap' 
+              }}>
+                <TextField
+                  label="ประเภทธุรกิจ"
+                  value={formData.businessType}
+                  onChange={handleChange('businessType')}
+                  placeholder="เช่น ร้านอาหาร, คาเฟ่, เบเกอรี่"
+                  sx={{ flex: isMobile ? '1 1 100%' : '1 1 250px' }}
+                />
+                <TextField
+                  label="เลขประจำตัวผู้เสียภาษี"
+                  value={formData.taxId}
+                  onChange={handleChange('taxId')}
+                  placeholder="เลข 13 หลัก"
+                  sx={{ flex: isMobile ? '1 1 100%' : '1 1 250px' }}
+                />
               </Box>
+
+              <Box sx={{ 
+                display: 'flex', 
+                gap: 2, 
+                flexDirection: isMobile ? 'column' : 'row',
+                flexWrap: 'wrap' 
+              }}>
+                <TextField
+                  label="เลขบัญชีธนาคาร"
+                  value={formData.bankAccount}
+                  onChange={handleChange('bankAccount')}
+                  placeholder="หมายเลขบัญชี"
+                  sx={{ flex: isMobile ? '1 1 100%' : '1 1 250px' }}
+                />
+                <TextField
+                  label="ชื่อธนาคาร"
+                  value={formData.bankName}
+                  onChange={handleChange('bankName')}
+                  placeholder="เช่น ธนาคารกรุงเทพ"
+                  sx={{ flex: isMobile ? '1 1 100%' : '1 1 250px' }}
+                />
+              </Box>
+            </Box>
+          </Box>
+
+          {/* ข้อมูลที่ตั้ง */}
+          <Box>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+              ข้อมูลที่ตั้ง
+            </Typography>
+            
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <TextField
+                fullWidth
+                label="ชื่อสถานที่ (จาก Google Maps)"
+                value={formData.locationName}
+                onChange={handleChange('locationName')}
+                placeholder="เช่น อาคารสยามพารากอน ชั้น 5"
+              />
+
+              <Box sx={{ 
+                display: 'flex', 
+                gap: 2, 
+                flexDirection: isMobile ? 'column' : 'row',
+                flexWrap: 'wrap' 
+              }}>
+                <TextField
+                  label="ละติจูด (Latitude)"
+                  type="number"
+                  value={formData.latitude}
+                  onChange={handleChange('latitude')}
+                  placeholder="13.7563"
+                  inputProps={{ step: "any" }}
+                  sx={{ flex: isMobile ? '1 1 100%' : '1 1 250px' }}
+                />
+                <TextField
+                  label="ลองจิจูด (Longitude)"
+                  type="number"
+                  value={formData.longitude}
+                  onChange={handleChange('longitude')}
+                  placeholder="100.5018"
+                  inputProps={{ step: "any" }}
+                  sx={{ flex: isMobile ? '1 1 100%' : '1 1 250px' }}
+                />
+              </Box>
+            </Box>
+          </Box>
+
+          {/* รูปภาพ */}
+          <Box>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+              รูปภาพร้าน
+            </Typography>
+            
+            <Box sx={{
+              p: 3,
+              borderRadius: 3,
+              background: `linear-gradient(135deg, 
+                ${theme.palette.grey[50]}, 
+                ${theme.palette.grey[100]})`,
+              border: `1px solid ${theme.palette.divider}`,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 2
+            }}>
+              <Typography 
+                variant="body2" 
+                color="text.secondary" 
+                align="center"
+                sx={{ mb: 1 }}
+              >
+                อัปโหลดรูปภาพหน้าปกสำหรับร้านของคุณ (แนะนำขนาด 16:9)
+              </Typography>
+              <ImageUploadDropzone
+                currentImageUrl={formData.imageUrl || undefined}
+                onImageChange={(url: string | null, file?: File) => {
+                  setFormData(prev => ({ ...prev, imageUrl: url || '' }));
+                  setSelectedImageFile(file || null);
+                }}
+                disabled={loading}
+                size="large"
+                variant="banner"
+                restaurantId={restaurant?.id}
+                category="banner"
+              />
             </Box>
           </Box>
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 
 interface Restaurant {
@@ -236,6 +237,7 @@ export function RestaurantProvider({
   restaurantId: string;
   userRole?: 'customer' | 'restaurant_owner' | 'rider' | 'admin';
 }) {
+  const router = useRouter();
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -250,32 +252,19 @@ export function RestaurantProvider({
   // โหลดตะกร้าจาก localStorage เมื่อเปลี่ยนร้าน (หลัง hydration เท่านั้น)
   useEffect(() => {
     if (!mounted || !restaurant) return;
-    
-    // รอให้ hydration เสร็จก่อนโหลด localStorage
-    const timer = setTimeout(() => {
-      const savedCart = loadCartFromStorage(restaurant.id, userRole);
-      console.log('📂 โหลดตะกร้าจาก localStorage:', {
-        restaurantId: restaurant.id,
-        savedItems: savedCart.length,
-        savedCart: savedCart
-      });
-      setCart(savedCart);
-    }, 100);
 
-    return () => clearTimeout(timer);
-  }, [restaurant?.id, mounted, userRole]);
+    const savedCart = loadCartFromStorage(restaurant.id, userRole);
+    console.log('🔄 Loading cart from storage:', savedCart);
+    setCart(savedCart);
+  }, [restaurant?.id, userRole, mounted]);
 
-  // บันทึกตะกร้าลง localStorage เมื่อมีการเปลี่ยนแปลง
+  // บันทึกตะกร้าใน localStorage เมื่อมีการเปลี่ยนแปลง (หลัง hydration เท่านั้น)
   useEffect(() => {
     if (!mounted || !restaurant) return;
     
-    console.log('💾 บันทึกตะกร้าลง localStorage:', {
-      restaurantId: restaurant.id,
-      cartItems: cart.length,
-      cart: cart
-    });
+    console.log('💾 Saving cart to storage:', cart);
     saveCartToStorage(restaurant.id, cart, userRole);
-  }, [cart, restaurant?.id, mounted, userRole]);
+  }, [cart, restaurant?.id, userRole, mounted]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -287,7 +276,57 @@ export function RestaurantProvider({
         
         // ตรวจสอบรูปแบบ ID ก่อน
         if (!isValidId(restaurantId)) {
-          throw new Error(`รูปแบบ Restaurant ID ไม่ถูกต้อง: ${restaurantId}. กรุณาใช้ CUID หรือ UUID`);
+          console.warn('🚨 รูปแบบ Restaurant ID ไม่ถูกต้อง:', restaurantId);
+          
+          // แสดงข้อความแจ้งเตือนสั้นๆ ก่อน redirect
+          if (typeof window !== 'undefined') {
+            // สร้าง toast notification แบบง่าย
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+              position: fixed;
+              top: 20px;
+              left: 50%;
+              transform: translateX(-50%);
+              background: rgba(239, 68, 68, 0.95);
+              color: white;
+              padding: 12px 24px;
+              border-radius: 8px;
+              font-family: inherit;
+              font-size: 14px;
+              z-index: 10000;
+              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+              backdrop-filter: blur(10px);
+              animation: slideInDown 0.3s ease-out;
+            `;
+            notification.textContent = 'ลิงก์ไม่ถูกต้อง กำลังนำคุณกลับไปหน้าหลัก...';
+            
+            // เพิ่ม CSS animation
+            const style = document.createElement('style');
+            style.textContent = `
+              @keyframes slideInDown {
+                from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+                to { opacity: 1; transform: translateX(-50%) translateY(0); }
+              }
+            `;
+            document.head.appendChild(style);
+            document.body.appendChild(notification);
+            
+            // ลบ notification หลัง 2 วินาที
+            setTimeout(() => {
+              if (notification.parentNode) {
+                notification.remove();
+              }
+              if (style.parentNode) {
+                style.remove();
+              }
+            }, 2000);
+          }
+          
+          // Redirect หลังจาก delay เล็กน้อย
+          setTimeout(() => {
+            router.replace('/');
+          }, 1500);
+          return;
         }
 
         // เรียก API เพื่อดึงข้อมูลร้านจาก database
@@ -301,19 +340,62 @@ export function RestaurantProvider({
             setRestaurant(restaurant);
             return;
           } else if (response.status === 404) {
-            throw new Error(`ไม่พบร้านอาหารที่มี ID: ${restaurantId}`);
+            console.warn('🚨 ไม่พบร้านอาหารที่มี ID:', restaurantId);
+            
+            // แสดงข้อความแจ้งเตือนก่อน redirect
+            if (typeof window !== 'undefined') {
+              const notification = document.createElement('div');
+              notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(251, 191, 36, 0.95);
+                color: white;
+                padding: 12px 24px;
+                border-radius: 8px;
+                font-family: inherit;
+                font-size: 14px;
+                z-index: 10000;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                backdrop-filter: blur(10px);
+                animation: slideInDown 0.3s ease-out;
+              `;
+              notification.textContent = 'ไม่พบร้านอาหารที่ต้องการ กำลังนำคุณกลับไปหน้าหลัก...';
+              
+              document.body.appendChild(notification);
+              
+              // ลบ notification หลัง 2 วินาที
+              setTimeout(() => {
+                if (notification.parentNode) {
+                  notification.remove();
+                }
+              }, 2000);
+            }
+            
+            // Redirect หลังจาก delay เล็กน้อย
+            setTimeout(() => {
+              router.replace('/');
+            }, 1500);
+            return;
           } else {
             throw new Error(`เกิดข้อผิดพลาดในการดึงข้อมูลร้าน: ${response.status}`);
           }
         } catch (apiError) {
           console.error('API Error:', apiError);
-          throw new Error(
-            apiError instanceof Error 
-              ? apiError.message 
-              : 'ไม่สามารถเชื่อมต่อกับฐานข้อมูลได้'
-          );
+          // หากเป็น network error หรือ error อื่นๆ ที่ไม่ใช่ 404
+          if (apiError instanceof TypeError && apiError.message.includes('fetch')) {
+            throw new Error('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต');
+          } else {
+            throw new Error(
+              apiError instanceof Error 
+                ? apiError.message 
+                : 'ไม่สามารถเชื่อมต่อกับฐานข้อมูลได้'
+            );
+          }
         }
       } catch (err) {
+        // จัดการ error อื่นๆ ที่ไม่ใช่ 404 หรือ invalid ID
         setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
         console.error('🚨 RestaurantProvider Error:', err);
       } finally {
@@ -322,7 +404,7 @@ export function RestaurantProvider({
     };
 
     loadRestaurant();
-  }, [restaurantId, mounted]);
+  }, [restaurantId, mounted, router]);
 
   // คำนวณยอดรวมตะกร้า (รวม add-ons)
   const cartTotal = cart.reduce((total, item) => {

@@ -3,6 +3,7 @@
 import { use, useState, useEffect } from 'react';
 import { ThemeRegistry } from '../../components/ThemeRegistry';
 import { RestaurantProvider } from './context/RestaurantContext';
+import ErrorBoundary from '../../components/ErrorBoundary';
 
 function CustomerLayoutContent({ children }: { children: React.ReactNode }) {
   return (
@@ -24,11 +25,13 @@ export default function MenuLayout({
 
   return (
     <ThemeRegistry>
-      <RestaurantProvider restaurantId={restaurantId} userRole="customer">
-        <CustomerLayoutContent>
-          {children}
-        </CustomerLayoutContent>
-      </RestaurantProvider>
+      <ErrorBoundary>
+        <RestaurantProvider restaurantId={restaurantId} userRole="customer">
+          <CustomerLayoutContent>
+            {children}
+          </CustomerLayoutContent>
+        </RestaurantProvider>
+      </ErrorBoundary>
     </ThemeRegistry>
   );
 } 

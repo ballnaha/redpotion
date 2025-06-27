@@ -9,15 +9,8 @@ export async function GET(request: NextRequest) {
 
     if (!session?.user?.id) {
       return NextResponse.json(
-        { message: 'กรุณาเข้าสู่ระบบ' },
+        { message: 'Unauthorized' },
         { status: 401 }
-      )
-    }
-
-    if (session.user.role !== 'RESTAURANT_OWNER') {
-      return NextResponse.json(
-        { message: 'คุณไม่มีสิทธิ์เข้าถึงข้อมูลนี้' },
-        { status: 403 }
       )
     }
 
@@ -56,9 +49,40 @@ export async function GET(request: NextRequest) {
         { sortOrder: 'asc' },
         { createdAt: 'desc' }
       ]
-    })
+    });
 
-    return NextResponse.json(menuItems)
+    // ดึง addons สำหรับแต่ละ menu item ด้วย raw SQL
+    const menuItemsWithAddons = await Promise.all(
+      menuItems.map(async (item) => {
+        try {
+          const addons = await prisma.$queryRaw<Array<{
+            id: string;
+            name: string;
+            price: number;
+            isAvailable: boolean;
+            sortOrder: number;
+          }>>`
+            SELECT id, name, price, "isAvailable", "sortOrder"
+            FROM "Addon" 
+            WHERE "menuItemId" = ${item.id}
+            ORDER BY "sortOrder" ASC
+          `;
+          
+          return {
+            ...item,
+            addons: addons || []
+          };
+        } catch (error) {
+          console.error(`Error fetching addons for menu item ${item.id}:`, error);
+          return {
+            ...item,
+            addons: []
+          };
+        }
+      })
+    )
+
+    return NextResponse.json(menuItemsWithAddons)
 
   } catch (error) {
     console.error('Error fetching menu items:', error)
@@ -75,15 +99,8 @@ export async function POST(request: NextRequest) {
 
     if (!session?.user?.id) {
       return NextResponse.json(
-        { message: 'กรุณาเข้าสู่ระบบ' },
+        { message: 'Unauthorized' },
         { status: 401 }
-      )
-    }
-
-    if (session.user.role !== 'RESTAURANT_OWNER') {
-      return NextResponse.json(
-        { message: 'คุณไม่มีสิทธิ์เข้าถึงข้อมูลนี้' },
-        { status: 403 }
       )
     }
 
@@ -105,32 +122,33 @@ export async function POST(request: NextRequest) {
     const { 
       name, 
       description, 
-      price, 
+      price,
+      originalPrice,
       categoryId, 
       imageUrl,
       calories,
-      isVegetarian,
-      isSpicy
+      isAvailable = true,
+      addons = []
     } = data
 
     // Validation
     if (!name || name.trim() === '') {
       return NextResponse.json(
-        { message: 'กรุณาระบุชื่อเมนู' },
+        { message: 'Menu item name is required' },
         { status: 400 }
       )
     }
 
     if (!price || price <= 0) {
       return NextResponse.json(
-        { message: 'กรุณาระบุราคาที่ถูกต้อง' },
+        { message: 'Valid price is required' },
         { status: 400 }
       )
     }
 
     if (!categoryId) {
       return NextResponse.json(
-        { message: 'กรุณาเลือกหมวดหมู่' },
+        { message: 'Category is required' },
         { status: 400 }
       )
     }
@@ -162,20 +180,26 @@ export async function POST(request: NextRequest) {
 
     const sortOrder = (lastMenuItem?.sortOrder || 0) + 1
 
-    // สร้างเมนูใหม่
-    const menuItem = await prisma.menuItem.create({
-      data: {
-        name: name.trim(),
-        description: description?.trim() || null,
-        price: parseFloat(price),
-        imageUrl: imageUrl || null,
-        calories: calories ? parseInt(calories) : null,
-        isVegetarian: Boolean(isVegetarian),
-        isSpicy: Boolean(isSpicy),
-        sortOrder,
-        restaurantId: restaurant.id,
-        categoryId: categoryId
-      },
+    // สร้างเมนูใหม่ด้วย raw SQL เพื่อรองรับ originalPrice
+    const menuItemId = `cmenu_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    
+    await prisma.$executeRaw`
+      INSERT INTO "MenuItem" (
+        id, name, description, price, "originalPrice", "imageUrl", 
+        calories, "isAvailable", "sortOrder", "restaurantId", "categoryId", 
+        "createdAt", "updatedAt"
+      ) VALUES (
+        ${menuItemId}, ${name.trim()}, ${description?.trim()}, ${parseFloat(price)}, 
+        ${originalPrice ? parseFloat(originalPrice) : null}, ${imageUrl}, 
+        ${calories > 0 ? parseInt(calories) : null}, ${Boolean(isAvailable)}, 
+        ${sortOrder}, ${restaurant.id}, ${categoryId}, 
+        NOW(), NOW()
+      )
+    `;
+
+    // ดึงข้อมูลเมนูที่สร้างแล้วพร้อม category
+    const menuItem = await prisma.menuItem.findUnique({
+      where: { id: menuItemId },
       include: {
         category: {
           select: {
@@ -184,7 +208,33 @@ export async function POST(request: NextRequest) {
           }
         }
       }
-    })
+    });
+
+    // สร้าง addons (ถ้ามี)
+    if (addons && addons.length > 0) {
+      console.log('Creating addons:', addons);
+      
+      for (let i = 0; i < addons.length; i++) {
+        const addon = addons[i];
+        const addonId = `caddon_${Date.now()}_${i}_${Math.random().toString(36).substring(2)}`;
+        
+        try {
+          await prisma.$executeRaw`
+            INSERT INTO "Addon" (
+              id, name, price, "isAvailable", "sortOrder", "menuItemId", 
+              "createdAt", "updatedAt"
+            ) VALUES (
+              ${addonId}, ${addon.name.trim()}, ${parseFloat(addon.price)}, 
+              ${Boolean(addon.isAvailable)}, ${i}, ${menuItemId}, 
+              NOW(), NOW()
+            )
+          `;
+          console.log(`✅ Created addon: ${addon.name} - ฿${addon.price}`);
+        } catch (addonError) {
+          console.error(`❌ Failed to create addon: ${addon.name}`, addonError);
+        }
+      }
+    }
 
     return NextResponse.json(menuItem, { status: 201 })
 
