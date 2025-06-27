@@ -83,7 +83,7 @@ const fetcher = async (url: string) => {
   const response = await fetch(url);
   if (!response.ok) {
     if (response.status === 404) {
-      throw new Error('ไม่พบข้อมูลร้านอาหาร กรุณาติดต่อผู้ดูแลระบบ');
+      throw new Error('RESTAURANT_NOT_FOUND');
     }
     throw new Error('เกิดข้อผิดพลาดในการดึงข้อมูลร้าน');
   }
@@ -93,7 +93,7 @@ const fetcher = async (url: string) => {
 export default function RestaurantPage() {
   const theme = useTheme();
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isTablet = useMediaQuery(theme.breakpoints.between('md', 'lg'));
   
@@ -116,14 +116,8 @@ export default function RestaurantPage() {
     }
   );
 
-
-  // SWR จัดการทุกอย่างแล้ว - ไม่ต้องใช้ useEffect, fetchData function อีกต่อไป!
-
-
-
-
-
-  if (loading) {
+  // แสดง loading ถ้า session ยังไม่โหลดเสร็จหรือ SWR กำลังโหลด
+  if (sessionStatus === 'loading' || loading) {
     return (
       <Box sx={{ 
         display: 'flex', 
@@ -137,6 +131,56 @@ export default function RestaurantPage() {
   }
 
   if (error) {
+    // ถ้า error เป็น 404 และเป็น RESTAURANT_OWNER ให้แสดงสถานะรอสมัคร
+    if (error.message === 'RESTAURANT_NOT_FOUND' && sessionStatus === 'authenticated' && session?.user?.role === 'RESTAURANT_OWNER') {
+      return (
+        <Box sx={{ p: { xs: 2, md: 3 } }}>
+          <Alert severity="info" sx={{ mb: 3, p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              🏪 ร้านอาหารของคุณอยู่ในระหว่างการตรวจสอบ
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 2 }}>
+              ระบบกำลังตรวจสอบเอกสารและข้อมูลร้านอาหารของคุณ
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              📋 สถานะ: รอการอนุมัติจากผู้ดูแลระบบ<br/>
+              ⏰ ระยะเวลา: ภายใน 1-2 วันทำการ<br/>
+              📧 เราจะแจ้งผลผ่านอีเมลเมื่อการตรวจสอบเสร็จสิ้น
+            </Typography>
+          </Alert>
+
+          {/* Contact Admin Information */}
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
+              ติดต่อผู้ดูแลระบบ
+            </Typography>
+            <Card sx={{ 
+              p: 3,
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.18)',
+            }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Phone sx={{ color: 'primary.main', fontSize: 20 }} />
+                  <Typography variant="body1">
+                    <strong>line id:</strong> @theredpotion
+                  </Typography>
+                </Box>
+                
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Email sx={{ color: 'primary.main', fontSize: 20 }} />
+                  <Typography variant="body1">
+                    <strong>อีเมล:</strong> admin@theredpotion.com
+                  </Typography>
+                </Box>
+              </Box>
+            </Card>
+          </Box>
+        </Box>
+      );
+    }
+
     return (
       <Box sx={{ p: { xs: 2, md: 3 } }}>
         <Alert severity="error" sx={{ mb: 3 }}>
@@ -146,6 +190,7 @@ export default function RestaurantPage() {
     );
   }
 
+  // ตรวจสอบว่ามี restaurant หรือไม่
   if (!restaurant) {
     return (
       <Box sx={{ p: { xs: 2, md: 3 } }}>
@@ -258,246 +303,270 @@ export default function RestaurantPage() {
 
         {/* Restaurant Complete Info (Read-only) */}
         <Box sx={{ mb: 3 }}>
-          <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
+          <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
             ข้อมูลร้านที่ส่งไป
           </Typography>
+          
+          {/* Simple Status Card */}
           <Card sx={{ 
-            p: 3,
-            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
+            border: '1px solid #e0e0e0',
+            borderRadius: 3,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            overflow: 'hidden',
+            mb: 3
           }}>
-            {/* Header with restaurant image and basic info */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+            {/* Status Header */}
+            <Box sx={{ 
+              p: 2.5, 
+              bgcolor: '#f8f9fa',
+              borderBottom: '1px solid #e0e0e0',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2
+            }}>
               <Avatar
                 src={restaurant.imageUrl || undefined}
                 alt={restaurant.name}
-                sx={{ width: 60, height: 60 }}
+                sx={{ width: 50, height: 50 }}
               >
                 {restaurant.name.charAt(0)}
               </Avatar>
-              <Box>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.1rem' }}>
                   {restaurant.name}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>
                   รหัสร้าน: {restaurant.id.slice(-8).toUpperCase()}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  สถานะ: {restaurant.status === 'PENDING' ? 'รอการอนุมัติ' : 
-                           restaurant.status === 'ACTIVE' ? 'ใช้งานได้' :
-                           restaurant.status === 'SUSPENDED' ? 'ระงับการใช้งาน' :
-                           restaurant.status === 'REJECTED' ? 'ไม่ได้รับอนุมัติ' : 
-                           restaurant.status}
+              </Box>
+              <Box sx={{ 
+                px: 2, 
+                py: 0.5, 
+                bgcolor: '#fff3cd', 
+                borderRadius: 2,
+                border: '1px solid #ffeaa7'
+              }}>
+                <Typography variant="caption" sx={{ color: '#856404', fontWeight: 600 }}>
+                  รอการอนุมัติ
                 </Typography>
               </Box>
             </Box>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
-              {/* ข้อมูลพื้นฐาน */}
-              <Box>
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, color: 'primary.main' }}>
-                  📋 ข้อมูลพื้นฐาน
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  <Typography variant="body2">
-                    <strong>ที่อยู่:</strong> {restaurant.address}
+            {/* Restaurant Information */}
+            <Box sx={{ p: 3 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 2.5 }}>
+                
+                {/* Basic Info */}
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1.5, color: '#333' }}>
+                    ข้อมูลพื้นฐาน
                   </Typography>
-                  <Typography variant="body2">
-                    <strong>โทรศัพท์:</strong> {restaurant.phone}
+                  <Box sx={{ pl: 2, borderLeft: '3px solid #e0e0e0' }}>
+                    <Box sx={{ mb: 1 }}>
+                      <Typography variant="body2" sx={{ color: '#666', fontSize: '0.85rem' }}>
+                        ที่อยู่
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {restaurant.address}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ mb: 1 }}>
+                      <Typography variant="body2" sx={{ color: '#666', fontSize: '0.85rem' }}>
+                        เบอร์โทร
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {restaurant.phone}
+                      </Typography>
+                    </Box>
+                    {restaurant.email && (
+                      <Box sx={{ mb: 1 }}>
+                        <Typography variant="body2" sx={{ color: '#666', fontSize: '0.85rem' }}>
+                          อีเมล
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {restaurant.email}
+                        </Typography>
+                      </Box>
+                    )}
+                    {restaurant.description && (
+                      <Box>
+                        <Typography variant="body2" sx={{ color: '#666', fontSize: '0.85rem' }}>
+                          คำอธิบาย
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {restaurant.description}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
+
+                {/* Business Info */}
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1.5, color: '#333' }}>
+                    ข้อมูลธุรกิจ
                   </Typography>
-                  {restaurant.email && (
-                    <Typography variant="body2">
-                      <strong>อีเมล:</strong> {restaurant.email}
-                    </Typography>
-                  )}
-                  {restaurant.description && (
-                    <Typography variant="body2">
-                      <strong>คำอธิบาย:</strong> {restaurant.description}
-                    </Typography>
-                  )}
+                  <Box sx={{ pl: 2, borderLeft: '3px solid #e0e0e0' }}>
+                    <Box sx={{ mb: 1 }}>
+                      <Typography variant="body2" sx={{ color: '#666', fontSize: '0.85rem' }}>
+                        ประเภทธุรกิจ
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {restaurant.businessType || 'ไม่ระบุ'}
+                      </Typography>
+                    </Box>
+                    {restaurant.taxId && (
+                      <Box sx={{ mb: 1 }}>
+                        <Typography variant="body2" sx={{ color: '#666', fontSize: '0.85rem' }}>
+                          เลขประจำตัวผู้เสียภาษี
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 500, fontFamily: 'monospace' }}>
+                          {restaurant.taxId}
+                        </Typography>
+                      </Box>
+                    )}
+                    {restaurant.bankName && (
+                      <Box sx={{ mb: 1 }}>
+                        <Typography variant="body2" sx={{ color: '#666', fontSize: '0.85rem' }}>
+                          ธนาคาร
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {restaurant.bankName}
+                        </Typography>
+                      </Box>
+                    )}
+                    {restaurant.bankAccount && (
+                      <Box>
+                        <Typography variant="body2" sx={{ color: '#666', fontSize: '0.85rem' }}>
+                          เลขบัญชี
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 500, fontFamily: 'monospace' }}>
+                          {restaurant.bankAccount}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
                 </Box>
-              </Box>
 
-              {/* ข้อมูลธุรกิจ */}
-              <Box>
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, color: 'primary.main' }}>
-                  🏢 ข้อมูลธุรกิจ
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {restaurant.businessType ? (
-                    <Typography variant="body2">
-                      <strong>ประเภทธุรกิจ:</strong> {restaurant.businessType}
+                {/* Location Info */}
+                {restaurant.locationName && (
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1.5, color: '#333' }}>
+                      ตำแหน่งที่ตั้ง
                     </Typography>
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      ประเภทธุรกิจ: ไม่ระบุ
-                    </Typography>
-                  )}
-                  {restaurant.taxId ? (
-                    <Typography variant="body2">
-                      <strong>เลขประจำตัวผู้เสียภาษี:</strong> {restaurant.taxId}
-                    </Typography>
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      เลขประจำตัวผู้เสียภาษี: ไม่ระบุ
-                    </Typography>
-                  )}
-                  {restaurant.bankAccount ? (
-                    <Typography variant="body2">
-                      <strong>เลขบัญชีธนาคาร:</strong> {restaurant.bankAccount}
-                    </Typography>
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      เลขบัญชีธนาคาร: ไม่ระบุ
-                    </Typography>
-                  )}
-                  {restaurant.bankName ? (
-                    <Typography variant="body2">
-                      <strong>ชื่อธนาคาร:</strong> {restaurant.bankName}
-                    </Typography>
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      ชื่อธนาคาร: ไม่ระบุ
-                    </Typography>
-                  )}
-                </Box>
-              </Box>
-
-              {/* ข้อมูลที่ตั้ง */}
-              <Box>
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, color: 'primary.main' }}>
-                  📍 ข้อมูลที่ตั้ง
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {restaurant.locationName ? (
-                    <Typography variant="body2">
-                      <strong>ชื่อสถานที่:</strong> {restaurant.locationName}
-                    </Typography>
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      ชื่อสถานที่: ไม่ระบุ
-                    </Typography>
-                  )}
-                  {restaurant.latitude && restaurant.longitude ? (
-                    <Typography variant="body2">
-                      <strong>พิกัด:</strong> {restaurant.latitude}, {restaurant.longitude}
-                    </Typography>
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      พิกัด: ไม่ระบุ
-                    </Typography>
-                  )}
-                </Box>
-              </Box>
-
-              {/* เอกสารที่แนบ */}
-              <Box>
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, color: 'primary.main' }}>
-                  📎 เอกสารที่แนบ
-                </Typography>
-                {restaurant.documents && restaurant.documents.length > 0 ? (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <Typography variant="body2" color="success.main" sx={{ fontWeight: 500 }}>
-                      เอกสารทั้งหมด: {restaurant.documents.length} ไฟล์
-                    </Typography>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                      {restaurant.documents.map((doc, index) => (
-                        <Box
-                          key={doc.id}
-                          sx={{
-                            p: 2,
-                            border: '1px solid rgba(255, 255, 255, 0.2)',
-                            borderRadius: 1,
-                            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 2
-                          }}
-                        >
-                          <Box sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center',
-                            width: 32,
-                            height: 32,
-                            borderRadius: 1,
-                            backgroundColor: doc.mimeType.startsWith('image/') 
-                              ? 'rgba(76, 175, 80, 0.1)' 
-                              : doc.mimeType === 'application/pdf'
-                                ? 'rgba(244, 67, 54, 0.1)'
-                                : 'rgba(33, 150, 243, 0.1)',
-                            color: doc.mimeType.startsWith('image/') 
-                              ? 'success.main' 
-                              : doc.mimeType === 'application/pdf'
-                                ? 'error.main'
-                                : 'primary.main'
-                          }}>
-                            {doc.mimeType.startsWith('image/') ? '🖼️' : 
-                             doc.mimeType === 'application/pdf' ? '📄' : '📋'}
-                          </Box>
-                          <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
-                              {doc.fileName}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {doc.documentType.replace('_', ' ')} • {(doc.fileSize / 1024 / 1024).toFixed(2)} MB
-                            </Typography>
-                            {doc.description && (
-                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                                {doc.description}
-                              </Typography>
-                            )}
-                          </Box>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            href={doc.fileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            sx={{ 
-                              minWidth: 'auto',
-                              px: 1.5,
-                              fontSize: '0.75rem',
-                              textTransform: 'none'
-                            }}
-                          >
-                            ดูไฟล์
-                          </Button>
-                        </Box>
-                      ))}
+                    <Box sx={{ pl: 2, borderLeft: '3px solid #e0e0e0' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        📍 {restaurant.locationName}
+                      </Typography>
                     </Box>
                   </Box>
-                ) : (
-                  <Typography variant="body2" color="text.secondary">
-                    ไม่มีเอกสารที่แนบ
-                  </Typography>
                 )}
+
               </Box>
-
             </Box>
+          </Card>
 
-            {/* Submission info */}
-            <Box sx={{ 
-              mt: 3, 
-              pt: 2, 
-              borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: 1
+          {/* Documents Section - Separate Card */}
+          {restaurant?.documents && restaurant.documents.length > 0 && (
+            <Card sx={{ 
+              border: '1px solid #e0e0e0',
+              borderRadius: 3,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              overflow: 'hidden'
             }}>
-              <Typography variant="body2" color="text.secondary">
-                📅 ส่งข้อมูลเมื่อ: {new Date((restaurant as any).createdAt || Date.now()).toLocaleDateString('th-TH', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </Typography>
-            </Box>
+              <Box sx={{ 
+                p: 2.5, 
+                bgcolor: '#f8f9fa',
+                borderBottom: '1px solid #e0e0e0'
+              }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#333' }}>
+                  📎 เอกสารที่แนบ ({restaurant.documents.length} ไฟล์)
+                </Typography>
+              </Box>
+              <Box sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  {restaurant.documents.map((doc) => (
+                    <Box
+                      key={doc.id}
+                      sx={{
+                        p: 2,
+                        border: '1px solid #f0f0f0',
+                        borderRadius: 2,
+                        bgcolor: '#fafafa',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2
+                      }}
+                    >
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        width: 32,
+                        height: 32,
+                        borderRadius: 1,
+                        bgcolor: doc.mimeType.startsWith('image/') ? '#e8f5e8' : '#fff3cd',
+                        color: doc.mimeType.startsWith('image/') ? '#4caf50' : '#f57c00'
+                      }}>
+                        {doc.mimeType.startsWith('image/') ? '🖼️' : '📄'}
+                      </Box>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.9rem' }}>
+                          {doc.fileName}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#666' }}>
+                          {(doc.fileSize / 1024 / 1024).toFixed(2)} MB
+                        </Typography>
+                      </Box>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        href={doc.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{ 
+                          minWidth: 'auto',
+                          px: 2,
+                          fontSize: '0.8rem',
+                          textTransform: 'none',
+                          borderColor: '#e0e0e0',
+                          color: '#666'
+                        }}
+                      >
+                        ดูไฟล์
+                      </Button>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            </Card>
+          )}
+
+          {/* Submission Date Card */}
+          <Card sx={{ 
+            border: '1px solid #e0e0e0',
+            borderRadius: 3,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            p: 2.5,
+            textAlign: 'center',
+            bgcolor: '#fafafa'
+          }}>
+            <Typography variant="body2" sx={{ color: '#666', mb: 0.5 }}>
+              วันที่ส่งข้อมูล
+            </Typography>
+            <Typography variant="body1" sx={{ fontWeight: 600 }}>
+              📅 {new Date((restaurant as any)?.createdAt || Date.now()).toLocaleDateString('th-TH', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </Typography>
+            <Typography variant="caption" sx={{ color: '#999' }}>
+              เวลา {new Date((restaurant as any)?.createdAt || Date.now()).toLocaleTimeString('th-TH', {
+                hour: '2-digit',
+                minute: '2-digit'
+              })} น.
+            </Typography>
           </Card>
         </Box>
       </Box>

@@ -635,8 +635,12 @@ export default function RestaurantRegisterPage() {
             <Typography variant="h6" color="primary">
               อัพโหลดเอกสาร
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.primary">
               กรุณาอัพโหลดเอกสารที่จำเป็นสำหรับการสมัครเป็นพาร์ทเนอร์ร้านอาหาร
+            </Typography>
+            <Typography variant="body2" color="error">
+              1.สำเนาบัตรประชาชนของผู้สมัคร <br />
+              2.สำเนาสมุดบัญชีธนาคารของผู้สมัคร ชื่อต้องตรงกับบัตรประชาชน
             </Typography>
             
                         {/* Minimal Multi-File Upload */}
@@ -808,518 +812,455 @@ export default function RestaurantRegisterPage() {
       case 4:
         return (
           <Stack spacing={4}>
-            <Typography variant="h5" color="primary" sx={{ fontWeight: 600, textAlign: 'center' }}>
-              ยืนยันข้อมูลการสมัคร
-            </Typography>
-            
-            {/* ข้อมูลส่วนตัว */}
-            <Box sx={{ 
-              p: { xs: 3, sm: 4 }, 
-              bgcolor: 'primary.50', 
-              borderRadius: 3,
-              border: '1px solid',
-              borderColor: 'primary.200'
-            }}>
+            {/* Header */}
+            <Box sx={{ textAlign: 'center' }}>
               <Typography 
-                variant="h6" 
-                color="primary.main" 
-                gutterBottom 
+                variant="h3" 
                 sx={{ 
-                  fontWeight: 600,
-                  fontSize: { xs: '1.1rem', sm: '1.25rem' },
-                  mb: 2
+                  fontWeight: 600, 
+                  color: '#1a1a1a',
+                  fontSize: { xs: '1.8rem', sm: '2.2rem' },
+                  mb: 1
                 }}
               >
-                👤 ข้อมูลส่วนตัว
+                Dashboard การสมัคร
               </Typography>
-              <Stack spacing={1.5}>
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' } }}>
-                  <Typography 
-                    variant="body1" 
-                    sx={{ 
-                      fontSize: { xs: '1rem', sm: '1rem' },
-                      fontWeight: 500,
-                      color: 'text.secondary',
-                      minWidth: { sm: 80 },
-                      mb: { xs: 0.5, sm: 0 }
-                    }}
-                  >
-                    ชื่อ:
+              <Typography 
+                variant="body1" 
+                sx={{ 
+                  color: '#666',
+                  fontSize: '1rem'
+                }}
+              >
+                ภาพรวมข้อมูลที่ส่งสำหรับการสมัครร้านอาหาร
               </Typography>
-                  <Typography 
-                    variant="body1" 
-                    sx={{ 
-                      fontSize: { xs: '1rem', sm: '1rem' },
-                      fontWeight: 400,
-                      ml: { sm: 2 }
-                    }}
-                  >
-                    {formData.name}
-              </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' } }}>
-                  <Typography 
-                    variant="body1" 
-                    sx={{ 
-                      fontSize: { xs: '1rem', sm: '1rem' },
-                      fontWeight: 500,
-                      color: 'text.secondary',
-                      minWidth: { sm: 80 },
-                      mb: { xs: 0.5, sm: 0 }
-                    }}
-                  >
-                    อีเมล:
-                  </Typography>
-                  <Typography 
-                    variant="body1" 
-                    sx={{ 
-                      fontSize: { xs: '1rem', sm: '1rem' },
-                      fontWeight: 400,
-                      ml: { sm: 2 },
-                      wordBreak: 'break-word'
-                    }}
-                  >
-                    {formData.email}
-                  </Typography>
-                </Box>
-              </Stack>
             </Box>
 
-            {/* ข้อมูลร้านอาหาร */}
+            {/* Stats Cards */}
             <Box sx={{ 
-              p: { xs: 3, sm: 4 }, 
-              bgcolor: 'success.50', 
-              borderRadius: 3,
-              border: '1px solid',
-              borderColor: 'success.200'
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr 1fr', sm: '1fr 1fr 1fr 1fr' },
+              gap: 2
             }}>
-              <Typography 
-                variant="h6" 
-                color="success.main" 
-                gutterBottom 
-                sx={{ 
-                  fontWeight: 600,
-                  fontSize: { xs: '1.1rem', sm: '1.25rem' },
-                  mb: 2
-                }}
-              >
-                🏪 ข้อมูลร้านอาหาร
-              </Typography>
-              <Stack spacing={1.5}>
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' } }}>
-                  <Typography 
-                    variant="body1" 
-                    sx={{ 
-                      fontSize: { xs: '1rem', sm: '1rem' },
-                      fontWeight: 500,
-                      color: 'text.secondary',
-                      minWidth: { sm: 100 },
-                      mb: { xs: 0.5, sm: 0 }
-                    }}
-                  >
-                    ชื่อร้าน:
-              </Typography>
-                  <Typography 
-                    variant="body1" 
-                    sx={{ 
-                      fontSize: { xs: '1rem', sm: '1rem' },
-                      fontWeight: 400,
-                      ml: { sm: 2 }
-                    }}
-                  >
-                    {formData.restaurantName}
-              </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' } }}>
-              <Typography 
-                    variant="body1" 
-                sx={{ 
-                      fontSize: { xs: '1rem', sm: '1rem' },
-                      fontWeight: 500,
-                      color: 'text.secondary',
-                      minWidth: { sm: 100 },
-                      mb: { xs: 0.5, sm: 0 }
-                    }}
-                  >
-                    เบอร์โทร:
-              </Typography>
-                  <Typography 
-                    variant="body1" 
-                    sx={{ 
-                      fontSize: { xs: '1rem', sm: '1rem' },
-                      fontWeight: 400,
-                      ml: { sm: 2 }
-                    }}
-                  >
-                    {formData.restaurantPhone}
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <Typography 
-                    variant="body1" 
-                    sx={{ 
-                      fontSize: { xs: '1rem', sm: '1rem' },
-                      fontWeight: 500,
-                      color: 'text.secondary',
-                      mb: 0.5
-                    }}
-                  >
-                    ที่อยู่:
-                  </Typography>
-                  <Typography 
-                    variant="body1" 
-                    sx={{ 
-                      fontSize: { xs: '1rem', sm: '1rem' },
-                      fontWeight: 400,
-                      wordBreak: 'break-word',
-                      lineHeight: 1.6,
-                      pl: { sm: 2 }
-                    }}
-                  >
-                    {formData.restaurantAddress}
-                  </Typography>
-                </Box>
-              {formData.location.latitude && formData.location.longitude && (
+              {/* Completion Stats */}
+              <Card sx={{ 
+                p: 2, 
+                textAlign: 'center',
+                borderRadius: 3,
+                border: '1px solid #e8f4fd',
+                bgcolor: '#f8fcff',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.04)'
+              }}>
+                <Typography variant="h4" sx={{ fontWeight: 700, color: '#0066cc', mb: 0.5 }}>
+                  5/5
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#666', fontSize: '0.75rem' }}>
+                  ขั้นตอนที่เสร็จ
+                </Typography>
+              </Card>
+
+              <Card sx={{ 
+                p: 2, 
+                textAlign: 'center',
+                borderRadius: 3,
+                border: '1px solid #e8f5e8',
+                bgcolor: '#f8fff8',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.04)'
+              }}>
+                <Typography variant="h4" sx={{ fontWeight: 700, color: '#10b981', mb: 0.5 }}>
+                  {formData.documents.length}
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#666', fontSize: '0.75rem' }}>
+                  เอกสารที่อัพโหลด
+                </Typography>
+              </Card>
+
+              <Card sx={{ 
+                p: 2, 
+                textAlign: 'center',
+                borderRadius: 3,
+                border: '1px solid #fef3e8',
+                bgcolor: '#fffaf5',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.04)'
+              }}>
+                <Typography variant="h4" sx={{ fontWeight: 700, color: '#f59e0b', mb: 0.5 }}>
+                  {formData.agreeToTerms && formData.agreeToPrivacy ? '2/2' : 
+                   formData.agreeToTerms || formData.agreeToPrivacy ? '1/2' : '0/2'}
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#666', fontSize: '0.75rem' }}>
+                  ข้อตกลงที่ยอมรับ
+                </Typography>
+              </Card>
+
+              <Card sx={{ 
+                p: 2, 
+                textAlign: 'center',
+                borderRadius: 3,
+                border: '1px solid #f3e8ff',
+                bgcolor: '#faf7ff',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.04)'
+              }}>
+                <Typography variant="h4" sx={{ fontWeight: 700, color: '#8b5cf6', mb: 0.5 }}>
+                  100%
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#666', fontSize: '0.75rem' }}>
+                  ความเสร็จสมบูรณ์
+                </Typography>
+              </Card>
+            </Box>
+
+            {/* Main Dashboard Content */}
+            <Box sx={{ 
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' },
+              gap: 3
+            }}>
+              
+              {/* Left Column - Main Info */}
+              <Stack spacing={3}>
+                
+                {/* Profile Overview */}
+                <Card sx={{ 
+                  borderRadius: 3,
+                  border: '1px solid #e5e7eb',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                }}>
                   <Box sx={{ 
-                    mt: 2, 
-                    p: 2, 
-                    bgcolor: 'success.100', 
-                    borderRadius: 2,
-                    border: '1px solid',
-                    borderColor: 'success.300'
+                    p: 2.5, 
+                    borderBottom: '1px solid #f3f4f6',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 2
                   }}>
-                <Typography 
-                      variant="body1" 
-                  sx={{ 
-                        fontSize: { xs: '1rem', sm: '1rem' },
-                        fontWeight: 500,
-                        color: 'success.dark',
+                    <Box sx={{ 
+                      width: 40, 
+                      height: 40, 
+                      borderRadius: '50%', 
+                      bgcolor: '#10b981', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      color: 'white',
+                      fontSize: '1.2rem',
+                      fontWeight: 600
+                    }}>
+                      {formData.name.charAt(0).toUpperCase()}
+                    </Box>
+                    <Box>
+                      <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.1rem', mb: 0.5 }}>
+                        {formData.name}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#666' }}>
+                        {formData.email}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  
+                  <Box sx={{ p: 2.5 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, fontSize: '1rem' }}>
+                      🏪 ข้อมูลร้านอาหาร
+                    </Typography>
+                    <Box sx={{ 
+                      display: 'grid',
+                      gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                      gap: 2
+                    }}>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#374151', mb: 0.5 }}>
+                          ชื่อร้าน
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: '#666' }}>
+                          {formData.restaurantName}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#374151', mb: 0.5 }}>
+                          เบอร์โทร
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: '#666' }}>
+                          {formData.restaurantPhone}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#374151', mb: 0.5 }}>
+                        ที่อยู่
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#666', lineHeight: 1.5 }}>
+                        {formData.restaurantAddress}
+                      </Typography>
+                      {formData.location.latitude && formData.location.longitude && (
+                        <Box sx={{ mt: 1, p: 1.5, bgcolor: '#f0f9ff', borderRadius: 2, border: '1px solid #e0f2fe' }}>
+                          <Typography variant="caption" sx={{ color: '#0369a1', fontWeight: 500 }}>
+                            📍 {formData.location.locationName}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  </Box>
+                </Card>
+
+                {/* Business Info */}
+                <Card sx={{ 
+                  borderRadius: 3,
+                  border: '1px solid #e5e7eb',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                }}>
+                  <Box sx={{ p: 2.5 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, fontSize: '1rem' }}>
+                      💼 ข้อมูลธุรกิจ
+                    </Typography>
+                    <Box sx={{ 
+                      display: 'grid',
+                      gridTemplateColumns: '1fr',
+                      gap: 2
+                    }}>
+                      <Box sx={{ 
+                        p: 2, 
+                        bgcolor: '#f9fafb', 
+                        borderRadius: 2,
+                        border: '1px solid #e5e7eb'
+                      }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#374151', mb: 1 }}>
+                          เลขประจำตัวผู้เสียภาษี
+                        </Typography>
+                        <Typography variant="body1" sx={{ fontFamily: 'monospace', fontSize: '1.1rem', color: '#1f2937' }}>
+                          {formData.taxId}
+                        </Typography>
+                      </Box>
+                      
+                      <Box sx={{ 
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                        gap: 2
+                      }}>
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 600, color: '#374151', mb: 0.5 }}>
+                            ธนาคาร
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#666' }}>
+                            {formData.bankName}
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 600, color: '#374151', mb: 0.5 }}>
+                            เลขบัญชี
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#666', fontFamily: 'monospace' }}>
+                            {formData.bankAccount}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+                  </Box>
+                </Card>
+
+              </Stack>
+
+              {/* Right Column - Documents & Terms */}
+              <Stack spacing={3}>
+                
+                {/* Documents */}
+                <Card sx={{ 
+                  borderRadius: 3,
+                  border: '1px solid #e5e7eb',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                }}>
+                  <Box sx={{ p: 2.5 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, fontSize: '1rem' }}>
+                      📋 เอกสารที่อัพโหลด
+                    </Typography>
+                    
+                    {formData.documents.length > 0 ? (
+                      <Stack spacing={1.5}>
+                        {formData.documents.map((file, index) => (
+                          <Box 
+                            key={index}
+                            sx={{ 
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 2,
+                              p: 1.5,
+                              bgcolor: '#f9fafb',
+                              borderRadius: 2,
+                              border: '1px solid #e5e7eb'
+                            }}
+                          >
+                            <Box sx={{ 
+                              width: 32, 
+                              height: 32, 
+                              borderRadius: 1,
+                              overflow: 'hidden',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              bgcolor: '#e5e7eb'
+                            }}>
+                              {file.type.startsWith('image/') ? (
+                                <Box
+                                  component="img"
+                                  src={file.preview}
+                                  alt={file.name}
+                                  sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              ) : (
+                                <Typography sx={{ fontSize: '1rem' }}>📄</Typography>
+                              )}
+                            </Box>
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  fontWeight: 500,
+                                  fontSize: '0.85rem',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                {file.name}
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                                {(file.size / 1024 / 1024).toFixed(2)} MB
+                              </Typography>
+                            </Box>
+                          </Box>
+                        ))}
+                      </Stack>
+                    ) : (
+                      <Box sx={{ 
+                        textAlign: 'center', 
+                        py: 3,
+                        color: '#9ca3af'
+                      }}>
+                        <Typography variant="h4" sx={{ mb: 1 }}>📄</Typography>
+                        <Typography variant="body2" sx={{ fontStyle: 'italic' }}>
+                          ไม่มีเอกสารที่อัพโหลด
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </Card>
+
+                {/* Terms Status */}
+                <Card sx={{ 
+                  borderRadius: 3,
+                  border: '1px solid #e5e7eb',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                }}>
+                  <Box sx={{ p: 2.5 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, fontSize: '1rem' }}>
+                      ✅ สถานะข้อตกลง
+                    </Typography>
+                    
+                    <Stack spacing={1.5}>
+                      <Box sx={{ 
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 1
-                      }}
-                    >
-                      📍 ตำแหน่งที่เลือก: {formData.location.locationName}
-                </Typography>
-                  </Box>
-              )}
-              </Stack>
-            </Box>
-
-            {/* ข้อมูลธุรกิจ */}
-            <Box sx={{ 
-              p: { xs: 3, sm: 4 }, 
-              bgcolor: 'info.50', 
-              borderRadius: 3,
-              border: '1px solid',
-              borderColor: 'info.200'
-            }}>
-              <Typography 
-                variant="h6" 
-                color="info.main" 
-                gutterBottom 
-                sx={{ 
-                  fontWeight: 600,
-                  fontSize: { xs: '1.1rem', sm: '1.25rem' },
-                  mb: 2
-                }}
-              >
-                💼 ข้อมูลธุรกิจ
-              </Typography>
-              <Stack spacing={1.5}>
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' } }}>
-              <Typography 
-                    variant="body1" 
-                sx={{ 
-                      fontSize: { xs: '1rem', sm: '1rem' },
-                      fontWeight: 500,
-                      color: 'text.secondary',
-                      minWidth: { sm: 120 },
-                      mb: { xs: 0.5, sm: 0 }
-                    }}
-                  >
-                    เลขประจำตัวผู้เสียภาษี:
-              </Typography>
-                  <Typography 
-                    variant="body1" 
-                    sx={{ 
-                      fontSize: { xs: '1rem', sm: '1rem' },
-                      fontWeight: 400,
-                      ml: { sm: 2 },
-                      fontFamily: 'monospace'
-                    }}
-                  >
-                    {formData.taxId}
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' } }}>
-                  <Typography 
-                    variant="body1" 
-                    sx={{ 
-                      fontSize: { xs: '1rem', sm: '1rem' },
-                      fontWeight: 500,
-                      color: 'text.secondary',
-                      minWidth: { sm: 120 },
-                      mb: { xs: 0.5, sm: 0 }
-                    }}
-                  >
-                    ธนาคาร:
-                  </Typography>
-                  <Typography 
-                    variant="body1" 
-                    sx={{ 
-                      fontSize: { xs: '1rem', sm: '1rem' },
-                      fontWeight: 400,
-                      ml: { sm: 2 }
-                    }}
-                  >
-                    {formData.bankName}
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' } }}>
-                  <Typography 
-                    variant="body1" 
-                    sx={{ 
-                      fontSize: { xs: '1rem', sm: '1rem' },
-                      fontWeight: 500,
-                      color: 'text.secondary',
-                      minWidth: { sm: 120 },
-                      mb: { xs: 0.5, sm: 0 }
-                    }}
-                  >
-                    เลขบัญชี:
-                  </Typography>
-                  <Typography 
-                    variant="body1" 
-                    sx={{ 
-                      fontSize: { xs: '1rem', sm: '1rem' },
-                      fontWeight: 400,
-                      ml: { sm: 2 },
-                      fontFamily: 'monospace'
-                    }}
-                  >
-                    {formData.bankAccount}
-                  </Typography>
-                </Box>
-              </Stack>
-            </Box>
-
-            {/* เอกสารที่อัพโหลด */}
-            <Box sx={{ 
-              p: { xs: 3, sm: 4 }, 
-              bgcolor: 'warning.50', 
-              borderRadius: 3,
-              border: '1px solid',
-              borderColor: 'warning.200'
-            }}>
-              <Typography 
-                variant="h6" 
-                color="warning.main" 
-                gutterBottom 
-                sx={{ 
-                  fontWeight: 600,
-                  fontSize: { xs: '1.1rem', sm: '1.25rem' },
-                  mb: 3,
-                  textAlign: 'center'
-                }}
-              >
-                📋 เอกสารที่อัพโหลด
-              </Typography>
-              
-              {formData.documents.length > 0 ? (
-                <Box sx={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-                  gap: 2 
-                }}>
-                  {formData.documents.map((file, index) => (
-                    <Card key={index} sx={{ 
-                      p: 2, 
-                      height: 'auto',
-                      border: '1px solid',
-                      borderColor: 'warning.300',
-                      bgcolor: 'warning.50'
-                    }}>
-                      <Stack spacing={1} alignItems="center">
-                        {file.type.startsWith('image/') ? (
-                          <Box
-                            component="img"
-                            src={file.preview}
-                            alt={file.name}
-                            sx={{
-                              width: '100%',
-                              height: 80,
-                              objectFit: 'cover',
-                              borderRadius: 1
-                            }}
-                          />
-                        ) : (
-                          <Box sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center',
-                            width: '100%',
-                            height: 80,
-                            bgcolor: 'grey.100',
-                            borderRadius: 1
-                          }}>
-                            <Typography variant="h4">📄</Typography>
-                          </Box>
-                        )}
-                        <Typography 
-                          variant="caption" 
-                          sx={{ 
-                            fontWeight: 500,
-                            textAlign: 'center',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            maxWidth: '100%'
-                          }}
-                        >
-                          {file.name}
+                        gap: 1.5,
+                        p: 1.5,
+                        bgcolor: formData.agreeToTerms ? '#f0fdf4' : '#fef2f2',
+                        borderRadius: 2,
+                        border: `1px solid ${formData.agreeToTerms ? '#bbf7d0' : '#fecaca'}`
+                      }}>
+                        <Box sx={{ 
+                          width: 20, 
+                          height: 20,
+                          borderRadius: '50%',
+                          bgcolor: formData.agreeToTerms ? '#10b981' : '#ef4444',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                          fontSize: '0.75rem'
+                        }}>
+                          {formData.agreeToTerms ? '✓' : '✗'}
+                        </Box>
+                        <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
+                          ข้อกำหนดและเงื่อนไข
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {(file.size / 1024 / 1024).toFixed(2)} MB
+                      </Box>
+
+                      <Box sx={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5,
+                        p: 1.5,
+                        bgcolor: formData.agreeToPrivacy ? '#f0fdf4' : '#fef2f2',
+                        borderRadius: 2,
+                        border: `1px solid ${formData.agreeToPrivacy ? '#bbf7d0' : '#fecaca'}`
+                      }}>
+                        <Box sx={{ 
+                          width: 20, 
+                          height: 20,
+                          borderRadius: '50%',
+                          bgcolor: formData.agreeToPrivacy ? '#10b981' : '#ef4444',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                          fontSize: '0.75rem'
+                        }}>
+                          {formData.agreeToPrivacy ? '✓' : '✗'}
+                        </Box>
+                        <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
+                          นโยบายความเป็นส่วนตัว
                         </Typography>
+                      </Box>
+                    </Stack>
+
+                    {/* Update Terms */}
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="caption" sx={{ color: '#6b7280', mb: 1, display: 'block' }}>
+                        คลิกเพื่อเปลี่ยนแปลง:
+                      </Typography>
+                      <Stack spacing={1}>
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={formData.agreeToTerms}
+                              onChange={(e) => handleInputChange('agreeToTerms', e.target.checked)}
+                              size="small"
+                              sx={{ '& .MuiSvgIcon-root': { fontSize: '1.1rem' } }}
+                            />
+                          }
+                          label={
+                            <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
+                              <MuiLink href="#" underline="hover" sx={{ fontWeight: 600 }}>
+                                ข้อกำหนดและเงื่อนไข
+                              </MuiLink>
+                            </Typography>
+                          }
+                          sx={{ m: 0 }}
+                        />
+                        
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={formData.agreeToPrivacy}
+                              onChange={(e) => handleInputChange('agreeToPrivacy', e.target.checked)}
+                              size="small"
+                              sx={{ '& .MuiSvgIcon-root': { fontSize: '1.1rem' } }}
+                            />
+                          }
+                          label={
+                            <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
+                              <MuiLink href="#" underline="hover" sx={{ fontWeight: 600 }}>
+                                นโยบายความเป็นส่วนตัว
+                              </MuiLink>
+                            </Typography>
+                          }
+                          sx={{ m: 0 }}
+                        />
                       </Stack>
-                    </Card>
-                  ))}
-                </Box>
-              ) : (
-                <Typography color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
-                  ไม่มีเอกสารที่อัพโหลด
-                </Typography>
-              )}
+                    </Box>
+                  </Box>
+                </Card>
 
-              {/* Summary Info */}
-              <Box sx={{ 
-                mt: 3,
-                p: 2,
-                bgcolor: 'rgba(255, 193, 7, 0.1)',
-                borderRadius: 2,
-                border: '1px dashed',
-                borderColor: 'warning.main'
-              }}>
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                    fontSize: { xs: '0.9rem', sm: '0.9rem' },
-                    color: 'warning.dark',
-                    textAlign: 'center',
-                    fontWeight: 500
-                  }}
-                >
-                  📌 เอกสารทั้งหมด: {formData.documents.length} ไฟล์
-              </Typography>
-              </Box>
+              </Stack>
+
             </Box>
 
-            <Divider sx={{ borderColor: 'grey.300', borderWidth: 1 }} />
-
-            {/* ข้อกำหนดและเงื่อนไข */}
-            <Box sx={{ 
-              p: { xs: 3, sm: 4 }, 
-              bgcolor: 'grey.50', 
-              borderRadius: 3,
-              border: '2px solid',
-              borderColor: 'grey.200'
-            }}>
-              <Typography 
-                variant="h6" 
-                color="text.primary" 
-                gutterBottom 
-                sx={{ 
-                  fontWeight: 600,
-                  fontSize: { xs: '1.1rem', sm: '1.25rem' },
-                  mb: 3,
-                  textAlign: 'center'
-                }}
-              >
-                📝 การยอมรับเงื่อนไข
-              </Typography>
-              
-              <Stack spacing={3}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.agreeToTerms}
-                    onChange={(e) => handleInputChange('agreeToTerms', e.target.checked)}
-                      sx={{ 
-                        p: { xs: 1, sm: '9px' },
-                        '& .MuiSvgIcon-root': { fontSize: '1.5rem' }
-                      }}
-                  />
-                }
-                label={
-                  <Typography 
-                      variant="body1" 
-                    sx={{ 
-                        fontSize: { xs: '1rem', sm: '1rem' },
-                        lineHeight: 1.6,
-                        fontWeight: 400
-                      }}
-                    >
-                      ฉันได้อ่านและยอมรับ{' '}
-                      <MuiLink 
-                        href="#" 
-                        underline="hover"
-                        sx={{ 
-                          fontWeight: 600,
-                          color: 'primary.main',
-                          fontSize: { xs: '1rem', sm: '1rem' }
-                        }}
-                      >
-                        ข้อกำหนดและเงื่อนไขการใช้บริการ
-                    </MuiLink>
-                  </Typography>
-                }
-                  sx={{ 
-                    alignItems: 'flex-start',
-                    mb: 1
-                  }}
-              />
-                
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.agreeToPrivacy}
-                    onChange={(e) => handleInputChange('agreeToPrivacy', e.target.checked)}
-                      sx={{ 
-                        p: { xs: 1, sm: '9px' },
-                        '& .MuiSvgIcon-root': { fontSize: '1.5rem' }
-                      }}
-                  />
-                }
-                label={
-                  <Typography 
-                      variant="body1" 
-                    sx={{ 
-                        fontSize: { xs: '1rem', sm: '1rem' },
-                        lineHeight: 1.6,
-                        fontWeight: 400
-                      }}
-                    >
-                      ฉันได้อ่านและยอมรับ{' '}
-                      <MuiLink 
-                        href="#" 
-                        underline="hover"
-                        sx={{ 
-                          fontWeight: 600,
-                          color: 'primary.main',
-                          fontSize: { xs: '1rem', sm: '1rem' }
-                        }}
-                      >
-                      นโยบายความเป็นส่วนตัว
-                    </MuiLink>
-                  </Typography>
-                }
-                  sx={{ 
-                    alignItems: 'flex-start'
-                  }}
-              />
-            </Stack>
-            </Box>
           </Stack>
         )
 
