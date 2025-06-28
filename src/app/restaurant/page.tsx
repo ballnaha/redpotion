@@ -27,6 +27,7 @@ import {
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useRouter } from 'next/navigation';
+import { useNotification } from '../../contexts/NotificationContext';
 
 
 interface RestaurantData {
@@ -97,6 +98,9 @@ export default function RestaurantPage() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isTablet = useMediaQuery(theme.breakpoints.between('md', 'lg'));
   
+  // Global notification
+  const { showSuccess, showInfo } = useNotification();
+  
   // ใช้ SWR แทน useState + useEffect
   const { 
     data: restaurant, 
@@ -111,7 +115,13 @@ export default function RestaurantPage() {
       revalidateOnFocus: true, // refresh เมื่อกลับมาที่ tab
       revalidateOnReconnect: true, // refresh เมื่อ internet กลับมา
       dedupingInterval: 2 * 60 * 1000, // ไม่ส่ง request ซ้ำใน 2 นาที
-      onSuccess: () => console.log('🚀 Restaurant data loaded with SWR'),
+      onSuccess: () => {
+        console.log('🚀 Restaurant data loaded with SWR');
+        // แสดง notification เมื่อโหลดข้อมูลสำเร็จ (เฉพาะครั้งแรก)
+        if (!restaurant) {
+          showInfo('โหลดข้อมูลร้านอาหารสำเร็จ');
+        }
+      },
       onError: (err) => console.error('❌ SWR Error:', err)
     }
   );

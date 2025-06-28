@@ -16,8 +16,7 @@ import {
   Avatar, 
   Switch,
   FormControlLabel,
-  IconButton,
-  Snackbar
+  IconButton
 } from '@mui/material';
 import { 
   ArrowBack,
@@ -30,6 +29,7 @@ import {
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import ImageUploadDropzone, { uploadImageFile } from '../components/ImageUploadDropzone';
+import { useNotification } from '../../../contexts/NotificationContext';
 
 interface RestaurantData {
   id: string;
@@ -85,10 +85,10 @@ export default function RestaurantSettingsPage() {
   );
   
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  
+  // Use notification hook
+  const { showSuccess, showError, showWarning, showInfo } = useNotification();
 
   // Form data
   const [formData, setFormData] = useState({
@@ -183,17 +183,16 @@ export default function RestaurantSettingsPage() {
             imageUrl: ''
           }));
           setSelectedImageFile(null);
-          setSuccess('ลบรูปภาพสำเร็จ');
-          setSnackbarOpen(true);
+          showSuccess('ลบรูปภาพสำเร็จ');
           console.log('✅ Image deleted from both filesystem and database');
         } else {
           const errorData = await updateResponse.json();
-          setError(errorData.message || 'ไม่สามารถอัปเดตข้อมูลได้');
+          showError(errorData.message || 'ไม่สามารถอัปเดตข้อมูลได้');
         }
-      } catch (error) {
-        console.error('Error deleting image:', error);
-        setError(error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการลบรูปภาพ');
-      }
+              } catch (error) {
+          console.error('Error deleting image:', error);
+          showError(error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการลบรูปภาพ');
+        }
     } else {
       // กรณีอื่นๆ (เลือกไฟล์ใหม่) ให้ update form state ตามปกติ
       setFormData(prev => ({
@@ -208,19 +207,22 @@ export default function RestaurantSettingsPage() {
     e.preventDefault();
     
     if (!formData.name.trim() || !formData.address.trim() || !formData.phone.trim()) {
-      setError('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
+      showError('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
       return;
     }
 
+    // แจ้งเตือนการเริ่มต้นบันทึก
+    showInfo('กำลังบันทึกข้อมูล...');
+
     try {
       setSaving(true);
-      setError(null);
 
       let uploadedImageUrl = formData.imageUrl;
 
       // Upload image if new file is selected
       if (selectedImageFile && restaurant?.id) {
         try {
+          showInfo('กำลังอัปโหลดรูปภาพ...');
           uploadedImageUrl = await uploadImageFile(
             selectedImageFile,
             restaurant.id,
@@ -230,7 +232,7 @@ export default function RestaurantSettingsPage() {
           console.log('✅ Image uploaded successfully:', uploadedImageUrl);
         } catch (uploadError) {
           console.error('❌ Image upload failed:', uploadError);
-          setError('ไม่สามารถอัปโหลดรูปภาพได้ กรุณาลองใหม่');
+          showError('ไม่สามารถอัปโหลดรูปภาพได้ กรุณาลองใหม่');
           setSaving(false);
           return;
         }
@@ -265,15 +267,14 @@ export default function RestaurantSettingsPage() {
         const updatedRestaurant = await response.json();
         refreshRestaurant(updatedRestaurant); // ใช้ SWR mutate แทน setRestaurant
         setSelectedImageFile(null); // Clear selected file after successful upload
-        setSuccess('บันทึกข้อมูลสำเร็จ');
-        setSnackbarOpen(true);
+        showSuccess('บันทึกข้อมูลสำเร็จ');
       } else {
         const errorData = await response.json();
-        setError(errorData.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+        showError(errorData.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
       }
     } catch (error) {
       console.error('Error updating restaurant:', error);
-      setError('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+      showError('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
     } finally {
       setSaving(false);
     }
@@ -336,12 +337,7 @@ export default function RestaurantSettingsPage() {
         </Avatar>
       </Box>
 
-      {/* Error Alert */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
+      {/* Error Alert จะถูกแสดงผ่าน NotificationComponent แล้ว */}
 
       {/* Form */}
       <form onSubmit={handleSubmit}>
@@ -355,7 +351,39 @@ export default function RestaurantSettingsPage() {
                 <Typography variant="h6" sx={{ fontWeight: 600 }}>
                   รูปภาพหน้าปกร้าน
                 </Typography>
+                {formData.imageUrl && (
+                  <Typography variant="body2" color="text.secondary">
+                    (มีรูปภาพปัจจุบัน)
+                  </Typography>
+                )}
               </Box>
+              
+              {/* แสดงรูปภาพปัจจุบันแยกต่างหาก */}
+              {formData.imageUrl && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    รูปภาพหน้าปกปัจจุบัน:
+                  </Typography>
+                  <Box
+                    component="img"
+                    src={formData.imageUrl}
+                    alt="รูปภาพหน้าปกปัจจุบัน"
+                    sx={{
+                      width: '100%',
+                      maxWidth: 400,
+                      height: 200,
+                      objectFit: 'cover',
+                      borderRadius: 1,
+                      border: `2px solid ${theme.palette.divider}`,
+                      boxShadow: 2
+                    }}
+                  />
+                </Box>
+              )}
+              
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {formData.imageUrl ? 'อัปโหลดรูปใหม่เพื่อเปลี่ยนแปลง:' : 'อัปโหลดรูปภาพหน้าปกร้าน:'}
+              </Typography>
               
               <Box sx={{ width: '100%' }}>
                 <ImageUploadDropzone
@@ -579,21 +607,7 @@ export default function RestaurantSettingsPage() {
         </Box>
       </form>
 
-      {/* Success Snackbar */}
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={3000}
-        onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert 
-          onClose={() => setSnackbarOpen(false)} 
-          severity="success" 
-          sx={{ width: '100%' }}
-        >
-          {success}
-        </Alert>
-      </Snackbar>
+      {/* Global Notification จะแสดงผ่าน NotificationProvider แล้ว */}
     </Box>
   );
 } 

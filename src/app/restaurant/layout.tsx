@@ -236,14 +236,21 @@ function UserMenu() {
   const { data: session } = useSession();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
+  const router = useRouter();
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
 
+
   const handleClose = () => {
     setAnchorEl(null);
   };
+
+  const gotoSettings = () => {
+    router.push('/restaurant/settings');
+    handleClose();
+  }
 
   const handleLogout = async () => {
     try {
@@ -299,7 +306,7 @@ function UserMenu() {
             background: 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(20px) saturate(180%)',
             border: '1px solid rgba(255, 255, 255, 0.18)',
-            borderRadius: 2,
+            borderRadius: 1,
             mt: 1.5,
             minWidth: 200,
             '&:before': {
@@ -331,14 +338,7 @@ function UserMenu() {
           </Typography>
         </Box>
         
-        <MenuItem onClick={handleClose} sx={{ py: 1.5 }}>
-          <ListItemIcon>
-            <Person fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="โปรไฟล์" />
-        </MenuItem>
-        
-        <MenuItem onClick={handleClose} sx={{ py: 1.5 }}>
+        <MenuItem onClick={gotoSettings} sx={{ py: 1.5 }}>
           <ListItemIcon>
             <Settings fontSize="small" />
           </ListItemIcon>
@@ -376,6 +376,7 @@ export default function RestaurantLayout({
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isTablet = useMediaQuery(theme.breakpoints.between('md', 'lg'));
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [desktopOpen, setDesktopOpen] = useState(true);
   const { restaurantStatus, loading } = useRestaurantStatus();
   
   // Move hooks to the top before any conditional returns
@@ -383,7 +384,11 @@ export default function RestaurantLayout({
   const router = useRouter();
 
   const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
+    if (isMobile) {
+      setMobileOpen(!mobileOpen);
+    } else {
+      setDesktopOpen(!desktopOpen);
+    }
   };
 
   // Show loading while checking restaurant status
@@ -486,7 +491,7 @@ export default function RestaurantLayout({
             key={item.text}
             onClick={() => {
               router.push(item.href);
-              if (isMobile) handleDrawerToggle();
+              if (isMobile) setMobileOpen(false);
             }}
             sx={{
               mx: 2,
@@ -557,11 +562,11 @@ export default function RestaurantLayout({
           sx={{
             width: { 
               xs: '100%', 
-              md: `calc(100% - ${drawerWidth}px)` 
+              md: desktopOpen ? `calc(100% - ${drawerWidth}px)` : '100%'
             },
             ml: { 
               xs: 0, 
-              md: `${drawerWidth}px` 
+              md: desktopOpen ? `${drawerWidth}px` : 0
             },
             backgroundColor: 'rgba(255, 255, 255, 0.25)',
             backdropFilter: 'blur(20px) saturate(180%)',
@@ -574,62 +579,223 @@ export default function RestaurantLayout({
           }}
         >
           <Toolbar>
-            {isMobile && (
+            {/* Enhanced Hamburger Menu for Mobile and Desktop */}
+            <IconButton
+              color="inherit"
+              aria-label="toggle drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ 
+                mr: 2,
+                p: 1.5,
+                borderRadius: 2,
+                backgroundColor: (isMobile ? mobileOpen : !desktopOpen) ? 'rgba(0, 122, 255, 0.15)' : 'transparent',
+                border: (isMobile ? mobileOpen : !desktopOpen) ? '1px solid rgba(0, 122, 255, 0.3)' : '1px solid transparent',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 122, 255, 0.1)',
+                  transform: 'scale(1.05)',
+                },
+                '&:active': {
+                  transform: 'scale(0.95)',
+                }
+              }}
+            >
+              <Box
+                sx={{
+                  position: 'relative',
+                  width: 24,
+                  height: 24,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                {/* Animated Hamburger Lines */}
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    width: 20,
+                    height: 2,
+                    backgroundColor: 'currentColor',
+                    borderRadius: 1,
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    transform: (isMobile ? mobileOpen : !desktopOpen)
+                      ? 'rotate(45deg) translateY(0px)' 
+                      : 'rotate(0deg) translateY(-6px)',
+                  }}
+                />
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    width: 20,
+                    height: 2,
+                    backgroundColor: 'currentColor',
+                    borderRadius: 1,
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    opacity: (isMobile ? mobileOpen : !desktopOpen) ? 0 : 1,
+                    transform: (isMobile ? mobileOpen : !desktopOpen) ? 'scale(0)' : 'scale(1)',
+                  }}
+                />
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    width: 20,
+                    height: 2,
+                    backgroundColor: 'currentColor',
+                    borderRadius: 1,
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    transform: (isMobile ? mobileOpen : !desktopOpen)
+                      ? 'rotate(-45deg) translateY(0px)' 
+                      : 'rotate(0deg) translateY(6px)',
+                  }}
+                />
+              </Box>
+            </IconButton>
+            
+            {/* Legacy Mobile Menu (for backward compatibility) */}
+            {false && isMobile && (
               <IconButton
                 color="inherit"
                 aria-label="open drawer"
                 edge="start"
                 onClick={handleDrawerToggle}
-                sx={{ mr: 2 }}
+                sx={{ 
+                  mr: 2,
+                  p: 1.5,
+                  borderRadius: 2,
+                  backgroundColor: mobileOpen ? 'rgba(0, 122, 255, 0.15)' : 'transparent',
+                  border: mobileOpen ? '1px solid rgba(0, 122, 255, 0.3)' : '1px solid transparent',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+                    transform: 'scale(1.05)',
+                  },
+                  '&:active': {
+                    transform: 'scale(0.95)',
+                  }
+                }}
               >
-                <MenuIcon />
+                <Box
+                  sx={{
+                    position: 'relative',
+                    width: 24,
+                    height: 24,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  {/* Animated Hamburger Lines */}
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      width: 20,
+                      height: 2,
+                      backgroundColor: 'currentColor',
+                      borderRadius: 1,
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      transform: mobileOpen 
+                        ? 'rotate(45deg) translateY(0px)' 
+                        : 'rotate(0deg) translateY(-6px)',
+                    }}
+                  />
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      width: 20,
+                      height: 2,
+                      backgroundColor: 'currentColor',
+                      borderRadius: 1,
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      opacity: mobileOpen ? 0 : 1,
+                      transform: mobileOpen ? 'scale(0)' : 'scale(1)',
+                    }}
+                  />
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      width: 20,
+                      height: 2,
+                      backgroundColor: 'currentColor',
+                      borderRadius: 1,
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      transform: mobileOpen 
+                        ? 'rotate(-45deg) translateY(0px)' 
+                        : 'rotate(0deg) translateY(6px)',
+                    }}
+                  />
+                </Box>
               </IconButton>
             )}
-            <Typography variant="h6" sx={{ 
-              fontWeight: 700, 
-              fontSize: isMobile ? '1rem' : '1.25rem',
-              flexGrow: 1 
-            }}>
-              Restaurant Dashboard
-            </Typography>
+            
+            {/* Title with Logo for Mobile */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexGrow: 1 }}>
+              {isMobile && (
+                <Image 
+                  src="/images/logo_trim.png" 
+                  alt="TheRedPotion" 
+                  width={60} 
+                  height={36}
+                  style={{ objectFit: 'contain' }}
+                />
+              )}
+              <Typography variant="h6" sx={{ 
+                fontWeight: 700, 
+                fontSize: isMobile ? '1rem' : '1.25rem',
+                color: theme.palette.primary.main
+              }}>
+                {isMobile ? 'Restaurant' : 'Restaurant Dashboard'}
+              </Typography>
+            </Box>
             
             {/* User Menu */}
             <UserMenu />
           </Toolbar>
         </AppBar>
 
-                 {/* Mobile Drawer */}
-         <Drawer
-           variant="temporary"
-           open={mobileOpen}
-           onClose={handleDrawerToggle}
-           ModalProps={{
-             keepMounted: true, // Better open performance on mobile.
-           }}
-           sx={{
-             display: { xs: 'block', md: 'none' },
-             '& .MuiDrawer-paper': {
-               boxSizing: 'border-box',
-               width: drawerWidth,
-               backgroundColor: 'rgba(255, 255, 255, 0.98)',
-               backdropFilter: 'blur(20px) saturate(180%)',
-               WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-               border: 'none',
-               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
-               zIndex: theme.zIndex.drawer + 1,
-             },
-           }}
-         >
+        {/* Mobile Drawer */}
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleDrawerToggle}
+          ModalProps={{
+            keepMounted: true, // Better open performance on mobile.
+          }}
+          sx={{
+            display: { xs: 'block', md: 'none' },
+            '& .MuiDrawer-paper': {
+              boxSizing: 'border-box',
+              width: drawerWidth,
+              backgroundColor: 'rgba(255, 255, 255, 0.98)',
+              backdropFilter: 'blur(20px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+              zIndex: theme.zIndex.drawer + 1,
+              transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
+              transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            },
+            '& .MuiBackdrop-root': {
+              backgroundColor: 'rgba(0, 0, 0, 0.3)',
+              backdropFilter: 'blur(4px)',
+              WebkitBackdropFilter: 'blur(4px)',
+            }
+          }}
+        >
           {drawerContent}
         </Drawer>
 
         {/* Desktop Drawer */}
         <Drawer
-          variant="permanent"
+          variant="persistent"
           sx={{
             display: { xs: 'none', md: 'block' },
-            width: drawerWidth,
+            width: desktopOpen ? drawerWidth : 0,
             flexShrink: 0,
+            transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             '& .MuiDrawer-paper': {
               width: drawerWidth,
               boxSizing: 'border-box',
@@ -638,9 +804,11 @@ export default function RestaurantLayout({
               WebkitBackdropFilter: 'blur(20px) saturate(180%)',
               border: 'none',
               borderRight: '1px solid rgba(255, 255, 255, 0.18)',
+              transform: desktopOpen ? 'translateX(0)' : `translateX(-${drawerWidth}px)`,
+              transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             },
           }}
-          open
+          open={desktopOpen}
         >
           {drawerContent}
         </Drawer>
@@ -654,9 +822,14 @@ export default function RestaurantLayout({
             mt: { xs: 7, sm: 8 }, // Account for AppBar height
             width: { 
               xs: '100%', 
-              md: `calc(100% - ${drawerWidth}px)` 
+              md: desktopOpen ? `calc(100% - ${drawerWidth}px)` : '100%'
+            },
+            ml: {
+              xs: 0,
+              md: desktopOpen ? 0 : 0
             },
             minHeight: 'calc(100vh - 64px)',
+            transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         >
           {children}

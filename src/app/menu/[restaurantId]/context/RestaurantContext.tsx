@@ -116,6 +116,7 @@ interface ApiMenuItem {
   name: string;
   description?: string;
   price: number;
+  originalPrice?: number;
   imageUrl?: string;
   isAvailable: boolean;
   sortOrder: number;
@@ -130,8 +131,8 @@ const transformApiToRestaurant = (apiData: ApiRestaurant): Restaurant => {
     id: apiData.id,
     name: apiData.name,
     description: apiData.description || '',
-    logo: apiData.imageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=200&h=200&fit=crop',
-    banner: apiData.imageUrl || 'https://images.unsplash.com/photo-1559847844-5315695dadae?w=800&h=400&fit=crop',
+    logo: apiData.imageUrl || '/images/favicon.png',
+    banner: apiData.imageUrl || '/images/default_restaurant1.jpg',
     theme: {
       primaryColor: '#e53e3e',
       secondaryColor: '#fc8181',
@@ -141,7 +142,7 @@ const transformApiToRestaurant = (apiData: ApiRestaurant): Restaurant => {
       address: apiData.address || '',
       hours: apiData.openTime && apiData.closeTime 
         ? `${apiData.openTime} - ${apiData.closeTime}` 
-        : '08:00 - 22:00',
+        : '-',
     },
     menu: apiData.categories
       .filter(cat => cat.isActive)
@@ -157,8 +158,8 @@ const transformApiToRestaurant = (apiData: ApiRestaurant): Restaurant => {
             name: item.name,
             description: item.description || '',
             price: item.price,
-            originalPrice: undefined,
-            image: item.imageUrl || 'https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?w=300&h=200&fit=crop',
+            originalPrice: item.originalPrice,
+            image: item.imageUrl || '',
             category: category.id,
             available: item.isAvailable,
             cookingTime: 15,

@@ -912,7 +912,8 @@ export default function HomePage() {
               left: 0,
               right: 0,
               bottom: 0,
-              background: 'rgba(0, 0, 0, 0.2)',
+              background: 'rgba(251, 113, 133, 0.5)',
+              
               backdropFilter: 'blur(1px)',
             }
           }}>

@@ -176,6 +176,38 @@ function CategoryIcon({ iconName, selected, size = '18px' }: { iconName: string;
   }
 }
 
+// ฟังก์ชันตรวจสอบว่าร้านเปิดอยู่หรือไม่
+const isRestaurantOpen = (hours: string, currentDate: Date = new Date()): boolean => {
+  if (!hours || hours === '-') return false;
+  
+  try {
+    // แยกเวลาเปิดและปิด เช่น "16:19 - 04:19"
+    const [openTime, closeTime] = hours.split(' - ').map(time => time.trim());
+    if (!openTime || !closeTime) return false;
+    
+    const currentTime = currentDate.getHours() * 60 + currentDate.getMinutes(); // แปลงเป็นนาที
+    
+    // แปลงเวลาเปิดและปิดเป็นนาที
+    const [openHour, openMin] = openTime.split(':').map(Number);
+    const [closeHour, closeMin] = closeTime.split(':').map(Number);
+    
+    const openMinutes = openHour * 60 + openMin;
+    const closeMinutes = closeHour * 60 + closeMin;
+    
+    // กรณีปิดข้ามวัน (เช่น เปิด 16:19 - 04:19)
+    if (closeMinutes < openMinutes) {
+      return currentTime >= openMinutes || currentTime <= closeMinutes;
+    }
+    // กรณีปกติ (เช่น เปิด 08:00 - 22:00)
+    else {
+      return currentTime >= openMinutes && currentTime <= closeMinutes;
+    }
+  } catch (error) {
+    console.error('Error parsing restaurant hours:', error);
+    return false;
+  }
+};
+
 export default function MenuPageComponent() {
   const router = useRouter();
   const { restaurant, loading, error, cart, cartTotal, addToCart, 
@@ -185,10 +217,11 @@ export default function MenuPageComponent() {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string>('popular');
-  const [activeTab, setActiveTab] = useState<string>('popular');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState<string>('all');
   const [isAnimating, setIsAnimating] = useState(false);
   const [animationKey, setAnimationKey] = useState(0);
+  const [currentTime, setCurrentTime] = useState(new Date());
   
   // Gallery images for banner slider
   const galleryImages: GalleryImage[] = [
@@ -206,299 +239,48 @@ export default function MenuPageComponent() {
     }
   ];
 
-  const categories: MenuCategory[] = [
-    {
-      id: 'popular',
-      name: 'ยอดนิยม',
-      icon: 'TrendingUp',
-      items: []
-    },
-    {
-      id: 'recommended',
-      name: 'แนะนำ',
-      icon: 'Recommend',
-      items: []
-    },
-    {
-      id: 'snacks',
-      name: 'อาหารว่าง',
-      icon: 'Fastfood',
-      items: []
-    },
-    {
-      id: 'salad',
-      name: 'สลัด',
-      icon: 'LocalDining',
-      items: []
-    },
-    {
-      id: 'pizza',
-      name: 'พิซซ่า',
-      icon: 'LocalPizza',
-      items: []
-    },
-    {
-      id: 'burger',
-      name: 'เบอร์เกอร์',
-      icon: 'LunchDining',
-      items: []
-    },
-    {
-      id: 'drink',
-      name: 'เครื่องดื่ม',
-      icon: 'LocalCafe',
-      items: []
-    },
-    {
-      id: 'dessert',
-      name: 'ของหวาน',
-      icon: 'Icecream',
-      items: []
+  // แปลงข้อมูลจาก restaurant context ให้เข้ากับ MenuCategory interface
+  // และกรองเฉพาะ category ที่มีอาหารอย่างน้อย 1 รายการ
+  const categories: MenuCategory[] = restaurant?.menu?.map(category => ({
+    id: category.id,
+    name: category.name,
+    icon: 'LocalDining', // ใช้ icon เริ่มต้น
+    items: (category.items || []).map(item => ({
+      ...item,
+      category: category.id // ตั้งค่า category เป็น category ID ที่ถูกต้อง
+    }))
+  })).filter(category => category.items.length > 0) || [];
+
+  // รวมรายการอาหารจากทุกหมวดหมู่
+  const menuItems: MenuItem[] = categories.flatMap(category => category.items || []);
+  
+  // อัปเดต selectedCategory เมื่อมีข้อมูลร้าน (เฉพาะครั้งแรกเท่านั้น)
+  useEffect(() => {
+    if (restaurant && categories.length > 0 && !selectedCategory) {
+      setSelectedCategory(categories[0].id);
+      setActiveTab(categories[0].id);
+    } else if (restaurant && categories.length === 0) {
+      // กรณีไม่มี category ใดที่มีอาหาร
+      setSelectedCategory('');
+      setActiveTab('');
     }
-  ];
-
-  const menuItems: MenuItem[] = [
-    // Popular Items
-    {
-      id: '1',
-      name: 'ผัดไกรเขียวสด',
-      description: 'ผัดไกรเขียวหอมกลิ่นหน่อไม้ เส้นหมี่เหนียวงาม',
-      price: 120,
-      originalPrice: 150,
-      image: 'https://images.pexels.com/photos/5920742/pexels-photo-5920742.jpeg?auto=compress&cs=tinysrgb&w=400',
-      category: 'popular',
-      available: true,
-      cookingTime: 15,
-      isPopular: true,
-      isHit: true,
-      tags: ['HIT']
-    },
-    {
-      id: '2',
-      name: 'สันคำไทย',
-      description: 'สันคำรสแต้วดีนที่ เปรี้ยวอำพิเศษ หอมกลิ่นกะทิ',
-      price: 80,
-      originalPrice: 110,
-      image: 'https://images.pexels.com/photos/4553111/pexels-photo-4553111.jpeg?auto=compress&cs=tinysrgb&w=400',
-      category: 'popular',
-      available: true,
-      cookingTime: 12,
-      isHit: true,
-      tags: ['HIT']
-    },
-    {
-      id: '3',
-      name: 'ผัดไทยเส้นหมี่',
-      description: 'ผัดไทยรสชาติดั้งเดิม เส้นหมี่เหนียว หอมหวาน',
-      price: 65,
-      originalPrice: 85,
-      image: 'https://images.pexels.com/photos/4393021/pexels-photo-4393021.jpeg?auto=compress&cs=tinysrgb&w=400',
-      category: 'popular',
-      available: true,
-      cookingTime: 10,
-      isHit: true,
-      tags: ['HIT']
-    },
-    {
-      id: '4',
-      name: 'ต้มยำกุ้งน้ำข้น',
-      description: 'ต้มยำรสจัดจ้าน กุ้งสดใหญ่ เผ็ดร้อนแบบไทย',
-      price: 95,
-      originalPrice: 120,
-      image: 'https://images.pexels.com/photos/6249525/pexels-photo-6249525.jpeg?auto=compress&cs=tinysrgb&w=400',
-      category: 'popular',
-      available: true,
-      cookingTime: 18,
-      isHit: true,
-      tags: ['HIT']
-    },
-
-    // Recommended Items
-    {
-      id: '5',
-      name: 'แกงเผ็ดไก่',
-      description: 'แกงเผ็ดสูตรดั้งเดิม ไก่นุ่ม เผ็ดร้อนกำลังดี',
-      price: 110,
-      originalPrice: 140,
-      image: 'https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?w=400&h=300&fit=crop',
-      category: 'recommended',
-      available: true,
-      cookingTime: 20,
-      isPopular: false,
-      tags: ['แนะนำ']
-    },
-    {
-      id: '6',
-      name: 'ส้มตำไทย',
-      description: 'ส้มตำรสชาติแซ่บ เปรี้ยว หวาน เผ็ด กำลังดี',
-      price: 70,
-      originalPrice: 90,
-      image: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400&h=300&fit=crop',
-      category: 'recommended',
-      available: true,
-      cookingTime: 8,
-      isPopular: false,
-      tags: ['แนะนำ']
-    },
-
-    // Snacks
-    {
-      id: '7',
-      name: 'ปอเปี๊ยะทอด',
-      description: 'ปอเปี๊ยะทอดกรอบ ไส้หมูสับ กุ้ง ผักใส',
-      price: 45,
-      image: 'https://images.unsplash.com/photo-1563379091339-03246963d51a?w=400&h=300&fit=crop',
-      category: 'snacks',
-      available: true,
-      cookingTime: 12,
-      isPopular: false,
-      tags: ['ทอด']
-    },
-    {
-      id: '8',
-      name: 'ไก่ทอดกรอบ',
-      description: 'ไก่ทอดกรอบนอกนุ่มใน เสิร์ฟพร้อมซอสเผ็ด',
-      price: 85,
-      image: 'https://images.unsplash.com/photo-1562967914-608f82629710?w=400&h=300&fit=crop',
-      category: 'snacks',
-      available: true,
-      cookingTime: 15,
-      isPopular: false,
-      tags: ['ทอด', 'กรอบ']
-    },
-
-    // Salad
-    {
-      id: '9',
-      name: 'สลัดผักโขม',
-      description: 'สลัดผักโขมสด ราดด้วยน้ำสลัดงาขาว',
-      price: 65,
-      image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop',
-      category: 'salad',
-      available: true,
-      cookingTime: 5,
-      isPopular: false,
-      tags: ['สุขภาพ']
-    },
-    {
-      id: '10',
-      name: 'สลัดผลไม้',
-      description: 'สลัดผลไม้รวม สดใหม่ ราดน้ำผึ้งมะนาว',
-      price: 75,
-      image: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=400&h=300&fit=crop',
-      category: 'salad',
-      available: true,
-      cookingTime: 8,
-      isPopular: false,
-      tags: ['สุขภาพ', 'ผลไม้']
-    },
-
-    // Pizza
-    {
-      id: '11',
-      name: 'พิซซ่าซีฟู้ด',
-      description: 'พิซซ่าหน้าซีฟู้ดรวม กุ้ง หมึก ปู หน้าแน่น',
-      price: 285,
-      originalPrice: 320,
-      image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&h=300&fit=crop',
-      category: 'pizza',
-      available: true,
-      cookingTime: 25,
-      isPopular: false,
-      tags: ['พิซซ่า', 'ซีฟู้ด']
-    },
-    {
-      id: '12',
-      name: 'พิซซ่าฮาวายเอี้ยน',
-      description: 'พิซซ่าหน้าแฮมและสับปะรด รสชาติหวานมัน',
-      price: 250,
-      image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=300&fit=crop',
-      category: 'pizza',
-      available: true,
-      cookingTime: 22,
-      isPopular: false,
-      tags: ['พิซซ่า', 'หวาน']
-    },
-
-    // Burger
-    {
-      id: '13',
-      name: 'เบอร์เกอร์เนื้อ',
-      description: 'เบอร์เกอร์เนื้อวัวแบบคลาสสิค พร้อมชีสและผัก',
-      price: 135,
-      originalPrice: 160,
-      image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&h=300&fit=crop',
-      category: 'burger',
-      available: true,
-      cookingTime: 18,
-      isPopular: false,
-      tags: ['เบอร์เกอร์', 'เนื้อ']
-    },
-    {
-      id: '14',
-      name: 'เบอร์เกอร์ไก่ทอด',
-      description: 'เบอร์เกอร์ไก่ทอดกรอบ พร้อมซอสมายองเนส',
-      price: 115,
-      image: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=400&h=300&fit=crop',
-      category: 'burger',
-      available: true,
-      cookingTime: 15,
-      isPopular: false,
-      tags: ['เบอร์เกอร์', 'ไก่']
-    },
-
-    // Drinks
-    {
-      id: '15',
-      name: 'ชาเขียวเย็น',
-      description: 'ชาเขียวสดชื่น เพิ่มน้ำแข็งและน้ำตาล',
-      price: 35,
-      image: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400&h=300&fit=crop',
-      category: 'drink',
-      available: true,
-      cookingTime: 3,
-      isPopular: false,
-      tags: ['เย็น', 'ชา']
-    },
-    {
-      id: '16',
-      name: 'น้ำส้มคั้นสด',
-      description: 'น้ำส้มคั้นสด 100% ไม่ใส่น้ำตาล',
-      price: 45,
-      image: 'https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400&h=300&fit=crop',
-      category: 'drink',
-      available: true,
-      cookingTime: 5,
-      isPopular: false,
-      tags: ['สด', 'วิตามิน']
-    },
-
-    // Desserts
-    {
-      id: '17',
-      name: 'ขนมปังปิ้งน้ำผึ้ง',
-      description: 'ขนมปังปิ้งกรอบ ราดน้ำผึ้งแท้และเนย',
-      price: 55,
-      image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400&h=300&fit=crop',
-      category: 'dessert',
-      available: true,
-      cookingTime: 8,
-      isPopular: false,
-      tags: ['หวาน', 'ปิ้ง']
-    },
-    {
-      id: '18',
-      name: 'ไอศกรีมวนิลลา',
-      description: 'ไอศกรีมวนิลลาเนื้อเนียนนุ่ม รสชาติหอมหวาน',
-      price: 65,
-      image: 'https://images.unsplash.com/photo-1567206563064-6f60f40a2b57?w=400&h=300&fit=crop',
-      category: 'dessert',
-      available: true,
-      cookingTime: 2,
-      isPopular: false,
-      tags: ['เย็น', 'หวาน']
+    
+    // Debug: แสดงข้อมูลร้าน (เปิดเมื่อต้องการ debug)
+    if (restaurant && categories.length > 0) {
+      console.log('🏪 Categories:', categories.map(cat => ({ id: cat.id, name: cat.name, itemCount: cat.items.length })));
+      console.log('🍽️ Menu Items:', menuItems.map(item => ({ id: item.id, name: item.name, category: item.category })));
+      console.log('📋 Selected Category:', selectedCategory);
     }
-  ];
+  }, [restaurant, categories, selectedCategory]);
+
+  // อัปเดตเวลาปัจจุบันทุกนาที
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // อัปเดตทุก 1 นาที
+
+    return () => clearInterval(timer);
+  }, []);
 
   const toggleFavorite = (itemId: string) => {
     setFavorites(prev => 
@@ -515,6 +297,8 @@ export default function MenuPageComponent() {
 
   // Handle category change with smooth animation
   const handleCategoryChange = (categoryId: string) => {
+    console.log('🔄 Category Change:', { from: selectedCategory, to: categoryId, isAnimating });
+    
     if (categoryId === selectedCategory || isAnimating) return;
     
     setIsAnimating(true);
@@ -522,6 +306,7 @@ export default function MenuPageComponent() {
     // Smooth transition with optimized timing
     requestAnimationFrame(() => {
       setTimeout(() => {
+        console.log('✅ Setting new category:', categoryId);
         setSelectedCategory(categoryId);
         setAnimationKey(prev => prev + 1);
         
@@ -535,9 +320,9 @@ export default function MenuPageComponent() {
     });
   };
 
-  const filteredItems = selectedCategory === 'popular' 
-    ? menuItems.filter(item => item.isPopular)
-    : menuItems.filter(item => item.category === selectedCategory);
+  const filteredItems = categories.length > 0 && selectedCategory && selectedCategory !== 'all'
+    ? menuItems.filter(item => item.category === selectedCategory)
+    : menuItems;
 
   const searchFilteredItems = searchQuery 
     ? filteredItems.filter(item => 
@@ -545,6 +330,14 @@ export default function MenuPageComponent() {
         item.description.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : filteredItems;
+
+  // Debug การกรองรายการอาหาร
+  console.log('🔍 Filter Debug:', {
+    selectedCategory,
+    totalMenuItems: menuItems.length,
+    filteredItemsCount: filteredItems.length,
+    filteredItems: filteredItems.map(item => ({ name: item.name, category: item.category }))
+  });
 
   // หลังจากมี redirect ใน RestaurantContext แล้ว 
   // ไม่จำเป็นต้องแสดง error state ที่นี่อีก เพราะจะ redirect ไปหน้าหลักแล้ว
@@ -677,8 +470,8 @@ export default function MenuPageComponent() {
           left: 0,
           right: 0,
           zIndex: 1000,
-          borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+          borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
         }}
       >
         {/* Customer Header */}
@@ -734,15 +527,15 @@ export default function MenuPageComponent() {
                 color: 'rgba(0, 0, 0, 0.7)',
                 width: 40,
                 height: 40,
-                background: 'rgba(255, 255, 255, 0.3)',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
+                background: 'rgba(255, 255, 255, 0.9)',
+                backdropFilter: 'blur(4px)',
+                border: '1px solid rgba(0, 0, 0, 0.08)',
                 '&:hover': {
-                  background: 'rgba(255, 255, 255, 0.4)',
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)'
+                  background: 'rgba(255, 255, 255, 0.95)',
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
                 },
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                transition: 'all 0.2s ease-out'
               }}
             >
               <Search sx={{ fontSize: 20 }} />
@@ -754,16 +547,16 @@ export default function MenuPageComponent() {
                 color: 'rgba(0, 0, 0, 0.7)',
                 width: 40,
                 height: 40,
-                background: 'rgba(255, 255, 255, 0.3)',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
+                background: 'rgba(255, 255, 255, 0.9)',
+                backdropFilter: 'blur(4px)',
+                border: '1px solid rgba(0, 0, 0, 0.08)',
                 position: 'relative',
                 '&:hover': {
-                  background: 'rgba(255, 255, 255, 0.4)',
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)'
+                  background: 'rgba(255, 255, 255, 0.95)',
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
                 },
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                transition: 'all 0.2s ease-out'
               }}
             >
               <NoSSR fallback={<ShoppingCart sx={{ fontSize: 18 }} />}>
@@ -776,15 +569,15 @@ export default function MenuPageComponent() {
                 color: 'rgba(0, 0, 0, 0.7)',
                 width: 40,
                 height: 40,
-                background: 'rgba(255, 255, 255, 0.3)',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
+                background: 'rgba(255, 255, 255, 0.9)',
+                backdropFilter: 'blur(4px)',
+                border: '1px solid rgba(0, 0, 0, 0.08)',
                 '&:hover': {
-                  background: 'rgba(255, 255, 255, 0.4)',
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)'
+                  background: 'rgba(255, 255, 255, 0.95)',
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
                 },
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                transition: 'all 0.2s ease-out'
               }}
             >
               <NotificationsNone sx={{ fontSize: 20 }} />
@@ -800,10 +593,10 @@ export default function MenuPageComponent() {
           <Card 
             sx={{ 
               borderRadius: 0,
-              background: 'rgba(255, 255, 255, 0.25)',
-              backdropFilter: 'blur(20px)',
-              border: 'none',
-              boxShadow: 'none',
+              background: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(0, 0, 0, 0.05)',
+              boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
               overflow: 'hidden',
               width: '100vw',
               marginLeft: 'calc(-50vw + 50%)',
@@ -813,9 +606,9 @@ export default function MenuPageComponent() {
             <Box sx={{ position: 'relative' }}>
               <CardMedia
                 component="img"
-                height="120"
-                image="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&h=300&fit=crop"
-                alt="Restaurant"
+                height="150"
+                image={restaurant?.banner || "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&h=300&fit=crop"}
+                alt={restaurant?.name || "Restaurant"}
                 sx={{ 
                   objectFit: 'cover',
                   filter: 'brightness(0.9)'
@@ -829,21 +622,21 @@ export default function MenuPageComponent() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 1,
-                  background: 'rgba(255, 255, 255, 0.25)',
-                  backdropFilter: 'blur(5px)',
+                  background: 'rgba(255, 255, 255, 0.9)',
+                  backdropFilter: 'blur(4px)',
                   borderRadius: '20px',
                   px: 2,
                   py: 1,
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  boxShadow: '0 8px 25px rgba(0, 0, 0, 0.1)'
+                  border: '1px solid rgba(0, 0, 0, 0.1)',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
                 }}
               >
                 
                 <Typography sx={{ 
-                  fontSize: '0.9rem', 
-                  fontWeight: 500, 
-                  color: 'rgba(0, 0, 0, 0.8)',
-                  textShadow: '0 2px 4px rgba(255, 255, 255, 0.5)'
+                  fontSize: '1rem', 
+                  fontWeight: 600, 
+                  color: 'rgba(0, 0, 0, 0.85)',
+                  letterSpacing: '0.01em'
                 }}>
                   {restaurant?.name}
                 </Typography>
@@ -857,28 +650,39 @@ export default function MenuPageComponent() {
                   
                   {/* Welcome Message */}
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                    <Typography sx={{ fontSize: '0.9rem', color: 'rgba(0, 0, 0, 0.6)', fontWeight: 600 }}>สวัสดี คุณ</Typography>
+                    <Typography sx={{ fontSize: '0.95rem', color: 'rgba(0, 0, 0, 0.65)', fontWeight: 500, letterSpacing: '0.005em' }}>สวัสดี คุณ</Typography>
                   </Box>
                   
                   {/* Status and Time */}
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                     
+                    {(() => {
+                      const isOpen = isRestaurantOpen(restaurant?.contact?.hours || '', currentTime);
+                      return (
                     <Chip 
-                      label="เปิดอยู่" 
+                          label={isOpen ? "เปิดอยู่" : "ปิดอยู่"} 
                       size="small"
                       sx={{ 
-                        background: 'rgba(16, 185, 129, 0.2)',
-                        backdropFilter: 'blur(10px)',
-                        color: '#10B981',
-                        fontSize: '0.7rem',
+                            background: isOpen 
+                              ? 'rgba(16, 185, 129, 0.15)' 
+                              : 'rgba(239, 68, 68, 0.15)',
+                            backdropFilter: 'blur(4px)',
+                            color: isOpen ? '#10B981' : '#EF4444',
+                            fontSize: '0.75rem',
                         height: '22px',
-                        border: '1px solid rgba(16, 185, 129, 0.3)',
-                        fontWeight: 600
-                      }}
-                    />
-                    <Typography sx={{ fontSize: '0.75rem', color: 'rgba(0, 0, 0, 0.6)' }}>
-                      เปิด 08:00 - 22:00
+                            border: isOpen 
+                              ? '1px solid rgba(16, 185, 129, 0.25)' 
+                              : '1px solid rgba(239, 68, 68, 0.25)',
+                            fontWeight: 500,
+                            letterSpacing: '0.005em'
+                          }}
+                        />
+                      );
+                    })()}
+                                          <Typography sx={{ fontSize: '0.85rem', color: 'rgba(0, 0, 0, 0.65)', letterSpacing: '0.005em' }}>
+                        เวลาเปิด : {restaurant?.contact?.hours || '-'} น.
                     </Typography>
+                      
                   </Box>
                   
                   {/* Address */}
@@ -890,12 +694,13 @@ export default function MenuPageComponent() {
                       flexShrink: 0
                     }} />
                     <Typography sx={{ 
-                      fontSize: '0.85rem', 
+                      fontSize: '0.9rem', 
                       color: 'rgba(0, 0, 0, 0.7)',
-                      lineHeight: 1.4,
-                      fontWeight: 500
+                      lineHeight: 1.5,
+                      fontWeight: 500,
+                      letterSpacing: '0.005em'
                     }}>
-                      456 ถนนรามคำแหง แขวงหัวหมาก เขตบางกะปิ กรุงเทพฯ 10240
+                      {restaurant?.contact?.address || '456 ถนนรามคำแหง แขวงหัวหมาก เขตบางกะปิ กรุงเทพฯ 10240'}
                     </Typography>
                   </Box>
                   
@@ -917,11 +722,12 @@ export default function MenuPageComponent() {
                       </Typography>
                     </Box>
                     <Typography sx={{ 
-                      fontSize: '0.85rem', 
+                      fontSize: '0.9rem', 
                       color: 'rgba(0, 0, 0, 0.7)',
-                      fontWeight: 500
+                      fontWeight: 500,
+                      letterSpacing: '0.01em'
                     }}>
-                      02-123-4567
+                      {restaurant?.contact?.phone || '02-123-4567'}
                     </Typography>
                   </Box>
                   
@@ -935,32 +741,13 @@ export default function MenuPageComponent() {
         <Box sx={{ px: 2, mb: 4 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6" sx={{ 
-              fontWeight: 700, 
-              color: 'rgba(0, 0, 0, 0.9)',
-              fontSize: '1.2rem'
+              fontWeight: 600, 
+              color: 'rgba(0, 0, 0, 0.85)',
+              fontSize: '1.1rem',
+              letterSpacing: '0.01em'
             }}>
               แกลเลอรี่
             </Typography>
-            <Button 
-              sx={{ 
-                color: '#10B981',
-                fontSize: '0.85rem',
-                textTransform: 'none',
-                fontWeight: 600,
-                background: 'rgba(16, 185, 129, 0.1)',
-                backdropFilter: 'blur(10px)',
-                borderRadius: '20px',
-                px: 2,
-                py: 0.5,
-                border: '1px solid rgba(16, 185, 129, 0.2)',
-                '&:hover': {
-                  background: 'rgba(16, 185, 129, 0.2)',
-                  transform: 'translateY(-1px)'
-                }
-              }}
-            >
-              See All
-            </Button>
           </Box>
           
           {/* Special Offers Swiper */}
@@ -1031,11 +818,12 @@ export default function MenuPageComponent() {
 
         {/* Premium Category Grid */}
         <Box sx={{ px: 2, mb: 3 }}>
+          {categories.length > 0 ? (
           <Box
             sx={{
               display: 'grid',
               gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: 0.8,
+                gap: 1.2,
               maxWidth: '100%'
             }}
           >
@@ -1048,41 +836,41 @@ export default function MenuPageComponent() {
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  py: 1.2,
-                  px: 0.5,
+                  py: 1.5,
+                  px: 0.8,
                   borderRadius: '12px',
                   cursor: 'pointer',
-                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                  transition: 'all 0.2s ease-out',
                   background: selectedCategory === category.id 
-                    ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%)'
-                    : 'rgba(248, 250, 252, 0.8)',
+                    ? 'rgba(16, 185, 129, 0.1)'
+                    : 'rgba(255, 255, 255, 0.9)',
                   border: selectedCategory === category.id 
                     ? '1.5px solid rgba(16, 185, 129, 0.3)' 
-                    : '1px solid rgba(226, 232, 240, 0.6)',
+                    : '1px solid rgba(0, 0, 0, 0.08)',
                   position: 'relative',
-                  minHeight: '48px',
-                  backdropFilter: 'blur(10px)',
+                  minHeight: '40px',
+                  backdropFilter: 'blur(5px)',
                   boxShadow: selectedCategory === category.id
-                    ? '0 4px 20px rgba(16, 185, 129, 0.15)'
-                    : '0 2px 8px rgba(0, 0, 0, 0.04)',
+                    ? '0 2px 8px rgba(16, 185, 129, 0.15)'
+                    : '0 1px 4px rgba(0, 0, 0, 0.04)',
                   '&:hover': {
-                    transform: 'translateY(-2px)',
+                    transform: 'translateY(-1px)',
                     background: selectedCategory === category.id 
-                      ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.08) 100%)'
-                      : 'rgba(255, 255, 255, 0.9)',
+                      ? 'rgba(16, 185, 129, 0.15)'
+                      : 'rgba(255, 255, 255, 1)',
                     border: selectedCategory === category.id 
-                      ? '1.5px solid rgba(16, 185, 129, 0.5)' 
+                      ? '1.5px solid rgba(16, 185, 129, 0.4)' 
                       : '1px solid rgba(16, 185, 129, 0.2)',
                     boxShadow: selectedCategory === category.id
-                      ? '0 8px 25px rgba(16, 185, 129, 0.25)'
-                      : '0 4px 15px rgba(0, 0, 0, 0.08)',
+                      ? '0 4px 12px rgba(16, 185, 129, 0.2)'
+                      : '0 2px 8px rgba(0, 0, 0, 0.08)',
                     '& .category-icon': {
-                      transform: 'scale(1.15)'
+                      transform: 'scale(1.1)'
                     },
                     '& .category-text': {
                       color: selectedCategory === category.id 
                         ? 'rgba(16, 185, 129, 1)' 
-                        : 'rgba(16, 185, 129, 0.8)'
+                        : 'rgba(0, 0, 0, 0.8)'
                     }
                   },
                   '&:active': {
@@ -1090,34 +878,19 @@ export default function MenuPageComponent() {
                   }
                 }}
               >
-                <Box 
-                  className="category-icon"
-                  sx={{ 
-                    mb: 0.5,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
-                  }}
-                >
-                  <CategoryIcon 
-                    iconName={category.icon} 
-                    selected={selectedCategory === category.id}
-                    size="18px"
-                  />
-                </Box>
+                
                 <Typography 
                   className="category-text"
                   sx={{ 
-                    fontSize: '0.65rem', 
-                    fontWeight: selectedCategory === category.id ? 600 : 500,
+                    fontSize: '0.85rem', 
+                    fontWeight: selectedCategory === category.id ? 500 : 400,
                     color: selectedCategory === category.id 
-                      ? 'rgba(16, 185, 129, 0.95)' 
-                      : 'rgba(71, 85, 105, 0.8)',
+                      ? 'rgba(16, 185, 129, 0.9)' 
+                      : 'rgba(0, 0, 0, 0.75)',
                     textAlign: 'center',
-                    lineHeight: 1.1,
+                    lineHeight: 1.2,
                     transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                    letterSpacing: '0.01em',
+                    letterSpacing: '0.005em',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -1145,9 +918,26 @@ export default function MenuPageComponent() {
               </Box>
             ))}
           </Box>
+          ) : (
+            <Box 
+              sx={{ 
+                textAlign: 'center', 
+                py: 4,
+                color: 'rgba(0, 0, 0, 0.6)' 
+              }}
+            >
+              <Typography variant="h6" sx={{ mb: 1 }}>
+                ยังไม่มีหมวดหมู่อาหาร
+              </Typography>
+              <Typography variant="body2">
+                ร้านนี้ยังไม่มีเมนูอาหารในระบบ
+              </Typography>
+            </Box>
+          )}
         </Box>
 
         {/* Minimal Section Title ตาม Category ที่เลือก */}
+        {categories.length > 0 && (
         <Box sx={{ px: 2, mb: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -1174,10 +964,11 @@ export default function MenuPageComponent() {
             </Typography>
           </Box>
         </Box>
+        )}
 
         {/* Menu Items Grid - แสดงเฉพาะอาหารที่ตรงกับ category */}
         <Box sx={{ px: 2 }}>
-          {searchFilteredItems.length > 0 ? (
+          {categories.length > 0 && searchFilteredItems.length > 0 ? (
             <Box
               key={animationKey}
               className={`menu-items-container ${isAnimating ? 'changing' : ''}`}
@@ -1194,23 +985,23 @@ export default function MenuPageComponent() {
                   sx={{
                     borderRadius: 1,
                     overflow: 'hidden',
-                    background: 'rgba(255, 255, 255, 0.25)',
-                    backdropFilter: 'blur(20px)',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-                    transition: 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                    background: 'rgba(255, 255, 255, 0.9)',
+                    backdropFilter: 'blur(8px)',
+                    border: '1px solid rgba(0, 0, 0, 0.08)',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                    transition: 'all 0.3s ease-out',
                     position: 'relative',
                     cursor: 'pointer',
                     animation: !isAnimating ? `fadeInUp 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${index * 0.08}s both` : 'none',
                     willChange: 'transform, box-shadow, background',
                     '&:hover': {
-                      transform: 'translateY(-6px) scale(1.02)',
-                      boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
-                      background: 'rgba(255, 255, 255, 0.4)'
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                      background: 'rgba(255, 255, 255, 0.95)'
                     },
                     '&:active': {
-                      transform: 'translateY(-2px) scale(0.98)',
-                      transition: 'all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+                      transform: 'translateY(0px)',
+                      transition: 'all 0.15s ease-out'
                     }
                   }}
                 >
@@ -1236,14 +1027,14 @@ export default function MenuPageComponent() {
                           position: 'absolute',
                           top: 8,
                           left: 8,
-                          background: 'linear-gradient(135deg, #10B981 0%, #34D399 100%)',
+                          background: '#10B981',
                           color: 'white',
-                          fontSize: '0.65rem',
-                          fontWeight: 700,
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
                           height: '20px',
                           minWidth: '28px',
-                          border: '1px solid rgba(255, 255, 255, 0.3)',
-                          boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)'
+                          border: 'none',
+                          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)'
                         }}
                       />
                     )}
@@ -1257,14 +1048,14 @@ export default function MenuPageComponent() {
                           position: 'absolute',
                           top: 8,
                           right: 8,
-                          background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                          background: '#ef4444',
                           color: 'white',
-                          fontSize: '0.65rem',
-                          fontWeight: 700,
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
                           height: '20px',
                           minWidth: '36px',
-                          border: '1px solid rgba(255, 255, 255, 0.3)',
-                          boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)'
+                          border: 'none',
+                          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)'
                         }}
                       />
                     )}
@@ -1275,15 +1066,16 @@ export default function MenuPageComponent() {
                     <Typography 
                       variant="h6" 
                       sx={{ 
-                        fontWeight: 700, 
+                        fontWeight: 600, 
                         mb: 0.5,
-                        color: 'rgba(0, 0, 0, 0.9)',
-                        fontSize: '0.9rem',
-                        lineHeight: 1.3,
+                        color: 'rgba(0, 0, 0, 0.85)',
+                        fontSize: '1rem',
+                        lineHeight: 1.4,
                         display: '-webkit-box',
                         WebkitLineClamp: 2,
                         WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden'
+                        overflow: 'hidden',
+                        letterSpacing: '0.01em'
                       }}
                     >
                       {item.name}
@@ -1292,14 +1084,15 @@ export default function MenuPageComponent() {
                     <Typography 
                       variant="body2" 
                       sx={{ 
-                        color: 'rgba(0, 0, 0, 0.6)', 
+                        color: 'rgba(0, 0, 0, 0.65)', 
                         mb: 1.5,
-                        lineHeight: 1.4,
-                        fontSize: '0.75rem',
+                        lineHeight: 1.5,
+                        fontSize: '0.85rem',
                         display: '-webkit-box',
                         WebkitLineClamp: 2,
                         WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden'
+                        overflow: 'hidden',
+                        letterSpacing: '0.005em'
                       }}
                     >
                       {item.description}
@@ -1312,8 +1105,9 @@ export default function MenuPageComponent() {
                           variant="h6" 
                           sx={{ 
                             color: '#10B981', 
-                            fontWeight: 800,
-                            fontSize: '1rem'
+                            fontWeight: 700,
+                            fontSize: '1.1rem',
+                            letterSpacing: '0.01em'
                           }}
                         >
                           ฿{item.price}
@@ -1322,10 +1116,11 @@ export default function MenuPageComponent() {
                           <Typography 
                             variant="body2" 
                             sx={{ 
-                              color: 'rgba(0, 0, 0, 0.4)',
+                              color: 'rgba(0, 0, 0, 0.45)',
                               textDecoration: 'line-through',
-                              fontSize: '0.8rem',
-                              fontWeight: 500
+                              fontSize: '0.9rem',
+                              fontWeight: 500,
+                              letterSpacing: '0.005em'
                             }}
                           >
                             ฿{item.originalPrice}
@@ -1337,7 +1132,7 @@ export default function MenuPageComponent() {
                 </Card>
               ))}
             </Box>
-          ) : (
+          ) : categories.length > 0 ? (
             // แสดงข้อความเมื่อไม่มีรายการในหมวดหมู่นี้
             <Box 
               key={`empty-${animationKey}`}
@@ -1376,7 +1171,7 @@ export default function MenuPageComponent() {
                 ลองเลือกหมวดหมู่อื่นดูสิค่ะ
               </Typography>
             </Box>
-          )}
+          ) : null}
         </Box>
       </Box>
 

@@ -1,12 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-
 }
 
 datasource db {
@@ -14,22 +7,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// NextAuth.js Tables
 model Account {
   id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -43,20 +34,18 @@ model Session {
 }
 
 model User {
-  id            String    @id @default(cuid())
+  id            String      @id @default(cuid())
   name          String?
-  email         String    @unique
+  email         String      @unique
   emailVerified DateTime?
   image         String?
-  password      String?   // สำหรับ credentials login
-  role          UserRole  @default(USER)
-  
-  accounts   Account[]
-  sessions   Session[]
-  restaurant Restaurant?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  password      String?
+  role          UserRole    @default(USER)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  accounts      Account[]
+  restaurant    Restaurant?
+  sessions      Session[]
 }
 
 model VerificationToken {
@@ -67,7 +56,154 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// Restaurant System Models
+model Restaurant {
+  id             String           @id @default(cuid())
+  name           String
+  description    String?
+  address        String
+  phone          String
+  email          String?
+  imageUrl       String?
+  status         RestaurantStatus @default(PENDING)
+  latitude       Float?
+  longitude      Float?
+  locationName   String?
+  businessType   String?
+  taxId          String?
+  bankAccount    String?
+  bankName       String?
+  openTime       String?
+  closeTime      String?
+  isOpen         Boolean          @default(true)
+  minOrderAmount Float?           @default(0)
+  deliveryFee    Float?           @default(0)
+  deliveryRadius Float?           @default(5)
+  ownerId        String           @unique
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  categories     Category[]
+  documents      Document[]
+  menuItems      MenuItem[]
+  orders         Order[]
+  owner          User             @relation(fields: [ownerId], references: [id])
+}
+
+model Category {
+  id           String     @id @default(cuid())
+  name         String
+  description  String?
+  imageUrl     String?
+  sortOrder    Int        @default(0)
+  isActive     Boolean    @default(true)
+  restaurantId String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  menuItems    MenuItem[]
+
+  @@unique([restaurantId, name])
+}
+
+model MenuItem {
+  id            String      @id @default(cuid())
+  name          String
+  description   String?
+  price         Float
+  originalPrice Float?
+  imageUrl      String?
+  isAvailable   Boolean     @default(true)
+  sortOrder     Int         @default(0)
+  calories      Int?
+  restaurantId  String
+  categoryId    String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  addons        Addon[]
+  category      Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  restaurant    Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  orderItems    OrderItem[]
+}
+
+model Addon {
+  id              String           @id @default(cuid())
+  name            String
+  price           Float
+  isAvailable     Boolean          @default(true)
+  sortOrder       Int              @default(0)
+  menuItemId      String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  menuItem        MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  orderItemAddons OrderItemAddon[]
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  orderNumber     String      @unique
+  status          OrderStatus @default(PENDING)
+  customerName    String
+  customerPhone   String
+  customerEmail   String?
+  deliveryAddress String?
+  deliveryNotes   String?
+  subtotal        Float
+  deliveryFee     Float       @default(0)
+  tax             Float       @default(0)
+  total           Float
+  paymentMethod   String?
+  isPaid          Boolean     @default(false)
+  paidAt          DateTime?
+  estimatedTime   Int?
+  confirmedAt     DateTime?
+  readyAt         DateTime?
+  deliveredAt     DateTime?
+  restaurantId    String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  restaurant      Restaurant  @relation(fields: [restaurantId], references: [id])
+  items           OrderItem[]
+}
+
+model OrderItem {
+  id         String           @id @default(cuid())
+  quantity   Int
+  price      Float
+  notes      String?
+  orderId    String
+  menuItemId String
+  createdAt  DateTime         @default(now())
+  menuItem   MenuItem         @relation(fields: [menuItemId], references: [id])
+  order      Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  addons     OrderItemAddon[]
+}
+
+model OrderItemAddon {
+  id          String    @id @default(cuid())
+  quantity    Int       @default(1)
+  price       Float
+  orderItemId String
+  addonId     String
+  createdAt   DateTime  @default(now())
+  addon       Addon     @relation(fields: [addonId], references: [id])
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@unique([orderItemId, addonId])
+}
+
+model Document {
+  id           String       @id @default(cuid())
+  fileName     String
+  fileUrl      String
+  fileSize     Int
+  mimeType     String
+  documentType DocumentType @default(OTHER)
+  description  String?
+  restaurantId String
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+}
+
 enum UserRole {
   USER
   RESTAURANT_OWNER
@@ -91,203 +227,10 @@ enum OrderStatus {
   CANCELLED
 }
 
-model Restaurant {
-  id          String           @id @default(cuid())
-  name        String
-  description String?
-  address     String
-  phone       String
-  email       String?
-  imageUrl    String?
-  status      RestaurantStatus @default(PENDING)
-  
-  // Location information
-  latitude    Float?           // ละติจูด
-  longitude   Float?           // ลองจิจูด
-  locationName String?         // ชื่อสถานที่จาก Google Maps
-  
-  // Business information
-  businessType String?          // ประเภทธุรกิจ
-  taxId        String?          // เลขประจำตัวผู้เสียภาษี
-  bankAccount  String?          // เลขบัญชีธนาคาร
-  bankName     String?          // ชื่อธนาคาร
-  
-  // Opening hours
-  openTime    String?  // "09:00"
-  closeTime   String?  // "22:00"
-  isOpen      Boolean  @default(true)
-  
-  // Settings
-  minOrderAmount  Float?    @default(0)
-  deliveryFee     Float?    @default(0)
-  deliveryRadius  Float?    @default(5) // km
-  
-  // Relations
-  ownerId     String        @unique
-  owner       User          @relation(fields: [ownerId], references: [id])
-  categories  Category[]
-  menuItems   MenuItem[]
-  orders      Order[]
-  documents   Document[]    // เอกสารที่อัพโหลด
-  
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-}
-
-model Category {
-  id           String     @id @default(cuid())
-  name         String
-  description  String?
-  imageUrl     String?
-  sortOrder    Int        @default(0)
-  isActive     Boolean    @default(true)
-  
-  restaurantId String
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  menuItems    MenuItem[]
-  
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  
-  @@unique([restaurantId, name])
-}
-
-model MenuItem {
-  id           String      @id @default(cuid())
-  name         String
-  description  String?
-  price        Float       // ราคาหลังลด
-  originalPrice Float?     // ราคาเต็ม (ก่อนลด)
-  imageUrl     String?
-  isAvailable  Boolean     @default(true)
-  sortOrder    Int         @default(0)
-  
-  // Nutritional info (optional)
-  calories     Int?
-  
-  restaurantId String
-  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  
-  categoryId   String
-  category     Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  
-  orderItems   OrderItem[]
-  addons       Addon[]     // Add-ons สำหรับเมนูนี้
-  
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-}
-
-model Addon {
-  id           String      @id @default(cuid())
-  name         String      // ชื่อ Add-on เช่น "เพิ่มชีส", "เพิ่มไข่ดาว"
-  price        Float       // ราคาเพิ่ม
-  isAvailable  Boolean     @default(true)
-  sortOrder    Int         @default(0)
-  
-  menuItemId   String
-  menuItem     MenuItem    @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
-  
-  orderItemAddons OrderItemAddon[]
-  
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-}
-
-model Order {
-  id             String      @id @default(cuid())
-  orderNumber    String      @unique
-  status         OrderStatus @default(PENDING)
-  
-  // Customer info
-  customerName   String
-  customerPhone  String
-  customerEmail  String?
-  
-  // Delivery info
-  deliveryAddress String?
-  deliveryNotes   String?
-  
-  // Order totals
-  subtotal       Float
-  deliveryFee    Float       @default(0)
-  tax            Float       @default(0)
-  total          Float
-  
-  // Payment
-  paymentMethod  String?     // "cash", "card", "transfer"
-  isPaid         Boolean     @default(false)
-  paidAt         DateTime?
-  
-  // Timing
-  estimatedTime  Int?        // minutes
-  confirmedAt    DateTime?
-  readyAt        DateTime?
-  deliveredAt    DateTime?
-  
-  restaurantId   String
-  restaurant     Restaurant  @relation(fields: [restaurantId], references: [id])
-  
-  items          OrderItem[]
-  
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-}
-
-model OrderItem {
-  id         String   @id @default(cuid())
-  quantity   Int
-  price      Float    // ราคาขณะสั่ง
-  notes      String?  // หมายเหตุพิเศษ เช่น "ไม่ใส่ผัก"
-  
-  orderId    String
-  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  
-  menuItemId String
-  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
-  
-  addons     OrderItemAddon[]  // Add-ons ที่เลือกสำหรับ order item นี้
-  
-  createdAt  DateTime @default(now())
-}
-
-model OrderItemAddon {
-  id         String   @id @default(cuid())
-  quantity   Int      @default(1)
-  price      Float    // ราคา addon ขณะสั่ง
-  
-  orderItemId String
-  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
-  
-  addonId     String
-  addon       Addon     @relation(fields: [addonId], references: [id])
-  
-  createdAt   DateTime  @default(now())
-  
-  @@unique([orderItemId, addonId])
-}
-
 enum DocumentType {
-  OWNER_ID_CARD        // บัตรประชาชนเจ้าของ
-  BANK_STATEMENT       // หนังสือรับรองบัญชีธนาคาร
-  BUSINESS_LICENSE     // ใบอนุญาตประกอบธุรกิจ
-  TAX_CERTIFICATE      // หนังสือรับรองการจดทะเบียนภาษี
-  OTHER                // อื่นๆ
-}
-
-model Document {
-  id           String       @id @default(cuid())
-  fileName     String       // ชื่อไฟล์ต้นฉบับ
-  fileUrl      String       // URL ของไฟล์ที่อัพโหลด
-  fileSize     Int          // ขนาดไฟล์ (bytes)
-  mimeType     String       // ประเภทไฟล์ (image/jpeg, application/pdf, etc.)
-  documentType DocumentType @default(OTHER)
-  description  String?      // คำอธิบายเอกสาร
-  
-  // Relations
-  restaurantId String
-  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  OWNER_ID_CARD
+  BANK_STATEMENT
+  BUSINESS_LICENSE
+  TAX_CERTIFICATE
+  OTHER
 }

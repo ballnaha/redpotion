@@ -28,7 +28,6 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Snackbar,
   Divider,
   List,
   ListItem,
@@ -53,6 +52,7 @@ import {
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import ImageUploadDropzone, { uploadImageFile } from '../components/ImageUploadDropzone';
+import { useNotification } from '../../../contexts/NotificationContext';
 
 interface Category {
   id: string;
@@ -125,9 +125,9 @@ export default function MenuManagementPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [tabValue, setTabValue] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
+  
+  // Global notification
+  const { showSuccess, showError, showWarning, showInfo } = useNotification();
 
   // Category Modal States
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
@@ -211,16 +211,14 @@ export default function MenuManagementPage() {
 
     } catch (error) {
       console.error('Error fetching data:', error);
-      setError('ไม่สามารถโหลดข้อมูลได้');
+      showError('ไม่สามารถโหลดข้อมูลได้');
     } finally {
       setLoading(false);
     }
   };
 
-  const showSnackbar = (message: string) => {
-    setSnackbarMessage(message);
-    setSnackbarOpen(true);
-  };
+  // แทนที่ด้วย global notification functions
+  // showSuccess, showError, showWarning, showInfo จะใช้แทน showSnackbar
 
   // Confirmation Modal Functions
   const openDeleteConfirm = (type: 'category' | 'menuItem', id: string, name: string, details?: string) => {
@@ -244,7 +242,7 @@ export default function MenuManagementPage() {
       if (deleteTarget.id === 'close-category') {
         // ปิด category โดยการเซฟ form ต่อ
         await performSaveCategory();
-        showSnackbar('ปิดการใช้งานหมวดหมู่สำเร็จ');
+        showSuccess('ปิดการใช้งานหมวดหมู่สำเร็จ');
         setCategoryModalOpen(false);
       } else if (deleteTarget.type === 'category') {
         const result = await performDeleteCategory(deleteTarget.id);
@@ -260,17 +258,17 @@ export default function MenuManagementPage() {
           message += ')';
         }
         
-        showSnackbar(message);
+        showSuccess(message);
       } else if (deleteTarget.type === 'menuItem') {
         await performDeleteMenuItem(deleteTarget.id);
-        showSnackbar('ลบเมนูสำเร็จ');
+        showSuccess('ลบเมนูสำเร็จ');
       }
 
       closeDeleteConfirm();
       fetchData();
     } catch (error) {
       console.error('Delete error:', error);
-      setError(`ไม่สามารถ${deleteTarget.id === 'close-category' ? 'ปิดการใช้งาน' : 'ลบ'}${deleteTarget.type === 'category' ? 'หมวดหมู่' : 'เมนู'}ได้`);
+      showError(`ไม่สามารถ${deleteTarget.id === 'close-category' ? 'ปิดการใช้งาน' : 'ลบ'}${deleteTarget.type === 'category' ? 'หมวดหมู่' : 'เมนู'}ได้`);
     } finally {
       setDeleting(false);
     }
@@ -353,7 +351,7 @@ export default function MenuManagementPage() {
 
   const saveCategoryData = async () => {
     if (!categoryForm.name.trim()) {
-      setError('กรุณากรอกชื่อหมวดหมู่');
+      showError('กรุณากรอกชื่อหมวดหมู่');
       return;
     }
 
@@ -361,6 +359,8 @@ export default function MenuManagementPage() {
     if (editingCategory && editingCategory.isActive && !categoryForm.isActive) {
       const menuCount = editingCategory._count?.menuItems || 0;
       if (menuCount > 0) {
+        // แจ้งเตือนก่อนเปิด dialog
+        showWarning(`หมวดหมู่นี้มีเมนูอาหาร ${menuCount} รายการ กรุณายืนยันการปิดการใช้งาน`);
         // ใช้ Dialog แทน confirm() สำหรับการปิด category ที่มีเมนู
         setDeleteTarget({
           type: 'category',
@@ -376,13 +376,14 @@ export default function MenuManagementPage() {
 
     try {
       setCategorySaving(true);
+      showInfo('กำลังบันทึกข้อมูลหมวดหมู่...');
       await performSaveCategory();
-      showSnackbar(editingCategory ? 'แก้ไขหมวดหมู่สำเร็จ' : 'เพิ่มหมวดหมู่สำเร็จ');
+      showSuccess(editingCategory ? 'แก้ไขหมวดหมู่สำเร็จ' : 'เพิ่มหมวดหมู่สำเร็จ');
       setCategoryModalOpen(false);
       fetchData();
     } catch (error) {
       console.error('Error saving category:', error);
-      setError(error instanceof Error ? error.message : 'ไม่สามารถบันทึกข้อมูลได้');
+      showError(error instanceof Error ? error.message : 'ไม่สามารถบันทึกข้อมูลได้');
     } finally {
       setCategorySaving(false);
     }
@@ -468,7 +469,7 @@ export default function MenuManagementPage() {
   // Addon Management Functions
   const addAddonToForm = () => {
     if (!newAddon.name.trim() || newAddon.price <= 0) {
-      setError('กรุณากรอกชื่อและราคา Add-on');
+      showError('กรุณากรอกชื่อและราคา Add-on');
       return;
     }
 
@@ -518,22 +519,23 @@ export default function MenuManagementPage() {
 
   const saveMenuItemData = async () => {
     if (!menuItemForm.name.trim()) {
-      setError('กรุณากรอกชื่อเมนู');
+      showError('กรุณากรอกชื่อเมนู');
       return;
     }
 
     if (!menuItemForm.categoryId) {
-      setError('กรุณาเลือกหมวดหมู่');
+      showError('กรุณาเลือกหมวดหมู่');
       return;
     }
 
     if (menuItemForm.price <= 0) {
-      setError('กรุณากรอกราคาที่ถูกต้อง');
+      showError('กรุณากรอกราคาที่ถูกต้อง');
       return;
     }
 
     try {
       setMenuItemSaving(true);
+      showInfo('กำลังบันทึกข้อมูลเมนู...');
       
       let uploadedImageUrl = menuItemForm.imageUrl;
 
@@ -548,7 +550,7 @@ export default function MenuManagementPage() {
           );
         } catch (uploadError) {
           console.error('Image upload failed:', uploadError);
-          setError('ไม่สามารถอัปโหลดรูปภาพได้');
+          showError('ไม่สามารถอัปโหลดรูปภาพได้');
           setMenuItemSaving(false);
           return;
         }
@@ -579,16 +581,16 @@ export default function MenuManagementPage() {
       });
 
       if (response.ok) {
-        showSnackbar(editingMenuItem ? 'แก้ไขเมนูสำเร็จ' : 'เพิ่มเมนูสำเร็จ');
+        showSuccess(editingMenuItem ? 'แก้ไขเมนูสำเร็จ' : 'เพิ่มเมนูสำเร็จ');
         setMenuItemModalOpen(false);
         fetchData();
       } else {
         const errorData = await response.json();
-        setError(errorData.message || 'เกิดข้อผิดพลาด');
+        showError(errorData.message || 'เกิดข้อผิดพลาด');
       }
     } catch (error) {
       console.error('Error saving menu item:', error);
-      setError('ไม่สามารถบันทึกข้อมูลได้');
+      showError('ไม่สามารถบันทึกข้อมูลได้');
     } finally {
       setMenuItemSaving(false);
     }
@@ -620,12 +622,7 @@ export default function MenuManagementPage() {
   return (
     <Box sx={{ p: { xs: 2, md: 3 } }}>
 
-      {/* Error Alert */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
+      {/* Global Notification จะแสดงผ่าน NotificationProvider แล้ว */}
 
       {/* Tabs */}
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
@@ -1312,7 +1309,7 @@ export default function MenuManagementPage() {
                   label="ชื่อ Add-on"
                   value={newAddon.name}
                   onChange={(e) => setNewAddon({ ...newAddon, name: e.target.value })}
-                  sx={{ flex: 1 }}
+                  sx={{ flex: 1 , width: '100%'}}
                 />
                 <TextField
                   label="ราคาเพิ่ม (บาท)"
@@ -1320,7 +1317,7 @@ export default function MenuManagementPage() {
                   value={newAddon.price}
                   onChange={(e) => setNewAddon({ ...newAddon, price: parseFloat(e.target.value) || 0 })}
                   inputProps={{ min: 0, step: 1 }}
-                  sx={{ flex: 1 }}
+                  sx={{ flex: 1 , width: '100%'}}
                 />
                 <Box sx={{ display: 'flex', gap: 1 }}>
                   <Button
@@ -1548,21 +1545,7 @@ export default function MenuManagementPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Success Snackbar */}
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={3000}
-        onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert 
-          onClose={() => setSnackbarOpen(false)} 
-          severity="success" 
-          sx={{ width: '100%' }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      {/* Global Notification จะแสดงผ่าน NotificationProvider แล้ว */}
     </Box>
   );
 } 

@@ -19,6 +19,7 @@ import {
   DialogActions,
   DialogContentText,
 } from '@mui/material';
+import { useNotification } from '../../../contexts/NotificationContext';
 import { 
   PhotoCamera, 
   Delete, 
@@ -57,6 +58,7 @@ export default function ImageUploadDropzone({
 }: ImageUploadDropzoneProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { showSuccess, showError } = useNotification();
   
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentImageUrl || null);
@@ -198,14 +200,22 @@ export default function ImageUploadDropzone({
             setPreviewUrl(null);
             setError(null);
             onImageChange(null);
+            setDeleteDialogOpen(false);
+            showSuccess('ลบรูปภาพสำเร็จ');
             console.log('✅ Image deleted successfully');
           } else {
             const errorData = await response.json();
-            setError(errorData.message || 'ไม่สามารถลบรูปภาพได้');
+            const errorMessage = errorData.message || 'ไม่สามารถลบรูปภาพได้';
+            setError(errorMessage);
+            showError(errorMessage);
+            setDeleteDialogOpen(false); // ปิด dialog แม้จะเกิดข้อผิดพลาด
           }
         } catch (error) {
           console.error('❌ Delete error:', error);
-          setError('เกิดข้อผิดพลาดในการลบรูปภาพ');
+          const errorMessage = 'เกิดข้อผิดพลาดในการลบรูปภาพ';
+          setError(errorMessage);
+          showError(errorMessage);
+          setDeleteDialogOpen(false); // ปิด dialog แม้จะเกิดข้อผิดพลาด
         } finally {
           setDeleting(false);
         }
