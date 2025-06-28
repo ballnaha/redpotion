@@ -895,16 +895,25 @@ export default function HomePage() {
 
         {/* CTA Section */}
         <Container maxWidth="lg" sx={{ py: { xs: 8, md: 12 }, position: 'relative', zIndex: 1 }}>
-        <Card sx={{ 
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backdropFilter: 'blur(20px)',
-          color: 'white',
-          textAlign: 'center',
-            p: { xs: 8, md: 12 },
-            borderRadius: 6,
+          <Box sx={{ 
             position: 'relative',
+            textAlign: 'center',
+            py: { xs: 10, md: 16 },
+            px: { xs: 4, md: 8 },
+            borderRadius: { xs: 4, md: 6 },
             overflow: 'hidden',
+            background: `
+              radial-gradient(circle at 20% 80%, rgba(251, 113, 133, 0.03) 0%, transparent 50%),
+              radial-gradient(circle at 80% 20%, rgba(253, 164, 175, 0.03) 0%, transparent 50%),
+              radial-gradient(circle at 40% 40%, rgba(254, 202, 202, 0.02) 0%, transparent 50%),
+              rgba(255, 255, 255, 0.4)
+            `,
+            backdropFilter: 'blur(40px)',
+            border: '1px solid rgba(255, 255, 255, 0.18)',
+            boxShadow: `
+              0 25px 50px -12px rgba(0, 0, 0, 0.02),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4)
+            `,
             '&::before': {
               content: '""',
               position: 'absolute',
@@ -912,92 +921,275 @@ export default function HomePage() {
               left: 0,
               right: 0,
               bottom: 0,
-              background: 'rgba(251, 113, 133, 0.5)',
-              
-              backdropFilter: 'blur(1px)',
+              background: `
+                linear-gradient(135deg, 
+                  rgba(255, 255, 255, 0.1) 0%, 
+                  rgba(255, 255, 255, 0.05) 50%,
+                  rgba(251, 113, 133, 0.02) 100%
+                )
+              `,
+              pointerEvents: 'none',
+              borderRadius: 'inherit'
+            },
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              top: -2,
+              left: -2,
+              right: -2,
+              bottom: -2,
+              background: `
+                linear-gradient(135deg, 
+                  rgba(251, 113, 133, 0.1), 
+                  rgba(253, 164, 175, 0.08),
+                  rgba(254, 202, 202, 0.06)
+                )
+              `,
+              borderRadius: 'inherit',
+              zIndex: -1,
+              opacity: 0.6
             }
           }}>
             <Box sx={{ position: 'relative', zIndex: 2 }}>
+              {/* Floating Elements */}
+              <Box sx={{ 
+                position: 'absolute', 
+                top: '15%', 
+                left: '10%', 
+                width: 60, 
+                height: 60,
+                borderRadius: '50%',
+                background: 'rgba(251, 113, 133, 0.05)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(251, 113, 133, 0.1)',
+                display: { xs: 'none', md: 'block' }
+              }} />
+              <Box sx={{ 
+                position: 'absolute', 
+                top: '25%', 
+                right: '15%', 
+                width: 40, 
+                height: 40,
+                borderRadius: '50%',
+                background: 'rgba(253, 164, 175, 0.05)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(253, 164, 175, 0.1)',
+                display: { xs: 'none', md: 'block' }
+              }} />
+              <Box sx={{ 
+                position: 'absolute', 
+                bottom: '20%', 
+                left: '20%', 
+                width: 30, 
+                height: 30,
+                borderRadius: '50%',
+                background: 'rgba(254, 202, 202, 0.05)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(254, 202, 202, 0.1)',
+                display: { xs: 'none', md: 'block' }
+              }} />
+
               <Typography 
                 variant="h3" 
+                className={prompt.className}
                 sx={{ 
-                  fontWeight: 300, 
-                  mb: 3,
-                  fontSize: { xs: '1.875rem', md: '2.25rem' },
-                  letterSpacing: '-0.02em'
+                  fontWeight: 200, 
+                  mb: { xs: 3, md: 4 },
+                  color: '#0F172A',
+                  fontSize: { xs: '1.75rem', sm: '2rem', md: '2.5rem', lg: '3rem' },
+                  letterSpacing: '-0.03em',
+                  lineHeight: 1.1,
+                  maxWidth: 600,
+                  mx: 'auto'
                 }}
               >
-พร้อมเริ่มต้นธุรกิจออนไลน์แล้วหรือยัง?
-          </Typography>
+                พร้อม
+                <span style={{ 
+                  fontWeight: 400,
+                  background: 'linear-gradient(135deg, #DC2626, #F472B6)',
+                  backgroundClip: 'text', 
+                  WebkitBackgroundClip: 'text', 
+                  WebkitTextFillColor: 'transparent'
+                }}>
+                  เริ่มต้นธุรกิจ
+                </span>
+                <br />
+                ออนไลน์แล้วหรือยัง?
+              </Typography>
+
               <Typography 
                 variant="h6" 
+                className={prompt.className}
                 sx={{ 
-                  mb: 6, 
-                  opacity: 0.9, 
-                  maxWidth: 500, 
+                  mb: { xs: 6, md: 8 }, 
+                  color: '#475569',
+                  maxWidth: 480, 
                   mx: 'auto',
-                  fontSize: '1rem',
+                  fontSize: { xs: '0.9rem', sm: '1rem', md: '1.125rem' },
                   fontWeight: 300,
-                  lineHeight: 1.6
+                  lineHeight: 1.7,
+                  px: { xs: 2, sm: 0 }
                 }}
               >
-เข้าร่วมกับร้านอาหารกว่า 1,000+ ร้าน
+                เข้าร่วมกับร้านอาหารกว่า 
+                <span style={{ 
+                  fontWeight: 500, 
+                  color: '#DC2626' 
+                }}>
+                  1,000+ ร้าน
+                </span>
                 <br />
                 ที่เชื่อใจและใช้งานระบบของเรา
-          </Typography>
-              <Box sx={{ display: 'flex', gap: 4, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Button
-            variant="contained"
-                    size="large"
-                    endIcon={<ShoppingBag />}
-            sx={{
-                      background: 'rgba(255, 255, 255, 0.9)',
-                      backdropFilter: 'blur(20px)',
-                      color: '#1E293B',
-                      fontWeight: 500,
-                      px: 6,
-                      py: 2.5,
-                      fontSize: '0.875rem',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      borderRadius: 3,
-                      boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
-              '&:hover': {
-                        background: 'rgba(255, 255, 255, 1)',
-                        transform: 'translateY(-2px)',
-                        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)'
-              },
-                      transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
-            }}
-          >
-เริ่มใช้งานเลย
-          </Button>
-                    <Button
-                      variant="outlined"
-                      size="large"
-                      endIcon={<Phone />}
+              </Typography>
+
+              <Box sx={{ 
+                display: 'flex', 
+                gap: { xs: 3, sm: 4 }, 
+                justifyContent: 'center', 
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: 'center',
+                maxWidth: 500,
+                mx: 'auto'
+              }}>
+                <Button
+                  variant="contained"
+                  size="large"
+                  endIcon={<ArrowForward />}
+                  onClick={() => router.push('/auth/register/restaurant')}
                   sx={{
-                          color: '#1E293B',
-                          borderColor: 'rgba(255, 255, 255, 0.3)',
-                          fontWeight: 500,
-                          px: 6,
-                          py: 2.5,
-                          fontSize: '0.875rem',
-                          borderRadius: 3,
-                          background: 'rgba(255, 255, 255, 0.1)',
-                          backdropFilter: 'blur(20px)',
+                    background: `
+                      linear-gradient(135deg, 
+                        rgba(251, 113, 133, 0.9) 0%, 
+                        rgba(239, 68, 68, 0.9) 100%
+                      )
+                    `,
+                    backdropFilter: 'blur(20px)',
+                    color: 'white',
+                    fontWeight: 500,
+                    px: { xs: 6, sm: 8 },
+                    py: { xs: 2, sm: 2.5 },
+                    fontSize: { xs: '0.875rem', sm: '1rem' },
+                    borderRadius: { xs: 3, sm: 4 },
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    boxShadow: `
+                      0 20px 40px rgba(251, 113, 133, 0.15),
+                      inset 0 1px 0 rgba(255, 255, 255, 0.2)
+                    `,
+                    width: { xs: '100%', sm: 'auto' },
+                    minWidth: 200,
                     '&:hover': {
-                            borderColor: 'rgba(255, 255, 255, 0.5)',
-                            background: 'rgba(255, 255, 255, 0.2)',
-                            transform: 'translateY(-2px)'
+                      background: `
+                        linear-gradient(135deg, 
+                          rgba(251, 113, 133, 1) 0%, 
+                          rgba(239, 68, 68, 1) 100%
+                        )
+                      `,
+                      transform: 'translateY(-3px)',
+                      boxShadow: `
+                        0 25px 50px rgba(251, 113, 133, 0.25),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.3)
+                      `
                     },
-                            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+                    transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
                   }}
-                            >
-                    ดูข้อมูลเพิ่มเติม
-                  </Button>
+                >
+                  เริ่มใช้งานเลย
+                </Button>
+                
+                <Button
+                  variant="outlined"
+                  size="large"
+                  endIcon={<Phone />}
+                  sx={{
+                    color: '#475569',
+                    borderColor: 'rgba(148, 163, 184, 0.2)',
+                    fontWeight: 500,
+                    px: { xs: 6, sm: 8 },
+                    py: { xs: 2, sm: 2.5 },
+                    fontSize: { xs: '0.875rem', sm: '1rem' },
+                    borderRadius: { xs: 3, sm: 4 },
+                    background: 'rgba(255, 255, 255, 0.4)',
+                    backdropFilter: 'blur(20px)',
+                    width: { xs: '100%', sm: 'auto' },
+                    minWidth: 200,
+                    boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+                    '&:hover': {
+                      borderColor: 'rgba(148, 163, 184, 0.3)',
+                      background: 'rgba(255, 255, 255, 0.6)',
+                      color: '#334155',
+                      transform: 'translateY(-2px)',
+                      boxShadow: `
+                        0 15px 30px rgba(0, 0, 0, 0.08),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.8)
+                      `
+                    },
+                    transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                >
+                  ดูข้อมูลเพิ่มเติม
+                </Button>
+              </Box>
+
+              {/* Trust Indicators */}
+              <Box sx={{ 
+                mt: { xs: 6, md: 8 },
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: { xs: 3, sm: 4 },
+                flexWrap: 'wrap'
+              }}>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 1,
+                  px: 3,
+                  py: 1.5,
+                  borderRadius: 3,
+                  background: 'rgba(255, 255, 255, 0.3)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)'
+                }}>
+                  <Typography variant="body2" sx={{ fontSize: '1.2rem' }}>⭐</Typography>
+                  <Typography variant="body2" sx={{ color: '#475569', fontWeight: 500, fontSize: '0.75rem' }}>
+                    4.9/5 คะแนน
+                  </Typography>
+                </Box>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 1,
+                  px: 3,
+                  py: 1.5,
+                  borderRadius: 3,
+                  background: 'rgba(255, 255, 255, 0.3)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)'
+                }}>
+                  <Typography variant="body2" sx={{ fontSize: '1.2rem' }}>🏪</Typography>
+                  <Typography variant="body2" sx={{ color: '#475569', fontWeight: 500, fontSize: '0.75rem' }}>
+                    1,000+ ร้าน
+                  </Typography>
+                </Box>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 1,
+                  px: 3,
+                  py: 1.5,
+                  borderRadius: 3,
+                  background: 'rgba(255, 255, 255, 0.3)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)'
+                }}>
+                  <Typography variant="body2" sx={{ fontSize: '1.2rem' }}>🚀</Typography>
+                  <Typography variant="body2" sx={{ color: '#475569', fontWeight: 500, fontSize: '0.75rem' }}>
+                    ทดลองฟรี 90 วัน
+                  </Typography>
+                </Box>
               </Box>
             </Box>
-        </Card>
+          </Box>
         </Container>
 
         {/* Minimal Footer */}
