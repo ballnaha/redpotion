@@ -419,7 +419,12 @@ export default function RestaurantRegisterPage() {
         showWarning('สมัครสำเร็จแต่ไม่สามารถเข้าสู่ระบบอัตโนมัติได้ กรุณาเข้าสู่ระบบด้วยตนเอง')
         router.push('/auth/signin')
       } else {
-        showSuccess('เข้าสู่ระบบสำเร็จ!')
+        showSuccess('เข้าสู่ระบบสำเร็จ! กำลังไปยังหน้าร้านอาหาร...')
+        
+        // เพิ่ม delay เล็กน้อยเพื่อให้ผู้ใช้อ่านข้อความได้
+        await new Promise(resolve => setTimeout(resolve, 1500))
+        
+        showInfo('ร้านอาหารของคุณอยู่ในระหว่างการตรวจสอบ ระบบจะแจ้งผลภายใน 1-2 วันทำการ')
         router.push('/restaurant')
       }
     } catch (error: any) {

@@ -131,11 +131,19 @@ export default function RestaurantPage() {
     return (
       <Box sx={{ 
         display: 'flex', 
+        flexDirection: 'column',
         justifyContent: 'center', 
         alignItems: 'center', 
-        minHeight: '60vh' 
+        minHeight: '60vh',
+        gap: 3
       }}>
         <CircularProgress size={60} />
+        <Typography variant="h6" color="text.secondary">
+          กำลังโหลดข้อมูลร้านอาหาร...
+        </Typography>
+        <Typography variant="body2" color="text.secondary" textAlign="center">
+          หากเป็นการสมัครใหม่ ระบบกำลังตรวจสอบสถานะการอนุมัติ
+        </Typography>
       </Box>
     );
   }
@@ -145,18 +153,29 @@ export default function RestaurantPage() {
     if (error.message === 'RESTAURANT_NOT_FOUND' && sessionStatus === 'authenticated' && session?.user?.role === 'RESTAURANT_OWNER') {
       return (
         <Box sx={{ p: { xs: 2, md: 3 } }}>
-          <Alert severity="info" sx={{ mb: 3, p: 3 }}>
-            <Typography variant="h6" gutterBottom>
+          <Alert severity="info" sx={{ mb: 3, p: 3, borderRadius: 2 }}>
+            <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, color: 'info.main' }}>
+              🎉 สมัครสมาชิกสำเร็จแล้ว!
+            </Typography>
+            <Typography variant="h6" gutterBottom sx={{ color: 'text.primary' }}>
               🏪 ร้านอาหารของคุณอยู่ในระหว่างการตรวจสอบ
             </Typography>
-            <Typography variant="body1" sx={{ mb: 2 }}>
-              ระบบกำลังตรวจสอบเอกสารและข้อมูลร้านอาหารของคุณ
+            <Typography variant="body1" sx={{ mb: 2, lineHeight: 1.6 }}>
+              ขอบคุณที่สมัครเป็นพาร์ทเนอร์กับเรา! ระบบกำลังตรวจสอบเอกสารและข้อมูลร้านอาหารของคุณ
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              📋 สถานะ: รอการอนุมัติจากผู้ดูแลระบบ<br/>
-              ⏰ ระยะเวลา: ภายใน 1-2 วันทำการ<br/>
-              📧 เราจะแจ้งผลผ่านอีเมลเมื่อการตรวจสอบเสร็จสิ้น
-            </Typography>
+            <Box sx={{ 
+              background: 'rgba(255, 255, 255, 0.7)', 
+              p: 2, 
+              borderRadius: 1, 
+              mt: 2 
+            }}>
+              <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.8 }}>
+                📋 <strong>สถานะปัจจุบัน:</strong> รอการอนุมัติจากผู้ดูแลระบบ<br/>
+                ⏰ <strong>ระยะเวลาดำเนินการ:</strong> ภายใน 1-2 วันทำการ<br/>
+                📧 <strong>การแจ้งผล:</strong> เราจะแจ้งผลผ่านอีเมลเมื่อการตรวจสอบเสร็จสิ้น<br/>
+                🔍 <strong>การตรวจสอบ:</strong> เอกสาร, ข้อมูลร้าน, และความถูกต้องของข้อมูล
+              </Typography>
+            </Box>
           </Alert>
 
           {/* Contact Admin Information */}
