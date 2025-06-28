@@ -16,7 +16,8 @@ import {
   Avatar, 
   Switch,
   FormControlLabel,
-  IconButton
+  IconButton,
+  Link
 } from '@mui/material';
 import { 
   ArrowBack,
@@ -407,6 +408,12 @@ export default function RestaurantSettingsPage() {
                 <Typography variant="h6" sx={{ fontWeight: 600 }}>
                   ข้อมูลพื้นฐาน
                 </Typography>
+               
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
+                  รหัสร้านอาหาร: <Link href={`/menu/${restaurant?.id}`} target="_blank" rel="noopener noreferrer"> {restaurant?.id} </Link>
+              </Typography>
               </Box>
               
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>

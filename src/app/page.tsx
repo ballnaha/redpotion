@@ -109,10 +109,10 @@ export default function HomePage() {
   ];
 
   const stats = [
-    { number: '1000+', label: 'ร้านอาหารใช้งาน' },
-    { number: '50K+', label: 'ออเดอร์ต่อเดือน' },
+    { number: '50%', label: 'ลดต้นทุนค่า GP ลง' },
+    { number: '50+', label: 'ออเดอร์ต่อเดือน' },
     { number: '4.9', label: 'คะแนนความพึงพอใจ' },
-    { number: '99.9%', label: 'ระบบทำงานเสถียร' }
+    { number: '24/7', label: 'ระบบทำงานเสถียร' }
   ];
 
   if (!isMounted) {
@@ -359,9 +359,8 @@ export default function HomePage() {
                       px: { xs: 1, sm: 0 }
                     }}
                   >
-                    แพลตฟอร์มให้เช่า Web Application
-                    <br />
-                    สำหรับร้านอาหาร แบบ Multi-Tenant
+                    แพลตฟอร์ม Web Application สำหรับร้านอาหาร <br />
+                    มีระบบจัดการการสั่งซื้อ และ Rider เป็นของตัวเอง
                     <br />
                     เริ่มต้นธุรกิจออนไลน์ได้ทันที
             </Typography>
@@ -430,9 +429,7 @@ export default function HomePage() {
                     </Button>
                   </Box>
 
-                  <Typography variant="body2" sx={{ color: '#94A3B8', fontSize: '0.75rem', fontWeight: 300 }}>
-                    ⭐ คะแนน 4.9/5 จากร้านอาหารที่ใช้งานกว่า 1,000+ ร้าน
-                  </Typography>
+                 
                 </Box>
               </Card>
 
@@ -599,7 +596,7 @@ export default function HomePage() {
                       sx={{ 
                         color: '#374151',
                         fontWeight: 500,
-                        fontSize: { xs: '0.65rem', sm: '0.7rem', md: '0.75rem' }
+                        fontSize: { xs: '0.8rem', sm: '0.8rem', md: '0.8rem' }
                       }}
                     >
                       {stat.label}
@@ -997,8 +994,8 @@ export default function HomePage() {
                   mb: { xs: 3, md: 4 },
                   color: '#0F172A',
                   fontSize: { xs: '1.75rem', sm: '2rem', md: '2.5rem', lg: '3rem' },
-                  letterSpacing: '-0.03em',
-                  lineHeight: 1.1,
+                  letterSpacing: '0.1em',
+                  lineHeight: 1.3,
                   maxWidth: 600,
                   mx: 'auto'
                 }}
@@ -1031,12 +1028,12 @@ export default function HomePage() {
                   px: { xs: 2, sm: 0 }
                 }}
               >
-                เข้าร่วมกับร้านอาหารกว่า 
+                เข้าร่วมกับร้านอาหาร
                 <span style={{ 
                   fontWeight: 500, 
                   color: '#DC2626' 
                 }}>
-                  1,000+ ร้าน
+                  มากมาย
                 </span>
                 <br />
                 ที่เชื่อใจและใช้งานระบบของเรา
@@ -1076,7 +1073,7 @@ export default function HomePage() {
                       inset 0 1px 0 rgba(255, 255, 255, 0.2)
                     `,
                     width: { xs: '100%', sm: 'auto' },
-                    minWidth: 200,
+                    minWidth: 270,
                     '&:hover': {
                       background: `
                         linear-gradient(135deg, 
@@ -1111,7 +1108,7 @@ export default function HomePage() {
                     background: 'rgba(255, 255, 255, 0.4)',
                     backdropFilter: 'blur(20px)',
                     width: { xs: '100%', sm: 'auto' },
-                    minWidth: 200,
+                    minWidth: 270,
                     boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.6)',
                     '&:hover': {
                       borderColor: 'rgba(148, 163, 184, 0.3)',
@@ -1166,9 +1163,9 @@ export default function HomePage() {
                   backdropFilter: 'blur(10px)',
                   border: '1px solid rgba(255, 255, 255, 0.2)'
                 }}>
-                  <Typography variant="body2" sx={{ fontSize: '1.2rem' }}>🏪</Typography>
+                  <Typography variant="body2" sx={{ fontSize: '1.2rem' }}>💰</Typography>
                   <Typography variant="body2" sx={{ color: '#475569', fontWeight: 500, fontSize: '0.75rem' }}>
-                    1,000+ ร้าน
+                    ลดต้นทุนค่า GP ลง
                   </Typography>
                 </Box>
                 <Box sx={{ 
