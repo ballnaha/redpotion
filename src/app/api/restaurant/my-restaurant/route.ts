@@ -50,11 +50,27 @@ export async function GET(request: NextRequest) {
 
     if (!restaurant) {
       return NextResponse.json(
-        { message: 'ไม่พบข้อมูลร้านอาหาร' },
+        { message: 'ไม่พบข้อมูลร้านอาหาร', code: 'RESTAURANT_NOT_FOUND' },
         { status: 404 }
       )
     }
 
+    // ถ้าร้านอยู่ในสถานะ PENDING, REJECTED ให้ return ข้อมูลพร้อมสถานะ
+    if (restaurant.status === 'PENDING') {
+      return NextResponse.json({
+        ...restaurant,
+        statusMessage: 'ร้านอาหารของคุณอยู่ในระหว่างการตรวจสอบ รอการอนุมัติจากผู้ดูแลระบบ'
+      })
+    }
+
+    if (restaurant.status === 'REJECTED') {
+      return NextResponse.json({
+        ...restaurant,
+        statusMessage: 'ร้านอาหารของคุณไม่ได้รับการอนุมัติ กรุณาติดต่อผู้ดูแลระบบ'
+      })
+    }
+
+    // ถ้าร้านได้รับการอนุมัติแล้ว (APPROVED) ให้ return ข้อมูลปกติ
     return NextResponse.json(restaurant)
 
   } catch (error) {
