@@ -4,9 +4,6 @@ import { Box, Typography, Button, Card } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { Home, Search, ArrowBack } from '@mui/icons-material';
 
-// Don't cache 404 pages
-export const revalidate = 0;
-
 export default function NotFound() {
   const router = useRouter();
 
