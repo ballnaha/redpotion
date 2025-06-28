@@ -141,9 +141,7 @@ export async function POST(request: NextRequest) {
         const documentPromises = documents.map((doc: any, index: number) => {
           // Try to determine document type based on order
           let documentType = 'OTHER'
-          if (index === 0) documentType = 'OWNER_ID_CARD'
-          else if (index === 1) documentType = 'BANK_STATEMENT'
-          
+
           return tx.document.create({
             data: {
               fileName: doc.fileName || doc.originalName || `document_${index + 1}`,

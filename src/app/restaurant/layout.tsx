@@ -27,6 +27,7 @@ import {
   Analytics, 
   Settings, 
   Notifications,
+  PhotoLibrary,
   Menu as MenuIcon,
   Close as CloseIcon,
   AccountCircle,
@@ -436,6 +437,12 @@ export default function RestaurantLayout({
       icon: <MenuBook />, 
       href: '/restaurant/menu',
       active: pathname.startsWith('/restaurant/menu')
+    },
+    { 
+      text: 'Gallery', 
+      icon: <PhotoLibrary />, 
+      href: '/restaurant/gallery',
+      active: pathname.startsWith('/restaurant/gallery')
     },
     { 
       text: 'Orders', 

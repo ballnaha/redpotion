@@ -36,9 +36,9 @@ interface ImageUploadDropzoneProps {
   onImageChange: (imageUrl: string | null, file?: File) => void;
   disabled?: boolean;
   size?: 'small' | 'medium' | 'large';
-  variant?: 'avatar' | 'banner';
+  variant?: 'avatar' | 'banner' | 'gallery';
   restaurantId?: string;
-  category?: 'profile' | 'menu' | 'banner' | 'temp';
+  category?: 'profile' | 'menu' | 'banner' | 'gallery' | 'temp';
   maxFileSize?: number;
   accept?: string[];
   allowParentDelete?: boolean; // ให้ parent component จัดการการลบ
@@ -69,9 +69,15 @@ export default function ImageUploadDropzone({
 
   // Enhanced size configurations
   const sizeConfig = {
-    small: variant === 'banner' ? { width: 140, height: 79 } : { width: 80, height: 80 },
-    medium: variant === 'banner' ? { width: 200, height: 112 } : { width: 120, height: 120 },
-    large: variant === 'banner' ? { width: '100%', height: 200 } : { width: 160, height: 160 }
+    small: variant === 'banner' ? { width: 140, height: 79 } 
+           : variant === 'gallery' ? { width: 107, height: 80 }
+           : { width: 80, height: 80 },
+    medium: variant === 'banner' ? { width: 200, height: 112 } 
+            : variant === 'gallery' ? { width: 160, height: 120 }
+            : { width: 120, height: 120 },
+    large: variant === 'banner' ? { width: '100%', height: 200 } 
+           : variant === 'gallery' ? { width: '100%', height: 240 }
+           : { width: 160, height: 160 }
   };
 
   // Create preview URL from file

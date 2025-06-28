@@ -83,6 +83,7 @@ model Restaurant {
   updatedAt      DateTime         @updatedAt
   categories     Category[]
   documents      Document[]
+  galleries      Gallery[]
   menuItems      MenuItem[]
   orders         Order[]
   owner          User             @relation(fields: [ownerId], references: [id])
@@ -204,6 +205,19 @@ model Document {
   restaurant   Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 }
 
+model Gallery {
+  id           String     @id @default(cuid())
+  title        String?
+  description  String?
+  imageUrl     String
+  isActive     Boolean    @default(true)
+  sortOrder    Int        @default(0)
+  restaurantId String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+}
+
 enum UserRole {
   USER
   RESTAURANT_OWNER
@@ -228,9 +242,5 @@ enum OrderStatus {
 }
 
 enum DocumentType {
-  OWNER_ID_CARD
-  BANK_STATEMENT
-  BUSINESS_LICENSE
-  TAX_CERTIFICATE
   OTHER
 }

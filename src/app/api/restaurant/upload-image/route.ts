@@ -101,6 +101,18 @@ export async function POST(req: NextRequest) {
             progressive: true 
           })
           .toBuffer();
+      } else if (variant === 'gallery' || category === 'gallery') {
+        // Gallery image: resize to 800x600 (4:3 aspect ratio) for gallery display
+        processedBuffer = await sharp(inputBuffer)
+          .resize(800, 600, {
+            fit: 'cover',
+            position: 'center'
+          })
+          .jpeg({ 
+            quality: 88,
+            progressive: true 
+          })
+          .toBuffer();
       } else if (variant === 'avatar' || category === 'profile' || category === 'menu') {
         // Avatar/Profile/Menu image: resize to 400x400 (square)
         processedBuffer = await sharp(inputBuffer)

@@ -10,7 +10,8 @@ export default withAuth(
     // เฉพาะ /restaurant (management) ไม่ใช่ /restaurant/[restaurantId] (public page)
     const isRestaurantManagement = req.nextUrl.pathname === '/restaurant' || 
                                   req.nextUrl.pathname.startsWith('/restaurant/settings') ||
-                                  req.nextUrl.pathname.startsWith('/restaurant/menu')
+                                  req.nextUrl.pathname.startsWith('/restaurant/menu') ||
+                                  req.nextUrl.pathname.startsWith('/restaurant/gallery')
     const isAdmin = req.nextUrl.pathname.startsWith('/admin')
 
     // If user is on auth page and already authenticated, redirect appropriately
@@ -90,6 +91,7 @@ export const config = {
     '/restaurant',
     '/restaurant/settings/:path*',
     '/restaurant/menu/:path*',
+    '/restaurant/gallery/:path*',
     '/admin/:path*',
     '/auth/:path*',
     '/api/restaurant/:path*'

@@ -607,11 +607,11 @@ export default function MenuPageComponent() {
               <CardMedia
                 component="img"
                 height="150"
-                image={restaurant?.banner || "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&h=300&fit=crop"}
+                image={restaurant?.banner || "/images/default_restaurant1.jpg"}
                 alt={restaurant?.name || "Restaurant"}
                 sx={{ 
                   objectFit: 'cover',
-                  filter: 'brightness(0.9)'
+                  filter: 'brightness(0.9)',                  
                 }}
               />
               <Box 
@@ -622,8 +622,8 @@ export default function MenuPageComponent() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 1,
-                  background: 'rgba(255, 255, 255, 0.9)',
-                  backdropFilter: 'blur(4px)',
+                  background: 'rgba(255, 255, 255, 0.5)',
+                  backdropFilter: 'blur(5px)',
                   borderRadius: '20px',
                   px: 2,
                   py: 1,
@@ -633,8 +633,8 @@ export default function MenuPageComponent() {
               >
                 
                 <Typography sx={{ 
-                  fontSize: '1rem', 
-                  fontWeight: 600, 
+                  fontSize: '0.9rem', 
+                  fontWeight: 500, 
                   color: 'rgba(0, 0, 0, 0.85)',
                   letterSpacing: '0.01em'
                 }}>
