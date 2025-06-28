@@ -97,15 +97,40 @@ export default function RestaurantPage() {
   )
 
   // Redirect if not authenticated or not restaurant owner
+  // แต่ให้รอ session loading เสร็จก่อน
   useEffect(() => {
+    if (sessionStatus === 'loading') return // รอ session loading เสร็จก่อน
+    
     if (sessionStatus === 'unauthenticated') {
-      router.push('/auth/signin')
+      router.replace('/auth/signin')
     } else if (sessionStatus === 'authenticated' && session?.user?.role !== 'RESTAURANT_OWNER') {
-      router.push('/')
+      router.replace('/')
     }
-  }, [sessionStatus, session, router])
+  }, [sessionStatus, session?.user?.role, router])
 
-  if (sessionStatus === 'loading' || isLoading) {
+  // Show loading while session is loading or while redirecting
+  if (sessionStatus === 'loading') {
+    return (
+      <Box sx={{ p: { xs: 2, md: 3 } }}>
+        <Skeleton variant="text" width="60%" height={60} />
+        <Skeleton variant="rectangular" width="100%" height={200} sx={{ mt: 2 }} />
+      </Box>
+    )
+  }
+
+  // Don't render anything if not authenticated or wrong role (will redirect)
+  if (sessionStatus === 'unauthenticated' || 
+      (sessionStatus === 'authenticated' && session?.user?.role !== 'RESTAURANT_OWNER')) {
+    return (
+      <Box sx={{ p: { xs: 2, md: 3 } }}>
+        <Skeleton variant="text" width="60%" height={60} />
+        <Skeleton variant="rectangular" width="100%" height={200} sx={{ mt: 2 }} />
+      </Box>
+    )
+  }
+
+  // Show loading while fetching restaurant data
+  if (isLoading) {
     return (
       <Box sx={{ p: { xs: 2, md: 3 } }}>
         <Skeleton variant="text" width="60%" height={60} />

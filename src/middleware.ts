@@ -8,11 +8,14 @@ export default withAuth(
     const isAuthPage = req.nextUrl.pathname.startsWith('/auth')
     const isDashboard = req.nextUrl.pathname.startsWith('/dashboard')
     // เฉพาะ /restaurant (management) ไม่ใช่ /restaurant/[restaurantId] (public page)
-    const isRestaurant = req.nextUrl.pathname === '/restaurant'
+    const isRestaurantManagement = req.nextUrl.pathname === '/restaurant' || 
+                                  req.nextUrl.pathname.startsWith('/restaurant/settings') ||
+                                  req.nextUrl.pathname.startsWith('/restaurant/menu')
     const isAdmin = req.nextUrl.pathname.startsWith('/admin')
 
     // If user is on auth page and already authenticated, redirect appropriately
-    if (isAuthPage && isAuth) {
+    // แต่ให้ตรวจสอบว่าไม่ใช่การ refresh หรือ initial load
+    if (isAuthPage && isAuth && !req.nextUrl.searchParams.has('callbackUrl')) {
       if (token.role === 'RESTAURANT_OWNER') {
         return NextResponse.redirect(new URL('/restaurant', req.url))
       } else if (token.role === 'ADMIN') {
@@ -34,7 +37,7 @@ export default withAuth(
     }
 
     // Protect restaurant management routes
-    if (isRestaurant) {
+    if (isRestaurantManagement) {
       if (!isAuth) {
         return NextResponse.redirect(new URL('/auth/signin', req.url))
       }
@@ -69,7 +72,7 @@ export default withAuth(
         // Allow public pages
         if (req.nextUrl.pathname === '/' ||
             req.nextUrl.pathname.startsWith('/menu') ||
-            req.nextUrl.pathname.startsWith('/restaurant') ||
+            req.nextUrl.pathname.startsWith('/restaurant/') || // เฉพาะ public restaurant pages
             req.nextUrl.pathname.startsWith('/cart')) {
           return true
         }
@@ -81,12 +84,12 @@ export default withAuth(
   }
 )
 
-
-
 export const config = {
   matcher: [
     '/dashboard/:path*',
     '/restaurant',
+    '/restaurant/settings/:path*',
+    '/restaurant/menu/:path*',
     '/admin/:path*',
     '/auth/:path*',
     '/api/restaurant/:path*'
