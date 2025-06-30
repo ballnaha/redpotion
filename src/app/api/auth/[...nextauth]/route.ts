@@ -7,7 +7,8 @@ import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  // ปิด adapter ชั่วคราวถ้าไม่มี database
+  adapter: process.env.DATABASE_URL ? PrismaAdapter(prisma) : undefined,
   providers: [
     LineProvider({
       clientId: process.env.LINE_CLIENT_ID!,
@@ -66,9 +67,16 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async redirect({ url, baseUrl }) {
+      console.log('NextAuth redirect:', { url, baseUrl });
+      
       // หาก callback URL มี LIFF flag ให้ redirect ตามที่กำหนด
       if (url.includes('liff=true') || url.includes('menu/')) {
         return url.startsWith('/') ? `${baseUrl}${url}` : url
+      }
+      
+      // หลังจาก LINE login สำเร็จ ให้ไปหน้าเมนูหลัก
+      if (url === baseUrl || url === `${baseUrl}/`) {
+        return `${baseUrl}/menu/cmcg20f2i00029hu8p2am75df`
       }
       
       // Default redirect behavior

@@ -27,6 +27,11 @@ const errorMessages: Record<string, { title: string; description: string; sugges
     description: 'คุณไม่มีสิทธิ์เข้าใช้งานระบบนี้ หรือยกเลิกการอนุญาตจาก LINE',
     suggestion: 'โปรดลองเข้าสู่ระบบใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ'
   },
+  OAuthCreateAccount: {
+    title: 'ไม่สามารถสร้างบัญชีได้',
+    description: 'เกิดปัญหาในการสร้างบัญชีผู้ใช้จาก LINE Login อาจเป็นปัญหาการเชื่อมต่อฐานข้อมูล',
+    suggestion: 'ระบบกำลังปรับปรุง โปรดลองใหม่อีกครั้งในภายหลัง หรือติดต่อผู้ดูแลระบบ'
+  },
   Verification: {
     title: 'การยืนยันตัวตนผิดพลาด',
     description: 'ไม่สามารถยืนยันตัวตนได้',
@@ -80,6 +85,17 @@ function AuthErrorContent() {
               <Alert severity="info" sx={{ mb: 3, textAlign: 'left' }}>
                 <Typography variant="body2">
                   <strong>เคล็ดลับ:</strong> หากใช้ LINE Login โปรดตรวจสอบว่าได้อนุญาตให้แอปพลิเคชันเข้าถึงข้อมูลโปรไฟล์แล้ว
+                </Typography>
+              </Alert>
+            )}
+
+            {error === 'OAuthCreateAccount' && (
+              <Alert severity="warning" sx={{ mb: 3, textAlign: 'left' }}>
+                <Typography variant="body2">
+                  <strong>ปัญหาระบบ:</strong> ไม่สามารถเชื่อมต่อฐานข้อมูลได้ หรือมีปัญหาในการสร้างบัญชีผู้ใช้
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  กรุณารอระบบกลับมาปกติ หรือติดต่อทีมงาน
                 </Typography>
               </Alert>
             )}
