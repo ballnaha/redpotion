@@ -3,6 +3,7 @@ import { Prompt } from 'next/font/google'
 import { ThemeRegistry } from './components/ThemeRegistry'
 import SessionProvider from './components/SessionProvider'
 import { NotificationProvider } from '../contexts/NotificationContext'
+import LiffHandler from '../components/LiffHandler'
 import './globals.css'
 
 // Force page to revalidate every 5 minutes (300 seconds)
@@ -188,16 +189,18 @@ export default function RootLayout({
         <SessionProvider>
           <ThemeRegistry>
             <NotificationProvider>
-              <div 
-                style={{ 
-                  width: '100%',
-                  minHeight: '100vh',
-                  backgroundColor: '#ffffff',
-                  overflow: 'hidden'
-                }}
-              >
-                {children}
-              </div>
+              <LiffHandler>
+                <div 
+                  style={{ 
+                    width: '100%',
+                    minHeight: '100vh',
+                    backgroundColor: '#ffffff',
+                    overflow: 'hidden'
+                  }}
+                >
+                  {children}
+                </div>
+              </LiffHandler>
             </NotificationProvider>
           </ThemeRegistry>
         </SessionProvider>

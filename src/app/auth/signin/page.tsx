@@ -182,6 +182,37 @@ export default function SignInPage() {
               </Typography>
             </Divider>
 
+            {/* LINE Login Button */}
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={() => signIn('line', { callbackUrl: '/' })}
+              sx={{
+                mb: 2,
+                backgroundColor: '#06C755',
+                color: 'white',
+                py: 1.5,
+                fontSize: '1rem',
+                fontWeight: 500,
+                '&:hover': {
+                  backgroundColor: '#05B04A'
+                },
+                '&:before': {
+                  content: '"📱"',
+                  marginRight: 1,
+                  fontSize: '1.2rem'
+                }
+              }}
+            >
+              เข้าสู่ระบบด้วย LINE
+            </Button>
+
+            <Divider sx={{ my: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                สำหรับเจ้าของร้าน
+              </Typography>
+            </Divider>
+
             <Box sx={{ textAlign: 'center' }}>
               <Typography variant="body1" gutterBottom>
                 ยังไม่มีบัญชี?

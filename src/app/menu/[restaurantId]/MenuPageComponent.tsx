@@ -3,6 +3,7 @@
 import { useRestaurant } from './context/RestaurantContext';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession, signIn, signOut } from 'next-auth/react';
 import { Box, Typography, Card, CardContent, CardMedia, Button, Chip, 
          CircularProgress, Alert, IconButton, Drawer, List, ListItem, ListItemText,
          ListItemSecondaryAction, ButtonGroup, Avatar, InputBase, Badge, Paper,
@@ -319,6 +320,7 @@ const isRestaurantOpen = (hours: string, currentDate: Date = new Date()): boolea
 
 export default function MenuPageComponent() {
   const router = useRouter();
+  const { data: session } = useSession();
   const { restaurant, loading, error, cart, cartTotal, addToCart, 
           removeFromCart, updateCartItemQuantity } = useRestaurant();
   
@@ -623,24 +625,74 @@ export default function MenuPageComponent() {
         {/* Customer Header */}
         <Box display="flex" alignItems="center" justifyContent="space-between">
           <Box display="flex" alignItems="center" gap={2}>
-            <Box
-              sx={{
-                width: 40,
-                height: 40,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #10B981 0%, #34D399 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: '1.2rem',
-                fontWeight: 700,
-                boxShadow: '0 8px 25px rgba(16, 185, 129, 0.3)',
-                border: '2px solid rgba(255, 255, 255, 0.3)'
-              }}
-            >
-              T
-            </Box>
+            {/* User Avatar or Login Button */}
+            {session?.user ? (
+              <IconButton 
+                onClick={() => signOut({ callbackUrl: '/' })}
+                sx={{ 
+                  width: 40,
+                  height: 40,
+                  background: 'rgba(255, 255, 255, 0.9)',
+                  backdropFilter: 'blur(4px)',
+                  border: '1px solid rgba(0, 0, 0, 0.08)',
+                  p: 0,
+                  '&:hover': {
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+                  },
+                  transition: 'all 0.2s ease-out'
+                }}
+              >
+                <Avatar 
+                  src={session.user.image || undefined}
+                  alt={session.user.name || 'User'}
+                  sx={{ 
+                    width: 32, 
+                    height: 32,
+                    fontSize: '0.875rem',
+                    bgcolor: '#10B981',
+                    color: 'white'
+                  }}
+                >
+                  {!session.user.image && session.user.name ? 
+                    session.user.name.charAt(0).toUpperCase() : 
+                    'U'
+                  }
+                </Avatar>
+              </IconButton>
+            ) : (
+              <IconButton 
+                onClick={() => signIn()}
+                sx={{ 
+                  color: 'rgba(0, 0, 0, 0.7)',
+                  width: 40,
+                  height: 40,
+                  background: 'rgba(255, 255, 255, 0.9)',
+                  backdropFilter: 'blur(4px)',
+                  border: '1px solid rgba(0, 0, 0, 0.08)',
+                  p: 0,
+                  '&:hover': {
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+                  },
+                  transition: 'all 0.2s ease-out'
+                }}
+              >
+                <Avatar 
+                  sx={{ 
+                    width: 32, 
+                    height: 32,
+                    bgcolor: '#6B7280',
+                    color: 'white',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  ?
+                </Avatar>
+              </IconButton>
+            )}
             <Box>
               <Typography 
                 sx={{ 
@@ -710,6 +762,7 @@ export default function MenuPageComponent() {
               </NoSSR>
             </IconButton>
 
+            {/* Notification Icon */}
             <IconButton 
               sx={{ 
                 color: 'rgba(0, 0, 0, 0.7)',

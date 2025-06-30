@@ -308,29 +308,29 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
         
         {/* Discount Badge - Bottom Left */}
         {discountPercent > 0 && (
-          <Box
-            sx={{
-              position: 'absolute',
-              bottom: 30,
-              left: 16,
-              background: '#FF6F61',
-              px: 1.5,
-              py: 0.3,
-              borderRadius: '6px',
-              display: 'flex',
-              alignItems: 'center'
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: 30,
+            left: 16,
+            background: '#FF6F61',
+            px: 1.5,
+            py: 0.3,
+            borderRadius: '6px',
+            display: 'flex',
+            alignItems: 'center'
+          }}
+        >
+          <Typography 
+            sx={{ 
+                fontWeight: 500,
+              color: '#FFFFFF',
+                fontSize: { xs: '0.75rem', sm: '0.7rem' }
             }}
           >
-            <Typography 
-              sx={{ 
-                fontWeight: 500,
-                color: '#FFFFFF',
-                fontSize: { xs: '0.75rem', sm: '0.7rem' }
-              }}
-            >
-              -{discountPercent}%
-            </Typography>
-          </Box>
+            -{discountPercent}%
+          </Typography>
+        </Box>
         )}
 
         {/* Header - Floating */}
@@ -382,40 +382,40 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
 
         {/* Calories Badge - Top Right of Image */}
         {itemData.calories && (
-          <Box
-            sx={{
-              position: 'absolute',
-              bottom: 30,
-              right: 16,
-              background: '#10B981',
-              borderRadius: '6px',
-              px: 1.5,
-              py: 0.3,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0.3
-            }}
-          >
-            <LocalFireDepartment sx={{ fontSize: { xs: 12, sm: 12 }, color: 'white' }} />
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: 30,
+            right: 16,
+            background: '#10B981',
+            borderRadius: '6px',
+            px: 1.5,
+            py: 0.3,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.3
+          }}
+        >
+          <LocalFireDepartment sx={{ fontSize: { xs: 12, sm: 12 }, color: 'white' }} />
             <Typography sx={{ color: 'white', fontSize: { xs: '0.75rem', sm: '0.7rem' }, fontWeight: 500 }}>
-              {itemData.calories} แคล
-            </Typography>
-          </Box>
+            {itemData.calories} แคล
+          </Typography>
+        </Box>
         )}
       </Box>
 
       {/* Content */}
       <Box sx={{ position: 'relative', top: '-20px', zIndex: 5 }}>
-        {/* Product Info */}
-        <Box 
-          sx={{ 
-            background: '#FFFFFF',
-            borderRadius: { xs: '16px 16px 0 0', sm: '16px 16px 0 0' },
-            px: { xs: 3, sm: 4 },
-            pt: { xs: 3, sm: 4 },
-            pb: 2
-          }}
-        >
+                 {/* Product Info */}
+         <Box 
+           sx={{ 
+             background: '#FFFFFF',
+             borderRadius: { xs: '16px 16px 0 0', sm: '16px 16px 0 0' },
+             px: { xs: 3, sm: 4 },
+             pt: { xs: 3, sm: 4 },
+             pb: 2
+           }}
+         >
           <Typography 
             sx={{ 
               fontSize: { xs: '1.375rem', sm: '1.5rem' },
@@ -439,22 +439,22 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
             >
               {itemData.restaurant.name}
             </Typography>
-            <Chip 
+                                                        <Chip 
               label={itemData.category.name}
-              size="small"
-              sx={{ 
-                backgroundColor: '#F0FDF4',
-                color: '#059669',
-                fontWeight: 500,
-                fontSize: '0.7rem',
-                border: 'none',
-                height: 24,
-                '& .MuiChip-label': {
-                  px: 1,
-                  py: 0
-                }
-              }}
-            />
+               size="small"
+               sx={{ 
+                 backgroundColor: '#F0FDF4',
+                 color: '#059669',
+                 fontWeight: 500,
+                 fontSize: '0.7rem',
+                 border: 'none',
+                 height: 24,
+                 '& .MuiChip-label': {
+                   px: 1,
+                   py: 0
+                 }
+               }}
+             />
           </Box>
 
 
@@ -471,15 +471,15 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
               ฿{itemData.price}
             </Typography>
             {itemData.originalPrice && (
-              <Typography 
-                sx={{ 
-                  color: '#9CA3AF',
-                  fontSize: { xs: '1rem', sm: '1rem' },
-                  textDecoration: 'line-through'
-                }}
-              >
-                ฿{itemData.originalPrice}
-              </Typography>
+            <Typography 
+              sx={{ 
+                color: '#9CA3AF',
+                fontSize: { xs: '1rem', sm: '1rem' },
+                textDecoration: 'line-through'
+              }}
+            >
+              ฿{itemData.originalPrice}
+            </Typography>
             )}
           </Box>
 
@@ -495,93 +495,93 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
           </Typography>
         </Box>
 
-        {/* Add Ingredients - Minimal */}
+                {/* Add Ingredients - Minimal */}
         {itemData.addons.length > 0 && (
-          <Box sx={{ px: { xs: 3, sm: 4 }, mb: 6 }}>
-            <Typography 
-              sx={{ 
-                fontSize: { xs: '1.125rem', sm: '1.125rem' },
-                fontWeight: 700,
-                color: '#111827',
-                mb: 3
-              }}
-            >
-              เพิ่มเติม
-            </Typography>
-            
-            <Box 
-              sx={{
-                background: '#FAFAFA',
-                borderRadius: '12px',
-                p: 1.5
-              }}
-            >
+        <Box sx={{ px: { xs: 3, sm: 4 }, mb: 6 }}>
+          <Typography 
+            sx={{ 
+              fontSize: { xs: '1.125rem', sm: '1.125rem' },
+              fontWeight: 700,
+              color: '#111827',
+              mb: 3
+            }}
+          >
+            เพิ่มเติม
+          </Typography>
+          
+          <Box 
+            sx={{
+              background: '#FAFAFA',
+              borderRadius: '12px',
+              p: 1.5
+            }}
+          >
               {itemData.addons.map((addOn, index) => (
-                <Box key={addOn.id}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={selectedAddOns.includes(addOn.id)}
-                        onChange={() => handleAddOnToggle(addOn.id)}
-                        sx={{
+              <Box key={addOn.id}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={selectedAddOns.includes(addOn.id)}
+                      onChange={() => handleAddOnToggle(addOn.id)}
+                      sx={{
+                        color: '#10B981',
+                        '&.Mui-checked': {
                           color: '#10B981',
-                          '&.Mui-checked': {
-                            color: '#10B981',
-                          },
+                        },
+                      }}
+                    />
+                  }
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', ml: 1 }}>
+                      <Typography 
+                        sx={{ 
+                          color: '#111827',
+                          fontWeight: 600,
+                          fontSize: '0.875rem'
                         }}
-                      />
-                    }
-                    label={
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', ml: 1 }}>
-                        <Typography 
-                          sx={{ 
-                            color: '#111827',
-                            fontWeight: 600,
-                            fontSize: '0.875rem'
-                          }}
-                        >
-                          {addOn.name}
-                        </Typography>
-                        <Typography 
-                          sx={{ 
-                            color: '#10B981',
-                            fontSize: '0.875rem',
-                            fontWeight: 700
-                          }}
-                        >
-                          +฿{addOn.price}
-                        </Typography>
-                      </Box>
-                    }
-                    sx={{
-                      margin: 0,
-                      width: '100%',
-                      py: 0.25
-                    }}
-                  />
+                      >
+                        {addOn.name}
+                      </Typography>
+                      <Typography 
+                        sx={{ 
+                          color: '#10B981',
+                          fontSize: '0.875rem',
+                          fontWeight: 700
+                        }}
+                      >
+                        +฿{addOn.price}
+                      </Typography>
+                    </Box>
+                  }
+                  sx={{
+                    margin: 0,
+                    width: '100%',
+                    py: 0.25
+                  }}
+                />
                   {index < itemData.addons.length - 1 && (
-                    <Box sx={{ borderBottom: '1px solid #F3F4F6', mx: 1, my: 0.25 }} />
-                  )}
-                </Box>
-              ))}
-            </Box>
+                  <Box sx={{ borderBottom: '1px solid #F3F4F6', mx: 1, my: 0.25 }} />
+                )}
+              </Box>
+            ))}
           </Box>
+        </Box>
         )}
 
         {/* Bottom Actions */}
-        <Box 
-          sx={{ 
-            position: 'fixed',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            background: '#FFFFFF',
-            borderTop: '1px solid #F3F4F6',
-            px: { xs: 3, sm: 4 },
-            py: 2,
-            zIndex: 1000
-          }}
-        >
+                  <Box 
+            sx={{ 
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              background: '#FFFFFF',
+              borderTop: '1px solid #F3F4F6',
+              px: { xs: 3, sm: 4 },
+              py: 2,
+              zIndex: 1000
+            }}
+          >
           {/* Quantity Controls */}
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
             <Box display="flex" alignItems="center" gap={2}>

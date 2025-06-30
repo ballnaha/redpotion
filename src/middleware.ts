@@ -14,6 +14,20 @@ export default withAuth(
                                   req.nextUrl.pathname.startsWith('/restaurant/gallery')
     const isAdmin = req.nextUrl.pathname.startsWith('/admin')
 
+    // Handle LIFF routing - detect LINE browser and redirect to specific restaurant
+    const userAgent = req.headers.get('user-agent') || ''
+    const isLineApp = userAgent.includes('Line') || 
+                     req.nextUrl.searchParams.has('liff') ||
+                     req.nextUrl.searchParams.get('openExternalBrowser') === '1'
+    
+    // If accessing root from LINE, redirect to default restaurant with LIFF flag
+    if (isLineApp && req.nextUrl.pathname === '/') {
+      const defaultRestaurantId = 'cmcg20f2i00029hu8p2am75df'
+      const url = new URL(`/menu/${defaultRestaurantId}`, req.url)
+      url.searchParams.set('liff', 'true')
+      return NextResponse.redirect(url)
+    }
+
     // If user is on auth page and already authenticated, redirect appropriately
     // แต่ให้ตรวจสอบว่าไม่ใช่การ refresh หรือ initial load
     if (isAuthPage && isAuth && !req.nextUrl.searchParams.has('callbackUrl')) {
