@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Box,
@@ -10,6 +10,7 @@ import {
   Button,
   Alert,
   Container,
+  CircularProgress,
 } from '@mui/material'
 import { ErrorOutline } from '@mui/icons-material'
 import Link from 'next/link'
@@ -38,7 +39,7 @@ const errorMessages: Record<string, { title: string; description: string; sugges
   }
 }
 
-export default function AuthErrorPage() {
+function AuthErrorContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [error, setError] = useState<string>('')
@@ -113,5 +114,23 @@ export default function AuthErrorPage() {
         </Card>
       </Box>
     </Container>
+  )
+}
+
+function AuthErrorFallback() {
+  return (
+    <Container maxWidth="sm">
+      <Box sx={{ mt: 8, display: 'flex', justifyContent: 'center' }}>
+        <CircularProgress />
+      </Box>
+    </Container>
+  )
+}
+
+export default function AuthErrorPage() {
+  return (
+    <Suspense fallback={<AuthErrorFallback />}>
+      <AuthErrorContent />
+    </Suspense>
   )
 } 

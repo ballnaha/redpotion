@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn, useSession } from 'next-auth/react';
 import { Box, CircularProgress, Typography, Alert, Card } from '@mui/material';
@@ -10,7 +10,8 @@ interface LiffHandlerProps {
   children: React.ReactNode;
 }
 
-export default function LiffHandler({ defaultRestaurantId = 'cmcg20f2i00029hu8p2am75df', children }: LiffHandlerProps) {
+// Component ที่ใช้ useSearchParams ต้อง wrap ด้วย Suspense
+function LiffLogic({ defaultRestaurantId = 'cmcg20f2i00029hu8p2am75df', children }: LiffHandlerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
@@ -494,4 +495,31 @@ export default function LiffHandler({ defaultRestaurantId = 'cmcg20f2i00029hu8p2
 
   // ถ้าไม่ใช่ LIFF หรือ process เสร็จแล้ว ให้แสดง children ปกติ
   return <>{children}</>;
+}
+
+// Loading fallback สำหรับ Suspense
+function LiffFallback() {
+  return (
+    <Box sx={{ 
+      minHeight: '100vh', 
+      background: 'linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      p: 3
+    }}>
+      <CircularProgress size={40} sx={{ color: '#06C755' }} />
+    </Box>
+  );
+}
+
+// Main component ที่ wrap ด้วย Suspense
+export default function LiffHandler({ defaultRestaurantId, children }: LiffHandlerProps) {
+  return (
+    <Suspense fallback={<LiffFallback />}>
+      <LiffLogic defaultRestaurantId={defaultRestaurantId}>
+        {children}
+      </LiffLogic>
+    </Suspense>
+  );
 } 
