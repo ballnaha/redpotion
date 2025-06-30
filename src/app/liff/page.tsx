@@ -9,7 +9,7 @@ export default function LiffLandingPage() {
 
   useEffect(() => {
     // Auto redirect to default restaurant with LIFF flag
-    const defaultRestaurantId = 'cmcj56d440002jyf7j7atzhid';
+    const defaultRestaurantId = 'cmcg20f2i00029hu8p2am75df';
     const targetUrl = `/menu/${defaultRestaurantId}?liff=true`;
     
     console.log('🚀 LIFF Landing: Redirecting to', targetUrl);
