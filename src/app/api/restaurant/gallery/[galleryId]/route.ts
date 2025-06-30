@@ -6,7 +6,7 @@ import { deleteImageFromFileSystem } from '@/lib/deleteImage'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { galleryId: string } }
+  { params }: { params: Promise<{ galleryId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -24,6 +24,9 @@ export async function PUT(
         { status: 403 }
       )
     }
+
+    const resolvedParams = await params
+    const { galleryId } = resolvedParams
 
     const restaurant = await prisma.restaurant.findUnique({
       where: {
@@ -46,7 +49,7 @@ export async function PUT(
 
     const gallery = await (prisma as any).gallery.update({
       where: {
-        id: params.galleryId,
+        id: galleryId,
         restaurantId: restaurant.id
       },
       data: {
@@ -71,7 +74,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { galleryId: string } }
+  { params }: { params: Promise<{ galleryId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -89,6 +92,9 @@ export async function DELETE(
         { status: 403 }
       )
     }
+
+    const resolvedParams = await params
+    const { galleryId } = resolvedParams
 
     const restaurant = await prisma.restaurant.findUnique({
       where: {
@@ -109,7 +115,7 @@ export async function DELETE(
     // ดึงข้อมูลแกลเลอรี่เพื่อลบรูปภาพ
     const gallery = await (prisma as any).gallery.findUnique({
       where: {
-        id: params.galleryId,
+        id: galleryId,
         restaurantId: restaurant.id
       }
     })
@@ -135,7 +141,7 @@ export async function DELETE(
     // ลบแกลเลอรี่จากฐานข้อมูล
     await (prisma as any).gallery.delete({
       where: {
-        id: params.galleryId,
+        id: galleryId,
         restaurantId: restaurant.id
       }
     })

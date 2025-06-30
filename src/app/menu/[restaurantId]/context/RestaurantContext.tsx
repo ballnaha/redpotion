@@ -98,7 +98,7 @@ interface ApiRestaurant {
   openTime?: string;
   closeTime?: string;
   isOpen: boolean;
-  categories: ApiCategory[];
+  categories?: ApiCategory[];
 }
 
 interface ApiCategory {
@@ -108,7 +108,7 @@ interface ApiCategory {
   imageUrl?: string;
   sortOrder: number;
   isActive: boolean;
-  menuItems: ApiMenuItem[];
+  menuItems?: ApiMenuItem[];
 }
 
 interface ApiMenuItem {
@@ -121,8 +121,6 @@ interface ApiMenuItem {
   isAvailable: boolean;
   sortOrder: number;
   calories?: number;
-  isVegetarian: boolean;
-  isSpicy: boolean;
 }
 
 // ฟังก์ชันแปลงข้อมูลจาก API เป็น Restaurant interface
@@ -144,13 +142,13 @@ const transformApiToRestaurant = (apiData: ApiRestaurant): Restaurant => {
         ? `${apiData.openTime} - ${apiData.closeTime}` 
         : '-',
     },
-    menu: apiData.categories
+    menu: (apiData.categories || [])
       .filter(cat => cat.isActive)
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map(category => ({
         id: category.id,
         name: category.name,
-        items: category.menuItems
+        items: (category.menuItems || [])
           .filter(item => item.isAvailable)
           .sort((a, b) => a.sortOrder - b.sortOrder)
           .map(item => ({
@@ -165,8 +163,7 @@ const transformApiToRestaurant = (apiData: ApiRestaurant): Restaurant => {
             cookingTime: 15,
             isRecommended: false,
             tags: [
-              ...(item.isSpicy ? ['เผ็ด'] : []),
-              ...(item.isVegetarian ? ['มังสวิรัติ'] : [])
+              // เอา isSpicy และ isVegetarian ออกก่อน เพราะยังไม่มีใน API
             ]
           }))
       }))

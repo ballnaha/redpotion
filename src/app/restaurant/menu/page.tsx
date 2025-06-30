@@ -140,6 +140,7 @@ export default function MenuManagementPage() {
   });
   const [categoryImageFile, setCategoryImageFile] = useState<File | null>(null);
   const [categorySaving, setCategorySaving] = useState(false);
+  const [lastCategorySubmitTime, setLastCategorySubmitTime] = useState<number>(0);
 
   // MenuItem Modal States
   const [menuItemModalOpen, setMenuItemModalOpen] = useState(false);
@@ -157,6 +158,7 @@ export default function MenuManagementPage() {
   });
   const [menuItemImageFile, setMenuItemImageFile] = useState<File | null>(null);
   const [menuItemSaving, setMenuItemSaving] = useState(false);
+  const [lastMenuSubmitTime, setLastMenuSubmitTime] = useState<number>(0);
 
   // Addon Management States
   const [newAddon, setNewAddon] = useState<Addon>({
@@ -294,6 +296,7 @@ export default function MenuManagementPage() {
       });
     }
     setCategoryImageFile(null);
+    setLastCategorySubmitTime(0); // รีเซ็ต debounce timer
     setCategoryModalOpen(true);
   };
 
@@ -350,40 +353,50 @@ export default function MenuManagementPage() {
   };
 
   const saveCategoryData = async () => {
-    if (!categoryForm.name.trim()) {
-      showError('กรุณากรอกชื่อหมวดหมู่');
-      return;
+    // ป้องกันการกดซ้ำด้วย debounce (1 วินาที)
+    const now = Date.now()
+    if (categorySaving || (now - lastCategorySubmitTime < 1000)) {
+      console.log('⚠️ saveCategoryData blocked: saving or too soon after last submit')
+      return
     }
 
-    // ตรวจสอบการปิด category ที่มีเมนู
-    if (editingCategory && editingCategory.isActive && !categoryForm.isActive) {
-      const menuCount = editingCategory._count?.menuItems || 0;
-      if (menuCount > 0) {
-        // แจ้งเตือนก่อนเปิด dialog
-        showWarning(`หมวดหมู่นี้มีเมนูอาหาร ${menuCount} รายการ กรุณายืนยันการปิดการใช้งาน`);
-        // ใช้ Dialog แทน confirm() สำหรับการปิด category ที่มีเมนู
-        setDeleteTarget({
-          type: 'category',
-          id: 'close-category',
-          name: editingCategory.name,
-          details: `หมวดหมู่นี้มีเมนูอาหาร ${menuCount} รายการ เมื่อปิดการใช้งาน ลูกค้าจะไม่เห็นหมวดหมู่และเมนูทั้งหมด แต่ข้อมูลจะไม่หายไป`
-        });
-        setDeleteConfirmOpen(true);
-        setCategorySaving(false);
-        return;
-      }
-    }
+    setCategorySaving(true);
+    setLastCategorySubmitTime(now);
 
     try {
-      setCategorySaving(true);
+      if (!categoryForm.name.trim()) {
+        showError('กรุณากรอกชื่อหมวดหมู่');
+        return;
+      }
+
+      // ตรวจสอบการปิด category ที่มีเมนู
+      if (editingCategory && editingCategory.isActive && !categoryForm.isActive) {
+        const menuCount = editingCategory._count?.menuItems || 0;
+        if (menuCount > 0) {
+          // แจ้งเตือนก่อนเปิด dialog
+          showWarning(`หมวดหมู่นี้มีเมนูอาหาร ${menuCount} รายการ กรุณายืนยันการปิดการใช้งาน`);
+          // ใช้ Dialog แทน confirm() สำหรับการปิด category ที่มีเมนู
+          setDeleteTarget({
+            type: 'category',
+            id: 'close-category',
+            name: editingCategory.name,
+            details: `หมวดหมู่นี้มีเมนูอาหาร ${menuCount} รายการ เมื่อปิดการใช้งาน ลูกค้าจะไม่เห็นหมวดหมู่และเมนูทั้งหมด แต่ข้อมูลจะไม่หายไป`
+          });
+          setDeleteConfirmOpen(true);
+          setCategorySaving(false);
+          return;
+        }
+      }
       showInfo('กำลังบันทึกข้อมูลหมวดหมู่...');
       await performSaveCategory();
       showSuccess(editingCategory ? 'แก้ไขหมวดหมู่สำเร็จ' : 'เพิ่มหมวดหมู่สำเร็จ');
       setCategoryModalOpen(false);
       fetchData();
     } catch (error) {
-      console.error('Error saving category:', error);
+      console.error('❌ Category submit error:', error);
       showError(error instanceof Error ? error.message : 'ไม่สามารถบันทึกข้อมูลได้');
+      // รีเซ็ต debounce timer เมื่อเกิด error เพื่อให้สามารถลองใหม่ได้
+      setLastCategorySubmitTime(0);
     } finally {
       setCategorySaving(false);
     }
@@ -455,6 +468,7 @@ export default function MenuManagementPage() {
     setMenuItemImageFile(null);
     setNewAddon({ name: '', price: 0, isAvailable: true });
     setEditingAddon(null);
+    setLastMenuSubmitTime(0); // รีเซ็ต debounce timer
     setMenuItemModalOpen(true);
   };
 
@@ -518,23 +532,31 @@ export default function MenuManagementPage() {
   };
 
   const saveMenuItemData = async () => {
-    if (!menuItemForm.name.trim()) {
-      showError('กรุณากรอกชื่อเมนู');
-      return;
+    // ป้องกันการกดซ้ำด้วย debounce (1 วินาที)
+    const now = Date.now()
+    if (menuItemSaving || (now - lastMenuSubmitTime < 1000)) {
+      console.log('⚠️ saveMenuItemData blocked: saving or too soon after last submit')
+      return
     }
 
-    if (!menuItemForm.categoryId) {
-      showError('กรุณาเลือกหมวดหมู่');
-      return;
-    }
-
-    if (menuItemForm.price <= 0) {
-      showError('กรุณากรอกราคาที่ถูกต้อง');
-      return;
-    }
+    setMenuItemSaving(true);
+    setLastMenuSubmitTime(now);
 
     try {
-      setMenuItemSaving(true);
+      if (!menuItemForm.name.trim()) {
+        showError('กรุณากรอกชื่อเมนู');
+        return;
+      }
+
+      if (!menuItemForm.categoryId) {
+        showError('กรุณาเลือกหมวดหมู่');
+        return;
+      }
+
+      if (menuItemForm.price <= 0) {
+        showError('กรุณากรอกราคาที่ถูกต้อง');
+        return;
+      }
       showInfo('กำลังบันทึกข้อมูลเมนู...');
       
       let uploadedImageUrl = menuItemForm.imageUrl;
@@ -589,8 +611,10 @@ export default function MenuManagementPage() {
         showError(errorData.message || 'เกิดข้อผิดพลาด');
       }
     } catch (error) {
-      console.error('Error saving menu item:', error);
+      console.error('❌ Menu item submit error:', error);
       showError('ไม่สามารถบันทึกข้อมูลได้');
+      // รีเซ็ต debounce timer เมื่อเกิด error เพื่อให้สามารถลองใหม่ได้
+      setLastMenuSubmitTime(0);
     } finally {
       setMenuItemSaving(false);
     }
@@ -682,7 +706,7 @@ export default function MenuManagementPage() {
                 />
               )}
               <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', mb: 2 }}>
                   <Box sx={{ flex: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                       <Typography variant="h6" sx={{ fontWeight: 600 }}>
@@ -871,8 +895,8 @@ export default function MenuManagementPage() {
                   />
                 )}
                 <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 600, flex: 1 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', mb: 2 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 600, flex: 1 , mb: 2}}>
                       {menuItem.name}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1, flexDirection: isMobile ? 'column' : 'row' }}>
@@ -1049,7 +1073,7 @@ export default function MenuManagementPage() {
       <Dialog
         open={categoryModalOpen}
         onClose={() => setCategoryModalOpen(false)}
-        maxWidth="sm"
+        maxWidth="md"
         fullWidth
         fullScreen={isMobile}
         PaperProps={{
@@ -1112,7 +1136,7 @@ export default function MenuManagementPage() {
                 currentImageUrl={categoryForm.imageUrl}
                 onImageChange={handleCategoryImageChange}
                 variant="banner"
-                size="medium"
+                size="large"
                 category="menu"
                 restaurantId={restaurant?.id}
               />
@@ -1153,14 +1177,24 @@ export default function MenuManagementPage() {
             variant="contained"
             onClick={saveCategoryData}
             disabled={categorySaving}
-            startIcon={categorySaving ? <CircularProgress size={20} /> : <Save />}
+            startIcon={categorySaving ? <CircularProgress size={16} color="inherit" /> : (editingCategory ? <Edit /> : <Add />)}
             fullWidth={isMobile}
             sx={{ 
               order: isMobile ? 1 : 2,
-              py: isMobile ? 1.5 : 1
+              py: isMobile ? 1.5 : 1,
+              position: 'relative',
+              overflow: 'hidden',
+              '&.Mui-disabled': {
+                bgcolor: 'rgba(0, 0, 0, 0.12)',
+                color: 'rgba(0, 0, 0, 0.26)'
+              }
             }}
           >
-            {categorySaving ? 'กำลังบันทึก...' : 'บันทึก'}
+            {categorySaving ? (
+              editingCategory ? 'กำลังอัปเดต...' : 'กำลังเพิ่ม...'
+            ) : (
+              editingCategory ? 'อัปเดต' : 'เพิ่ม'
+            )}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1291,7 +1325,7 @@ export default function MenuManagementPage() {
                 currentImageUrl={menuItemForm.imageUrl}
                 onImageChange={handleMenuItemImageChange}
                 variant="banner"
-                size="medium"
+                size="large"
                 category="menu"
                 restaurantId={restaurant?.id}
               />
@@ -1442,14 +1476,24 @@ export default function MenuManagementPage() {
             variant="contained"
             onClick={saveMenuItemData}
             disabled={menuItemSaving}
-            startIcon={menuItemSaving ? <CircularProgress size={20} /> : <Save />}
+            startIcon={menuItemSaving ? <CircularProgress size={16} color="inherit" /> : (editingMenuItem ? <Edit /> : <Add />)}
             fullWidth={isMobile}
             sx={{ 
               order: isMobile ? 1 : 2,
-              py: isMobile ? 1.5 : 1
+              py: isMobile ? 1.5 : 1,
+              position: 'relative',
+              overflow: 'hidden',
+              '&.Mui-disabled': {
+                bgcolor: 'rgba(0, 0, 0, 0.12)',
+                color: 'rgba(0, 0, 0, 0.26)'
+              }
             }}
           >
-            {menuItemSaving ? 'กำลังบันทึก...' : 'บันทึก'}
+            {menuItemSaving ? (
+              editingMenuItem ? 'กำลังอัปเดต...' : 'กำลังเพิ่ม...'
+            ) : (
+              editingMenuItem ? 'อัปเดต' : 'เพิ่ม'
+            )}
           </Button>
         </DialogActions>
       </Dialog>

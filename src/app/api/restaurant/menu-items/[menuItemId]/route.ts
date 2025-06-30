@@ -211,4 +211,105 @@ export async function DELETE(
       { status: 500 }
     );
   }
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ menuItemId: string }> }
+) {
+  try {
+    const { menuItemId } = await params;
+
+    // ดึงข้อมูล menu item พร้อม category, restaurant และ add-ons
+    const menuItem = await prisma.menuItem.findUnique({
+      where: {
+        id: menuItemId,
+      },
+      include: {
+        category: {
+          select: {
+            id: true,
+            name: true,
+            isActive: true,
+            restaurant: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+          },
+        },
+        addons: {
+          where: {
+            isAvailable: true,
+          },
+          orderBy: {
+            sortOrder: 'asc',
+          },
+        },
+      },
+    });
+
+    if (!menuItem) {
+      return NextResponse.json(
+        { message: 'ไม่พบเมนูนี้' },
+        { status: 404 }
+      );
+    }
+
+    // ตรวจสอบว่าร้านอาหารได้รับการอนุมัติแล้ว
+    if (menuItem.category.restaurant.status !== 'ACTIVE') {
+      return NextResponse.json(
+        { message: 'ร้านอาหารนี้ยังไม่พร้อมให้บริการ' },
+        { status: 403 }
+      );
+    }
+
+    // ตรวจสอบว่า category ยังใช้งานอยู่
+    if (!menuItem.category.isActive) {
+      return NextResponse.json(
+        { message: 'หมวดหมู่นี้ไม่พร้อมให้บริการ' },
+        { status: 403 }
+      );
+    }
+
+    // จัดรูปแบบข้อมูลให้ตรงกับที่ front-end ต้องการ
+    const formattedMenuItem = {
+      id: menuItem.id,
+      name: menuItem.name,
+      description: menuItem.description,
+      price: menuItem.price,
+      originalPrice: menuItem.originalPrice,
+      imageUrl: menuItem.imageUrl,
+      isAvailable: menuItem.isAvailable,
+      calories: menuItem.calories,
+      sortOrder: menuItem.sortOrder,
+      category: {
+        id: menuItem.category.id,
+        name: menuItem.category.name,
+      },
+      restaurant: {
+        id: menuItem.category.restaurant.id,
+        name: menuItem.category.restaurant.name,
+      },
+      addons: menuItem.addons.map(addon => ({
+        id: addon.id,
+        name: addon.name,
+        price: addon.price,
+        isAvailable: addon.isAvailable,
+        sortOrder: addon.sortOrder,
+      })),
+      createdAt: menuItem.createdAt,
+      updatedAt: menuItem.updatedAt,
+    };
+
+    return NextResponse.json(formattedMenuItem);
+  } catch (error) {
+    console.error('Error fetching menu item:', error);
+    return NextResponse.json(
+      { message: 'เกิดข้อผิดพลาดในการดึงข้อมูลเมนู' },
+      { status: 500 }
+    );
+  }
 } 

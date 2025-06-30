@@ -13,7 +13,7 @@ import { ShoppingCart, Add, Remove, Delete, Favorite, FavoriteBorder,
          Search, NotificationsNone, Restaurant, LocalPizza, RamenDining, 
          LocalBar, Category, Star, LocationOn, AccessTime, Visibility,
          TrendingUp, Recommend, Fastfood, LocalDining, LunchDining,
-         LocalCafe, Icecream } from '@mui/icons-material';
+         LocalCafe, Icecream, PhotoLibrary } from '@mui/icons-material';
 // Swiper imports for smooth carousels (for special offers)
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay, EffectFade } from 'swiper/modules';
@@ -102,7 +102,13 @@ interface MenuItem {
 
 interface GalleryImage {
   id: string;
-  background: string;
+  title?: string;
+  description?: string;
+  imageUrl: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Cart Badge Component ที่ป้องกัน hydration mismatch
@@ -128,13 +134,116 @@ function CartBadge({ cart }: { cart: any[] }) {
           borderRadius: '8px',
           border: '1px solid rgba(255, 255, 255, 0.3)',
           boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)',
-          fontWeight: 600,
+          fontWeight: 500,
           display: mounted && cartCount > 0 ? 'flex' : 'none'
         }
       }}
     >
       <ShoppingCart sx={{ fontSize: 18 }} />
     </Badge>
+  );
+}
+
+// Gallery Skeleton Component
+function GallerySkeleton() {
+  return (
+    <Box 
+      sx={{ 
+        px: 2,
+        pb: '45px', // เหมือน Swiper padding
+        overflow: 'hidden' 
+      }}
+    >
+      <Box sx={{ 
+        display: 'flex', 
+        gap: 2,
+        overflowX: 'hidden',
+        width: '100%'
+      }}>
+        {[1, 2, 3].map((index) => (
+          <Box
+            key={index}
+            sx={{
+              flex: '0 0 auto',
+              width: { 
+                xs: 'calc(100vw - 40px)', // เหมือน slidesPerView 1.05
+                sm: 'calc(90vw - 40px)',   // เหมือน slidesPerView 1.1
+                md: 'calc(55vw - 40px)',   // เหมือน slidesPerView 1.8
+                lg: 'calc(45vw - 40px)'    // เหมือน slidesPerView 2.2
+              },
+              height: { xs: 200, sm: 220, md: 240, lg: 260 },
+              borderRadius: 1,
+              background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
+              backgroundSize: '200% 100%',
+              animation: 'shimmer 1.5s infinite',
+              position: 'relative',
+              overflow: 'hidden',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.08)',
+              '@keyframes shimmer': {
+                '0%': {
+                  backgroundPosition: '-200% 0'
+                },
+                '100%': {
+                  backgroundPosition: '200% 0'
+                }
+              }
+            }}
+          >
+            {/* Skeleton overlay pattern */}
+            <Box
+              sx={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: 56,
+                height: 56,
+                borderRadius: '14px',
+                background: 'rgba(255, 255, 255, 0.9)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+              }}
+            >
+              <PhotoLibrary sx={{ 
+                fontSize: 28, 
+                color: '#cbd5e1',
+                opacity: 0.7
+              }} />
+            </Box>
+            
+            {/* Skeleton pagination dots */}
+            {index === 1 && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: 16,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  display: 'flex',
+                  gap: 1
+                }}
+              >
+                {[1, 2, 3].map((dot) => (
+                  <Box
+                    key={dot}
+                    sx={{
+                      width: dot === 2 ? 12 : 8,
+                      height: 8,
+                      borderRadius: '4px',
+                      background: dot === 2 ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.5)',
+                      transition: 'all 0.3s ease'
+                    }}
+                  />
+                ))}
+              </Box>
+            )}
+          </Box>
+        ))}
+      </Box>
+    </Box>
   );
 }
 
@@ -223,21 +332,9 @@ export default function MenuPageComponent() {
   const [animationKey, setAnimationKey] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
   
-  // Gallery images for banner slider
-  const galleryImages: GalleryImage[] = [
-    {
-      id: '1',
-      background: '/images/banner-1.png'
-    },
-    {
-      id: '2',
-      background: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&h=400&fit=crop'
-    },
-    {
-      id: '3',
-      background: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=800&h=400&fit=crop'
-    }
-  ];
+  // Gallery state
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+  const [galleryLoaded, setGalleryLoaded] = useState(false);
 
   // แปลงข้อมูลจาก restaurant context ให้เข้ากับ MenuCategory interface
   // และกรองเฉพาะ category ที่มีอาหารอย่างน้อย 1 รายการ
@@ -254,6 +351,55 @@ export default function MenuPageComponent() {
   // รวมรายการอาหารจากทุกหมวดหมู่
   const menuItems: MenuItem[] = categories.flatMap(category => category.items || []);
   
+  // ดึงข้อมูล gallery พร้อมกับการโหลดหน้า (ไม่ต้องรอ)
+  useEffect(() => {
+    if (restaurant?.id) {
+      // เรียก fetchGallery ทันทีโดยไม่บล็อก UI และไม่รอผลลัพธ์
+      fetchGallery().catch(console.error);
+    }
+  }, [restaurant?.id]);
+
+  const fetchGallery = async () => {
+    try {
+      // Background loading with optimized settings
+      const url = `/api/restaurant/${restaurant?.id}/gallery`;
+      console.log('🚀 Fast gallery fetch:', url);
+      
+      const response = await fetch(url, {
+        // Optimized for speed
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'public, max-age=300' // 5 minutes cache
+        },
+        // Fast cache strategy
+        cache: 'default',
+        next: { 
+          revalidate: 300, // 5 minutes
+          tags: [`gallery-${restaurant?.id}`] 
+        },
+        // Faster timeout
+        signal: AbortSignal.timeout(5000) // 5 second timeout
+      });
+      
+      if (response.ok) {
+        const galleryData = await response.json();
+        console.log('⚡ Gallery loaded fast:', galleryData.length, 'images');
+        // Immediate update
+        setGalleryImages(galleryData);
+      } else {
+        console.warn('⚠️ Gallery unavailable, continuing without:', response.status);
+        setGalleryImages([]);
+      }
+    } catch (error) {
+      // Silent fail - don't block the UI
+      console.warn('⚠️ Gallery fetch skipped:', error instanceof Error ? error.message : 'Unknown error');
+      setGalleryImages([]);
+    } finally {
+      setGalleryLoaded(true);
+    }
+  };
+
   // อัปเดต selectedCategory เมื่อมีข้อมูลร้าน (เฉพาะครั้งแรกเท่านั้น)
   useEffect(() => {
     if (restaurant && categories.length > 0 && !selectedCategory) {
@@ -560,7 +706,7 @@ export default function MenuPageComponent() {
               }}
             >
               <NoSSR fallback={<ShoppingCart sx={{ fontSize: 18 }} />}>
-                <CartBadge cart={cart} />
+                <CartBadge cart={cart}  />
               </NoSSR>
             </IconButton>
 
@@ -737,27 +883,20 @@ export default function MenuPageComponent() {
           </Card>
         </Box>
 
-        {/* Special Offers Swiper Slider */}
-        <Box sx={{ px: 2, mb: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6" sx={{ 
-              fontWeight: 600, 
-              color: 'rgba(0, 0, 0, 0.85)',
-              fontSize: '1.1rem',
-              letterSpacing: '0.01em'
-            }}>
-              แกลเลอรี่
-            </Typography>
-          </Box>
-          
-          {/* Special Offers Swiper */}
+        {/* Gallery Swiper Slider - แสดงเฉพาะเมื่อมีข้อมูล */}
+        {(!galleryLoaded || galleryImages.length > 0) && (
+          <Box sx={{ px: 2, mb: 4 }}>
+            {/* Gallery with Skeleton Loading */}
+            {!galleryLoaded ? (
+              <GallerySkeleton />
+            ) : galleryImages.length > 0 ? (
           <Swiper
             modules={[Navigation, Pagination, Autoplay]}
             spaceBetween={16}
-            slidesPerView={1.1}
+            slidesPerView={1.05}
             speed={800}
             autoplay={{
-              delay: 4000,
+              delay: 5000,
               disableOnInteraction: false,
               pauseOnMouseEnter: true,
             }}
@@ -773,48 +912,217 @@ export default function MenuPageComponent() {
             longSwipes={true}
             longSwipesRatio={0.5}
             breakpoints={{
+              480: {
+                slidesPerView: 1.1,
+                spaceBetween: 18,
+              },
               640: {
                 slidesPerView: 1.2,
                 spaceBetween: 20,
               },
               768: {
-                slidesPerView: 2,
-                spaceBetween: 20,
+                slidesPerView: 1.8,
+                spaceBetween: 24,
+              },
+              1024: {
+                slidesPerView: 2.2,
+                spaceBetween: 24,
               }
             }}
             style={{ 
-              paddingBottom: '40px',
+              paddingBottom: '45px',
               overflow: 'visible'
             }}
           >
-            {galleryImages.map((offer) => (
-              <SwiperSlide key={offer.id}>
+            {galleryImages.map((galleryItem) => (
+              <SwiperSlide key={galleryItem.id}>
                 <Card 
                   sx={{ 
-                    borderRadius: 0.5,
-                    backgroundImage: `url(${offer.background})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    backgroundRepeat: 'no-repeat',
+                    borderRadius: 1,
                     position: 'relative',
                     overflow: 'hidden',
-                    minHeight: 160,
+                    aspectRatio: '16/9',
+                    width: '100%',
+                    height: { xs: 200, sm: 220, md: 240, lg: 260 }, // ขนาดที่เหมาะสม
                     border: '1px solid rgba(255, 255, 255, 0.2)',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)',
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    cursor: 'pointer',
                     '&:hover': {
                       transform: 'translateY(-4px)',
-                      boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
+                      boxShadow: '0 16px 32px rgba(0, 0, 0, 0.18)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)'
+                    },
+                    '&:active': {
+                      transform: 'translateY(-1px)'
                     }
                   }}
                 >
-
-
+                  <Box
+                    component="img"
+                    src={galleryItem.imageUrl}
+                    alt={galleryItem.title || 'Gallery image'}
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover', // ให้รูปภาพเต็มกรอบแต่ไม่บิดเบี้ยว
+                      objectPosition: 'center',
+                      display: 'block',
+                      transition: 'transform 0.3s ease-out',
+                      '&:hover': {
+                        transform: 'scale(1.05)' // zoom เล็กน้อยเมื่อ hover
+                      }
+                    }}
+                    loading="lazy" // lazy loading สำหรับประสิทธิภาพ
+                    onError={(e) => {
+                      // ซ่อนรูปภาพและแสดง minimal professional fallback
+                      e.currentTarget.style.display = 'none';
+                      const card = e.currentTarget.parentElement;
+                      if (card) {
+                        card.innerHTML = `
+                          <div style="
+                            width: 100%;
+                            height: 100%;
+                            background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                            text-align: center;
+                            padding: 24px 16px;
+                            position: relative;
+                            border: 1px solid #e2e8f0;
+                          ">
+                            <!-- Subtle pattern background -->
+                            <div style="
+                              position: absolute;
+                              top: 0;
+                              left: 0;
+                              right: 0;
+                              bottom: 0;
+                              background: radial-gradient(circle at 70% 30%, rgba(59, 130, 246, 0.03) 0%, transparent 50%);
+                              pointer-events: none;
+                            "></div>
+                            
+                            <!-- Professional icon container -->
+                            <div style="
+                              width: 48px;
+                              height: 48px;
+                              border-radius: 12px;
+                              background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+                              display: flex;
+                              align-items: center;
+                              justify-content: center;
+                              margin-bottom: 12px;
+                              box-shadow: 0 4px 16px rgba(99, 102, 241, 0.2);
+                              position: relative;
+                              z-index: 1;
+                            ">
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color: white;">
+                                <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" fill="currentColor"/>
+                              </svg>
+                            </div>
+                            
+                            <div style="
+                              font-size: 16px;
+                              font-weight: 700;
+                              color: #1e293b;
+                              margin-bottom: 4px;
+                              letter-spacing: -0.02em;
+                              line-height: 1.3;
+                              position: relative;
+                              z-index: 1;
+                            ">${galleryItem.title || 'Gallery'}</div>
+                            
+                            ${galleryItem.description ? `
+                              <div style="
+                                font-size: 13px;
+                                color: #64748b;
+                                line-height: 1.4;
+                                font-weight: 400;
+                                position: relative;
+                                z-index: 1;
+                              ">${galleryItem.description.length > 40 ? galleryItem.description.substring(0, 40) + '...' : galleryItem.description}</div>
+                            ` : ''}
+                            
+                            <!-- Subtle indicator -->
+                            <div style="
+                              position: absolute;
+                              bottom: 8px;
+                              right: 8px;
+                              width: 4px;
+                              height: 4px;
+                              border-radius: 50%;
+                              background: #6366f1;
+                              opacity: 0.3;
+                            "></div>
+                          </div>
+                        `;
+                      }
+                    }}
+                  />
                 </Card>
               </SwiperSlide>
             ))}
           </Swiper>
+          ) : (
+            // Minimal empty state
+            <Box sx={{ 
+              textAlign: 'center', 
+              py: 6,
+              px: 3,
+              borderRadius: 3,
+              background: 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)',
+              border: '1px solid #e2e8f0',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              {/* Subtle background pattern */}
+              <Box sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'radial-gradient(circle at 30% 70%, rgba(79, 70, 229, 0.03) 0%, transparent 50%)',
+                pointerEvents: 'none'
+              }} />
+              
+              {/* Professional icon */}
+              <Box sx={{
+                width: 64,
+                height: 64,
+                borderRadius: '18px',
+                background: 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px',
+                position: 'relative',
+                zIndex: 1
+              }}>
+                <PhotoLibrary sx={{ 
+                  fontSize: 32, 
+                  color: '#64748b'
+                }} />
+              </Box>
+              
+              <Typography 
+                variant="body1" 
+                sx={{
+                  color: '#64748b',
+                  fontSize: '0.95rem',
+                  fontWeight: 500,
+                  position: 'relative',
+                  zIndex: 1
+                }}
+              >
+                ยังไม่มีรูปภาพในแกลเลอรี่
+              </Typography>
+            </Box>
+          )}
         </Box>
+        )}
 
         {/* Premium Category Grid */}
         <Box sx={{ px: 2, mb: 3 }}>
@@ -952,7 +1260,7 @@ export default function MenuPageComponent() {
                 color: 'rgba(0, 0, 0, 0.9)',
                 fontSize: '1.2rem'
               }}>
-                {categories.find(cat => cat.id === selectedCategory)?.name || 'เมนูยอดนิยม'}
+                {categories.find(cat => cat.id === selectedCategory)?.name || 'เมนูทั้งหมด'}
               </Typography>
             </Box>
             <Typography sx={{ 

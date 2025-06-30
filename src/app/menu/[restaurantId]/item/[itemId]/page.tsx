@@ -13,7 +13,9 @@ import {
   Checkbox,
   FormControlLabel,
   Snackbar,
-  Alert
+  Alert,
+  CircularProgress,
+  Container
 } from '@mui/material';
 import { 
   ArrowBack, 
@@ -21,16 +23,70 @@ import {
   Remove,
   Star,
   LocalFireDepartment,
-  Timer,
   Restaurant,
   ShoppingCart
 } from '@mui/icons-material';
 import { useRestaurant } from '../../context/RestaurantContext';
 
+// Cart Badge Component ที่ป้องกัน hydration mismatch
+function CartBadge({ cart }: { cart: any[] }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const cartCount = mounted ? cart.reduce((total, item) => total + item.quantity, 0) : 0;
+
+  return (
+    <Badge 
+      badgeContent={cartCount} 
+      sx={{
+        '& .MuiBadge-badge': {
+          backgroundColor: '#10B981',
+          color: 'white',
+          fontSize: '0.65rem',
+          minWidth: '16px',
+          height: '16px',
+          borderRadius: '8px',
+          border: '1px solid rgba(255, 255, 255, 0.3)',
+          boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)',
+          fontWeight: 500,
+          display: mounted && cartCount > 0 ? 'flex' : 'none'
+        }
+      }}
+    >
+      <ShoppingCart sx={{ fontSize: 18 }} />
+    </Badge>
+  );
+}
+
 interface AddOn {
   id: string;
   name: string;
   price: number;
+  isAvailable?: boolean;
+  sortOrder?: number;
+}
+
+interface MenuItemData {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  originalPrice?: number;
+  imageUrl?: string;
+  isAvailable: boolean;
+  calories?: number;
+  category: {
+    id: string;
+    name: string;
+  };
+  restaurant: {
+    id: string;
+    name: string;
+  };
+  addons: AddOn[];
 }
 
 export default function ItemPage({ params }: { params: Promise<{ restaurantId: string; itemId: string }> }) {
@@ -39,7 +95,9 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
   const [quantity, setQuantity] = useState(1);
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const { cart, cartTotal, restaurant, setCartItemQuantity } = useRestaurant();
+  const [error, setError] = useState<string | null>(null);
+  const [itemData, setItemData] = useState<MenuItemData | null>(null);
+  const { cart, cartTotal, restaurant, loading: restaurantLoading, setCartItemQuantity } = useRestaurant();
 
   // Handle hydration
   useEffect(() => {
@@ -48,31 +106,32 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
   
   const resolvedParams = use(params);
 
-  const itemData = {
-    id: resolvedParams.itemId,
-    name: 'ควินัว เพาเวอร์ โบล์',
-    restaurant: 'กรีน โบล์ - อาหารสุขภาพ',
-    rating: 4.8,
-    reviews: '(156)',
-    image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop',
-    basePrice: 189,
-    originalPrice: 229,
-    calories: 420,
-    prepTime: '15-20 นาที',
-    description: 'ควินัวออร์แกนิค ผักใบเขียวสด อโวคาโด้สุก เมล็ดชีอา และโปรตีนคุณภาพสูง สำหรับมื้อที่อิ่มอร่อยและดีต่อสุขภาพ',
-    tags: ['Organic', 'High Protein', 'Superfood']
-  };
+  // ดึงข้อมูล menu item จาก API เมื่อ restaurant context พร้อมแล้ว
+  useEffect(() => {
+    const fetchMenuItem = async () => {
+      try {
+        setError(null);
 
-  const addOns: AddOn[] = [
-    { id: '1', name: 'ไก่ย่าง', price: 35 },
-    { id: '2', name: 'ไข่ต้ม', price: 15 },
-    { id: '3', name: 'อโวคาโด้', price: 25 },
-    { id: '4', name: 'เมล็ดชีอา', price: 20 },
-    { id: '5', name: 'อัลมอนด์', price: 30 },
-    { id: '6', name: 'มันเทศ', price: 18 }
-  ];
+        const response = await fetch(`/api/restaurant/menu-items/${resolvedParams.itemId}`);
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'ไม่สามารถดึงข้อมูลเมนูได้');
+        }
 
-  const discountPercent = Math.round(((itemData.originalPrice - itemData.basePrice) / itemData.originalPrice) * 100);
+        const data = await response.json();
+        setItemData(data);
+      } catch (err) {
+        console.error('Error fetching menu item:', err);
+        setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการดึงข้อมูล');
+      }
+    };
+
+    // รอให้ restaurant context โหลดเสร็จก่อน
+    if (!restaurantLoading && restaurant && resolvedParams.itemId) {
+      fetchMenuItem();
+    }
+  }, [resolvedParams.itemId, restaurantLoading, restaurant]);
 
   const handleAddOnToggle = (addOnId: string) => {
     setSelectedAddOns(prev => 
@@ -83,14 +142,18 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
   };
 
   const calculateTotal = () => {
+    if (!itemData) return 0;
+    
     const addOnTotal = selectedAddOns.reduce((total, addOnId) => {
-      const addOn = addOns.find(a => a.id === addOnId);
+      const addOn = itemData.addons.find(a => a.id === addOnId);
       return total + (addOn ? addOn.price : 0);
     }, 0);
-    return (itemData.basePrice + addOnTotal) * quantity;
+    return (itemData.price + addOnTotal) * quantity;
   };
 
   const handleAddToCart = () => {
+    if (!itemData) return;
+    
     console.log('🔄 handleAddToCart เริ่มทำงาน');
     console.log('🏪 restaurant:', restaurant);
     
@@ -100,9 +163,9 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
       const uniqueItemId = addOnIds ? `${itemData.id}-addons-${addOnIds}` : itemData.id;
       
       // เตรียมข้อมูล add-ons และคำนวณราคา
-      let totalPrice = itemData.basePrice;
+      let totalPrice = itemData.price;
       const selectedAddOnsData = selectedAddOns.map(addOnId => {
-        const addOn = addOns.find(a => a.id === addOnId);
+        const addOn = itemData.addons.find(a => a.id === addOnId);
         if (addOn) {
           totalPrice += addOn.price;
           return {
@@ -118,12 +181,12 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
         id: uniqueItemId, // ใช้ unique ID ที่รวม add-ons แล้ว
         name: itemData.name, // ใช้ชื่อเมนูหลักเท่านั้น
         description: itemData.description, // ใช้คำอธิบายเดิม
-        price: itemData.basePrice, // ราคาฐานเท่านั้น
+        price: itemData.price, // ราคาฐานเท่านั้น
         originalPrice: itemData.originalPrice,
-        image: itemData.image,
-        category: 'healthy-bowls',
-        available: true,
-        cookingTime: 15,
+        image: itemData.imageUrl || '/images/default_cover.jpg',
+        category: itemData.category.name,
+        available: itemData.isAvailable,
+        cookingTime: 15, // ค่าเริ่มต้น
         addOns: selectedAddOnsData // เก็บ add-ons แยกต่างหาก
       };
       
@@ -145,6 +208,75 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
     }
   };
 
+  // Loading state - แสดงเมื่อ restaurant context กำลังโหลดหรือยังไม่มีข้อมูล item
+  if (restaurantLoading || (!itemData && !error)) {
+    return (
+      <Container maxWidth="sm" sx={{ py: 8, textAlign: 'center' }}>
+        <CircularProgress size={40} sx={{ color: '#10B981' }} />
+        <Typography sx={{ mt: 2, color: '#6B7280' }}>
+          กำลังโหลดข้อมูลเมนู...
+        </Typography>
+      </Container>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <Container maxWidth="sm" sx={{ py: 8, textAlign: 'center' }}>
+        <Typography variant="h6" sx={{ color: '#EF4444', mb: 2 }}>
+          เกิดข้อผิดพลาด
+        </Typography>
+        <Typography sx={{ color: '#6B7280', mb: 3 }}>
+          {error}
+        </Typography>
+        <Button 
+          onClick={() => router.back()}
+          variant="outlined"
+          sx={{ 
+            borderColor: '#10B981',
+            color: '#10B981',
+            '&:hover': {
+              borderColor: '#059669',
+              backgroundColor: '#F0FDF4'
+            }
+          }}
+        >
+          กลับหน้าก่อน
+        </Button>
+      </Container>
+    );
+  }
+
+  // No data state
+  if (!itemData) {
+    return (
+      <Container maxWidth="sm" sx={{ py: 8, textAlign: 'center' }}>
+        <Typography variant="h6" sx={{ color: '#6B7280', mb: 2 }}>
+          ไม่พบข้อมูลเมนู
+        </Typography>
+        <Button 
+          onClick={() => router.back()}
+          variant="outlined"
+          sx={{ 
+            borderColor: '#10B981',
+            color: '#10B981',
+            '&:hover': {
+              borderColor: '#059669',
+              backgroundColor: '#F0FDF4'
+            }
+          }}
+        >
+          กลับหน้าก่อน
+        </Button>
+      </Container>
+    );
+  }
+
+  const discountPercent = itemData.originalPrice 
+    ? Math.round(((itemData.originalPrice - itemData.price) / itemData.originalPrice) * 100)
+    : 0;
+
   return (
     <Box 
       sx={{ 
@@ -165,7 +297,7 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
       >
         <Box
           component="img"
-          src={itemData.image}
+          src={itemData.imageUrl || '/images/default_cover.jpg'}
           alt={itemData.name}
           sx={{
             width: '100%',
@@ -175,30 +307,31 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
         />
         
         {/* Discount Badge - Bottom Left */}
-        <Box
-          sx={{
-            position: 'absolute',
-            bottom: 30,
-            left: 16,
-            background: '#FF6F61',
-           
-            px: 1.5,
-            py: 0.3,
-            borderRadius: '6px',
-            display: 'flex',
-            alignItems: 'center'
-          }}
-        >
-          <Typography 
-            sx={{ 
-              fontWeight: 600,
-              color: '#FFFFFF',
-              fontSize: { xs: '0.7rem', sm: '0.7rem' }
+        {discountPercent > 0 && (
+          <Box
+            sx={{
+              position: 'absolute',
+              bottom: 30,
+              left: 16,
+              background: '#FF6F61',
+              px: 1.5,
+              py: 0.3,
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center'
             }}
           >
-            -{discountPercent}%
-          </Typography>
-        </Box>
+            <Typography 
+              sx={{ 
+                fontWeight: 500,
+                color: '#FFFFFF',
+                fontSize: { xs: '0.75rem', sm: '0.7rem' }
+              }}
+            >
+              -{discountPercent}%
+            </Typography>
+          </Box>
+        )}
 
         {/* Header - Floating */}
         <Box 
@@ -243,59 +376,46 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
               }
             }}
           >
-            <Badge 
-              badgeContent={mounted ? cart.reduce((total, item) => total + item.quantity, 0) : 0} 
-              color="error"
-              sx={{
-                '& .MuiBadge-badge': {
-                  backgroundColor: '#FF6F61',
-                  color: 'white',
-                  fontSize: '0.6rem',
-                  minWidth: '16px',
-                  height: '16px',
-                  display: mounted && cart.length > 0 ? 'flex' : 'none'
-                }
-              }}
-            >
-              <ShoppingCart sx={{ fontSize: 18 }} />
-            </Badge>
+            <CartBadge cart={cart} />
           </IconButton>
         </Box>
 
-        {/* Health Badge - Top Right of Image */}
-        <Box
-          sx={{
-            position: 'absolute',
-            bottom: 30,
-            right: 16,
-            background: '#10B981',
-            borderRadius: '6px',
-            px: 1.5,
-            py: 0.3,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.3
-          }}
-        >
-          <LocalFireDepartment sx={{ fontSize: { xs: 12, sm: 12 }, color: 'white' }} />
-          <Typography sx={{ color: 'white', fontSize: { xs: '0.7rem', sm: '0.7rem' }, fontWeight: 600 }}>
-            {itemData.calories} แคล
-          </Typography>
-        </Box>
+        {/* Calories Badge - Top Right of Image */}
+        {itemData.calories && (
+          <Box
+            sx={{
+              position: 'absolute',
+              bottom: 30,
+              right: 16,
+              background: '#10B981',
+              borderRadius: '6px',
+              px: 1.5,
+              py: 0.3,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.3
+            }}
+          >
+            <LocalFireDepartment sx={{ fontSize: { xs: 12, sm: 12 }, color: 'white' }} />
+            <Typography sx={{ color: 'white', fontSize: { xs: '0.75rem', sm: '0.7rem' }, fontWeight: 500 }}>
+              {itemData.calories} แคล
+            </Typography>
+          </Box>
+        )}
       </Box>
 
       {/* Content */}
       <Box sx={{ position: 'relative', top: '-20px', zIndex: 5 }}>
-                 {/* Product Info */}
-         <Box 
-           sx={{ 
-             background: '#FFFFFF',
-             borderRadius: { xs: '16px 16px 0 0', sm: '16px 16px 0 0' },
-             px: { xs: 3, sm: 4 },
-             pt: { xs: 3, sm: 4 },
-             pb: 2
-           }}
-         >
+        {/* Product Info */}
+        <Box 
+          sx={{ 
+            background: '#FFFFFF',
+            borderRadius: { xs: '16px 16px 0 0', sm: '16px 16px 0 0' },
+            px: { xs: 3, sm: 4 },
+            pt: { xs: 3, sm: 4 },
+            pb: 2
+          }}
+        >
           <Typography 
             sx={{ 
               fontSize: { xs: '1.375rem', sm: '1.5rem' },
@@ -317,81 +437,27 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
                 fontWeight: 500
               }}
             >
-              {itemData.restaurant}
+              {itemData.restaurant.name}
             </Typography>
-            <Box display="flex" alignItems="center" gap={0.5}>
-              <Star sx={{ fontSize: { xs: 14, sm: 14 }, color: '#10B981' }} />
-              <Typography 
-                sx={{ 
-                  color: '#111827',
-                  fontSize: { xs: '0.8rem', sm: '0.75rem' },
-                  fontWeight: 600
-                }}
-              >
-                {itemData.rating}
-              </Typography>
-              <Typography 
-                sx={{ 
-                  color: '#6B7280',
-                  fontSize: { xs: '0.8rem', sm: '0.75rem' }
-                }}
-              >
-                {itemData.reviews}
-              </Typography>
-            </Box>
-                                                        <Chip 
-               label="สุขภาพ"
-               size="small"
-               sx={{ 
-                 backgroundColor: '#F0FDF4',
-                 color: '#059669',
-                 fontWeight: 500,
-                 fontSize: '0.7rem',
-                 border: 'none',
-                 height: 24,
-                 '& .MuiChip-label': {
-                   px: 1,
-                   py: 0
-                 }
-               }}
-             />
+            <Chip 
+              label={itemData.category.name}
+              size="small"
+              sx={{ 
+                backgroundColor: '#F0FDF4',
+                color: '#059669',
+                fontWeight: 500,
+                fontSize: '0.7rem',
+                border: 'none',
+                height: 24,
+                '& .MuiChip-label': {
+                  px: 1,
+                  py: 0
+                }
+              }}
+            />
           </Box>
 
-          {/* Quick Info */}
-          <Box display="flex" gap={3} mb={3}>
-            <Box 
-              sx={{ 
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                flex: 1
-              }}
-            >
-              <Timer sx={{ fontSize: 18, color: '#6B7280', mb: 0.5 }} />
-              <Typography sx={{ color: '#6B7280', fontSize: '0.7rem', mb: 0.25 }}>
-                เวลาเตรียม
-              </Typography>
-              <Typography sx={{ color: '#111827', fontWeight: 500, fontSize: '0.75rem' }}>
-                {itemData.prepTime}
-              </Typography>
-            </Box>
-            <Box 
-              sx={{ 
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                flex: 1
-              }}
-            >
-              <LocalFireDepartment sx={{ fontSize: 18, color: '#6B7280', mb: 0.5 }} />
-              <Typography sx={{ color: '#6B7280', fontSize: '0.7rem', mb: 0.25 }}>
-                แคลอรี่
-              </Typography>
-              <Typography sx={{ color: '#111827', fontWeight: 500, fontSize: '0.75rem' }}>
-                {itemData.calories} แคล
-              </Typography>
-            </Box>
-          </Box>
+
 
           {/* Price */}
           <Box display="flex" alignItems="center" gap={2} mb={2}>
@@ -402,17 +468,19 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
                 fontWeight: 800
               }}
             >
-              ฿{itemData.basePrice}
+              ฿{itemData.price}
             </Typography>
-            <Typography 
-              sx={{ 
-                color: '#9CA3AF',
-                fontSize: { xs: '1rem', sm: '1rem' },
-                textDecoration: 'line-through'
-              }}
-            >
-              ฿{itemData.originalPrice}
-            </Typography>
+            {itemData.originalPrice && (
+              <Typography 
+                sx={{ 
+                  color: '#9CA3AF',
+                  fontSize: { xs: '1rem', sm: '1rem' },
+                  textDecoration: 'line-through'
+                }}
+              >
+                ฿{itemData.originalPrice}
+              </Typography>
+            )}
           </Box>
 
           <Typography 
@@ -427,91 +495,93 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
           </Typography>
         </Box>
 
-                {/* Add Ingredients - Minimal */}
-        <Box sx={{ px: { xs: 3, sm: 4 }, mb: 6 }}>
-          <Typography 
-            sx={{ 
-              fontSize: { xs: '1.125rem', sm: '1.125rem' },
-              fontWeight: 700,
-              color: '#111827',
-              mb: 3
-            }}
-          >
-            เพิ่มเติม
-          </Typography>
-          
-          <Box 
-            sx={{
-              background: '#FAFAFA',
-              borderRadius: '12px',
-              p: 1.5
-            }}
-          >
-            {addOns.map((addOn, index) => (
-              <Box key={addOn.id}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={selectedAddOns.includes(addOn.id)}
-                      onChange={() => handleAddOnToggle(addOn.id)}
-                      sx={{
-                        color: '#10B981',
-                        '&.Mui-checked': {
+        {/* Add Ingredients - Minimal */}
+        {itemData.addons.length > 0 && (
+          <Box sx={{ px: { xs: 3, sm: 4 }, mb: 6 }}>
+            <Typography 
+              sx={{ 
+                fontSize: { xs: '1.125rem', sm: '1.125rem' },
+                fontWeight: 700,
+                color: '#111827',
+                mb: 3
+              }}
+            >
+              เพิ่มเติม
+            </Typography>
+            
+            <Box 
+              sx={{
+                background: '#FAFAFA',
+                borderRadius: '12px',
+                p: 1.5
+              }}
+            >
+              {itemData.addons.map((addOn, index) => (
+                <Box key={addOn.id}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={selectedAddOns.includes(addOn.id)}
+                        onChange={() => handleAddOnToggle(addOn.id)}
+                        sx={{
                           color: '#10B981',
-                        },
-                      }}
-                    />
-                  }
-                  label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', ml: 1 }}>
-                      <Typography 
-                        sx={{ 
-                          color: '#111827',
-                          fontWeight: 600,
-                          fontSize: '0.875rem'
+                          '&.Mui-checked': {
+                            color: '#10B981',
+                          },
                         }}
-                      >
-                        {addOn.name}
-                      </Typography>
-                      <Typography 
-                        sx={{ 
-                          color: '#10B981',
-                          fontSize: '0.875rem',
-                          fontWeight: 700
-                        }}
-                      >
-                        +฿{addOn.price}
-                      </Typography>
-                    </Box>
-                  }
-                  sx={{
-                    margin: 0,
-                    width: '100%',
-                    py: 0.25
-                  }}
-                />
-                {index < addOns.length - 1 && (
-                  <Box sx={{ borderBottom: '1px solid #F3F4F6', mx: 1, my: 0.25 }} />
-                )}
-              </Box>
-            ))}
+                      />
+                    }
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', ml: 1 }}>
+                        <Typography 
+                          sx={{ 
+                            color: '#111827',
+                            fontWeight: 600,
+                            fontSize: '0.875rem'
+                          }}
+                        >
+                          {addOn.name}
+                        </Typography>
+                        <Typography 
+                          sx={{ 
+                            color: '#10B981',
+                            fontSize: '0.875rem',
+                            fontWeight: 700
+                          }}
+                        >
+                          +฿{addOn.price}
+                        </Typography>
+                      </Box>
+                    }
+                    sx={{
+                      margin: 0,
+                      width: '100%',
+                      py: 0.25
+                    }}
+                  />
+                  {index < itemData.addons.length - 1 && (
+                    <Box sx={{ borderBottom: '1px solid #F3F4F6', mx: 1, my: 0.25 }} />
+                  )}
+                </Box>
+              ))}
+            </Box>
           </Box>
-        </Box>
+        )}
 
         {/* Bottom Actions */}
-                  <Box 
-            sx={{ 
-              position: 'fixed',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              background: '#FFFFFF',
-              borderTop: '1px solid #F3F4F6',
-              px: { xs: 3, sm: 4 },
-              py: 2,
-              zIndex: 1000
-            }}
-          >
+        <Box 
+          sx={{ 
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            background: '#FFFFFF',
+            borderTop: '1px solid #F3F4F6',
+            px: { xs: 3, sm: 4 },
+            py: 2,
+            zIndex: 1000
+          }}
+        >
           {/* Quantity Controls */}
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
             <Box display="flex" alignItems="center" gap={2}>
@@ -571,7 +641,7 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
               >
                 ฿{calculateTotal()}
               </Typography>
-              {selectedAddOns.length > 0 && (
+              {selectedAddOns.length > 0 && itemData.originalPrice && (
                 <Typography 
                   sx={{ 
                     color: '#9CA3AF',
@@ -580,7 +650,7 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
                   }}
                 >
                   ฿{(itemData.originalPrice + selectedAddOns.reduce((total, addOnId) => {
-                    const addOn = addOns.find(a => a.id === addOnId);
+                    const addOn = itemData.addons.find(a => a.id === addOnId);
                     return total + (addOn ? addOn.price : 0);
                   }, 0)) * quantity}
                 </Typography>
@@ -590,54 +660,29 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
 
           <Button 
             onClick={handleAddToCart}
+            disabled={!itemData.isAvailable}
             fullWidth
             sx={{
-              background: '#10B981',
+              background: itemData.isAvailable ? '#10B981' : '#9CA3AF',
               borderRadius: '8px',
               py: 1.25,
               fontSize: '1rem',
               fontWeight: 600,
               color: 'white',
               '&:hover': {
-                background: '#059669'
+                background: itemData.isAvailable ? '#059669' : '#9CA3AF'
+              },
+              '&.Mui-disabled': {
+                background: '#9CA3AF',
+                color: 'white'
               }
             }}
           >
             <Restaurant sx={{ mr: 1, fontSize: 18 }} />
-            เพิ่มในตะกร้า
+            {itemData.isAvailable ? 'เพิ่มในตะกร้า' : 'ไม่พร้อมจำหน่าย'}
           </Button>
         </Box>
       </Box>
-
-      {/* Debug Panel */}
-      {mounted && (
-        <Box
-          sx={{
-            position: 'fixed',
-            top: 100,
-            right: 16,
-            background: 'rgba(0,0,0,0.8)',
-            color: 'white',
-            p: 1,
-            borderRadius: 1,
-            fontSize: '0.7rem',
-            zIndex: 1000
-          }}
-        >
-          <Typography variant="caption" sx={{ display: 'block', color: 'white' }}>
-            Debug:
-          </Typography>
-          <Typography variant="caption" sx={{ display: 'block', color: 'white' }}>
-            Restaurant: {restaurant ? '✅' : '❌'}
-          </Typography>
-          <Typography variant="caption" sx={{ display: 'block', color: 'white' }}>
-            Cart Items: {cart.length}
-          </Typography>
-          <Typography variant="caption" sx={{ display: 'block', color: 'white' }}>
-            Total Qty: {cart.reduce((total, item) => total + item.quantity, 0)}
-          </Typography>
-        </Box>
-      )}
 
       {/* Snackbar */}
       <Snackbar

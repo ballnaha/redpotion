@@ -21,7 +21,8 @@ import {
   ListItemIcon,
   Radio,
   RadioGroup,
-  FormControlLabel
+  FormControlLabel,
+  Alert
 } from '@mui/material';
 import { 
   ArrowBack, 
@@ -57,27 +58,23 @@ interface CartItem {
   }>;
 }
 
-// ข้อมูลร้านอาหาร
-const restaurantData: Record<string, { name: string; logo: string; address: string; phone: string }> = {
-  '550e8400-e29b-41d4-a716-446655440001': {
-    name: 'ข้าวแกงใต้แท้',
-    logo: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=200&h=200&fit=crop',
-    address: '123 ถนนสุขุมวิท กรุงเทพฯ 10110',
-    phone: '02-123-4567'
-  },
-  '550e8400-e29b-41d4-a716-446655440002': {
-    name: 'ซูชิ โตเกียว',
-    logo: 'https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?w=200&h=200&fit=crop',
-    address: '456 ถนนสีลม กรุงเทพฯ 10500',
-    phone: '02-234-5678'
-  },
-  '550e8400-e29b-41d4-a716-446655440004': {
-    name: 'Green Bowl - Healthy Food',
-    logo: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=200&h=200&fit=crop',
-    address: '999 ถนนเพลินจิต กรุงเทพฯ 10330',
-    phone: '02-456-7890'
-  }
-};
+interface RestaurantData {
+  id: string;
+  name: string;
+  description?: string;
+  address: string;
+  phone: string;
+  email?: string;
+  imageUrl?: string;
+  status: string;
+  isOpen: boolean;
+  minOrderAmount?: number;
+  deliveryFee?: number;
+  deliveryRadius?: number;
+  openTime?: string;
+  closeTime?: string;
+  locationName?: string;
+}
 
 const getCartStorageKey = (restaurantId: string, userRole: string = 'customer') => 
   `redpotion_cart_${userRole}_${restaurantId}`;
@@ -110,6 +107,8 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [restaurant, setRestaurant] = useState<RestaurantData | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [promoCode, setPromoCode] = useState('');
   const [discount, setDiscount] = useState(0);
   const [promoApplied, setPromoApplied] = useState('');
@@ -132,34 +131,55 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
     details: '**** **** **** 1234',
     icon: '💳'
   });
+  
   const resolvedParams = use(params);
   const restaurantId = resolvedParams.restaurantId;
-  
-  const restaurant = restaurantData[restaurantId];
 
   // จัดการ mounted state เพื่อแก้ไข hydration
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // โหลดตะกร้าเฉพาะร้านนี้
+  // ดึงข้อมูลร้านอาหารและโหลดตะกร้าพร้อมกัน
   useEffect(() => {
-    if (!mounted) return;
-    
-    const loadCart = () => {
+    const loadData = async () => {
       try {
-        const items = loadCartFromStorage(restaurantId);
+        setLoading(true);
+        setError(null);
+
+        // โหลด cart จาก localStorage ทันที
+        let cartData: CartItem[] = [];
+        if (mounted) {
+          try {
+            cartData = loadCartFromStorage(restaurantId);
+            setCartItems(cartData);
+          } catch (cartError) {
+            console.error('Error loading cart:', cartError);
+            setCartItems([]);
+          }
+        }
+
+        // ดึงข้อมูลร้านอาหาร
+        const response = await fetch(`/api/restaurant/${restaurantId}`);
         
-        setCartItems(items); // แสดงเฉพาะสินค้าที่เลือกจริง ไม่ใส่ข้อมูลตัวอย่าง
-      } catch (error) {
-        console.error('Error loading cart:', error);
-        setCartItems([]); // ถ้าเกิดข้อผิดพลาด ให้แสดงตะกร้าว่าง
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'ไม่สามารถดึงข้อมูลร้านอาหารได้');
+        }
+
+        const restaurantData = await response.json();
+        setRestaurant(restaurantData);
+      } catch (err) {
+        console.error('Error loading data:', err);
+        setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการดึงข้อมูล');
       } finally {
         setLoading(false);
       }
     };
 
-    loadCart();
+    if (restaurantId && mounted) {
+      loadData();
+    }
   }, [restaurantId, mounted]);
 
   const updateItemQuantity = (itemId: string, newQuantity: number) => {
@@ -198,7 +218,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
   };
 
   const getItemTotalPrice = (item: CartItem) => {
-    if (!mounted) return item.price * item.quantity; // ป้องกัน hydration error
+    if (!mounted) return item.price * item.quantity;
     
     const basePrice = item.price * item.quantity;
     const addOnsPrice = item.addOns && Array.isArray(item.addOns) ? 
@@ -218,7 +238,8 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
     return cartItems.reduce((sum, item) => sum + getItemTotalPrice(item), 0);
   };
 
-  const deliveryFee = 25;
+  const deliveryFee = restaurant?.deliveryFee || 25;
+  const minOrderAmount = restaurant?.minOrderAmount || 0;
   const finalTotal = getSubtotal() + deliveryFee - discount;
 
   const applyPromoCode = () => {
@@ -243,28 +264,84 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
     setPromoApplied('');
   };
 
+  // Loading state - รวมการโหลดร้านอาหารและตะกร้า
+  if (loading) {
+    return (
+      <Container maxWidth="sm" sx={{ py: 8, textAlign: 'center' }}>
+        <CircularProgress size={40} sx={{ color: '#10B981' }} />
+        <Typography sx={{ mt: 2, color: '#6B7280' }}>
+          กำลังโหลดข้อมูล...
+        </Typography>
+      </Container>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <Container maxWidth="sm" sx={{ py: 8, textAlign: 'center' }}>
+        <Typography variant="h6" sx={{ color: '#EF4444', mb: 2 }}>
+          เกิดข้อผิดพลาด
+        </Typography>
+        <Typography sx={{ color: '#6B7280', mb: 3 }}>
+          {error}
+        </Typography>
+        <Button 
+          onClick={() => router.back()}
+          variant="outlined"
+          sx={{ 
+            borderColor: '#10B981',
+            color: '#10B981',
+            '&:hover': {
+              borderColor: '#059669',
+              backgroundColor: '#F0FDF4'
+            }
+          }}
+        >
+          กลับหน้าก่อน
+        </Button>
+      </Container>
+    );
+  }
+
+  // No restaurant data
+  if (!restaurant) {
+    return (
+      <Container maxWidth="sm" sx={{ py: 8, textAlign: 'center' }}>
+        <Typography variant="h6" sx={{ color: '#6B7280', mb: 2 }}>
+          ไม่พบข้อมูลร้านอาหาร
+        </Typography>
+        <Button 
+          onClick={() => router.back()}
+          variant="outlined"
+          sx={{ 
+            borderColor: '#10B981',
+            color: '#10B981',
+            '&:hover': {
+              borderColor: '#059669',
+              backgroundColor: '#F0FDF4'
+            }
+          }}
+        >
+          กลับหน้าก่อน
+        </Button>
+      </Container>
+    );
+  }
+
   // Address options
   const addressOptions = [
     {
       id: 'home',
       label: 'บ้าน',
       address: 'ไทม์สแควร์ นิวยอร์ก แมนฮัตตัน',
-      isDefault: true,
-      icon: <Home />
+      isDefault: true
     },
     {
       id: 'work',
       label: 'ที่ทำงาน',
-      address: '456 ถนนสีลม สาทร กรุงเทพฯ 10500',
-      isDefault: false,
-      icon: <Work />
-    },
-    {
-      id: 'other',
-      label: 'อื่นๆ',
-      address: '789 ถนนสุขุมวิท วัฒนา กรุงเทพฯ 10110',
-      isDefault: false,
-      icon: <LocationOn />
+      address: 'เอ็มไพร์ สเตท บิลดิ้ง นิวยอร์ก',
+      isDefault: false
     }
   ];
 
@@ -279,13 +356,13 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
     {
       id: 'wallet',
       label: 'กระเป๋าเงินดิจิทัล',
-      details: 'TrueMoney Wallet',
-      icon: '📱'
+      details: 'ยอดคงเหลือ ฿1,250',
+      icon: '💰'
     },
     {
       id: 'cash',
       label: 'เงินสด',
-      details: 'ชำระเงินสดเมื่อได้รับสินค้า',
+      details: 'ชำระเงินปลายทาง',
       icon: '💵'
     }
   ];
@@ -300,43 +377,6 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
     setPaymentDrawerOpen(false);
   };
 
-  // แสดง loading หรือ prevent hydration mismatch
-  if (!mounted || loading) {
-    return (
-      <Box
-        sx={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: '#FFFFFF'
-        }}
-      >
-        <CircularProgress 
-          size={32} 
-          sx={{ 
-            color: '#10B981',
-            '& .MuiCircularProgress-circle': {
-              strokeLinecap: 'round'
-            }
-          }} 
-        />
-      </Box>
-    );
-  }
-
-  if (!restaurant) {
-    return (
-      <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Typography>ไม่พบร้านอาหาร</Typography>
-      </Box>
-    );
-  }
-
   return (
     <Box sx={{ 
       minHeight: '100vh', 
@@ -349,7 +389,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
       }
     }}>
       {/* Header */}
-            <Box
+      <Box
         sx={{
           position: 'sticky',
           top: 0,
@@ -378,9 +418,9 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
             <ArrowBack sx={{ fontSize: 20, color: '#374151' }} />
           </IconButton>
           <Box sx={{ flex: 1 }}>
-                      <Typography variant="h6" sx={{ fontWeight: 600, color: '#111827', fontSize: '1.1rem' }}>
-            ตะกร้าสินค้า
-          </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: '#111827', fontSize: { xs: '1.2rem', sm: '1.1rem' } }}>
+              ตะกร้าสินค้า
+            </Typography>
           </Box>
         </Box>
       </Box>
@@ -435,7 +475,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                 color: '#6B7280',
                 mb: 1,
                 fontWeight: 500,
-                fontSize: '0.95rem'
+                fontSize: { xs: '1rem', sm: '0.95rem' }
               }}
             >
               ยังไม่มีสินค้าในตะกร้า
@@ -445,10 +485,10 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
               sx={{ 
                 color: '#9CA3AF',
                 mb: 3,
-                fontSize: '0.8rem'
+                fontSize: { xs: '0.85rem', sm: '0.8rem' }
               }}
             >
-              เลือกสินค้าจากเมนู {restaurant.name} เพื่อเริ่มสั่งซื้อ
+              เลือกสินค้าจากเมนู {restaurant?.name} เพื่อเริ่มสั่งซื้อ
             </Typography>
             <Button
               variant="contained"
@@ -458,8 +498,8 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                 borderRadius: '16px',
                 px: 4,
                 py: 1.5,
-                fontSize: '0.9rem',
-                fontWeight: 600,
+                fontSize: { xs: '0.95rem', sm: '0.9rem' },
+                fontWeight: 500,
                 boxShadow: '0 4px 16px rgba(34, 197, 94, 0.3)',
                 '&:hover': { 
                   boxShadow: '0 6px 20px rgba(34, 197, 94, 0.4)',
@@ -475,17 +515,17 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
               sx={{ 
                 color: '#9CA3AF',
                 mt: 3,
-                fontSize: '0.75rem',
+                fontSize: { xs: '0.8rem', sm: '0.75rem' },
                 textAlign: 'center',
                 display: 'block'
               }}
             >
-                             💡 วิธีใช้: ไปที่หน้าเมนู → เลือกสินค้า → กดเพิ่มในตะกร้า → กลับมาดูที่นี่
+              💡 วิธีใช้: ไปที่หน้าเมนู → เลือกสินค้า → กดเพิ่มในตะกร้า → กลับมาดูที่นี่
             </Typography>
           </Box>
         ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {/* Deliver to Section */}
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {/* Restaurant Header */}
             <Box 
               sx={{ 
                 background: 'rgba(255, 255, 255, 0.9)',
@@ -496,7 +536,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                 p: 3
               }}
             >
-              <Typography variant="body1" sx={{ fontWeight: 600, color: '#374151', mb: 2, fontSize: '0.9rem' }}>
+              <Typography variant="body1" sx={{ fontWeight: 500, color: '#374151', mb: 2, fontSize: '0.9rem' }}>
                 จัดส่งไปที่
               </Typography>
               <Box 
@@ -541,7 +581,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                 </Box>
                 <Box sx={{ flex: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#111827', fontSize: '0.9rem' }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 500, color: '#111827', fontSize: { xs: '0.95rem', sm: '0.9rem' } }}>
                       {selectedAddress.label}
                     </Typography>
                     {selectedAddress.isDefault && (
@@ -553,14 +593,14 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                           py: 0.3,
                           borderRadius: '8px',
                           fontSize: '0.65rem',
-                          fontWeight: 600
+                          fontWeight: 500
                         }}
                       >
                         ค่าเริ่มต้น
                       </Box>
                     )}
                   </Box>
-                  <Typography variant="body2" sx={{ color: '#6B7280', fontSize: '0.8rem' }}>
+                  <Typography variant="body2" sx={{ color: '#6B7280', fontSize: { xs: '0.85rem', sm: '0.8rem' } }}>
                     {selectedAddress.address}
                   </Typography>
                 </Box>
@@ -583,7 +623,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
             >
               {/* Header */}
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 3, pb: 1 }}>
-                <Typography variant="body1" sx={{ fontWeight: 600, color: '#374151', fontSize: '0.9rem' }}>
+                <Typography variant="body1" sx={{ fontWeight: 600, color: '#374151', fontSize: { xs: '0.95rem', sm: '0.9rem' } }}>
                   สรุปรายการสั่งซื้อ
                 </Typography>
                 <Button
@@ -606,7 +646,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                 </Button>
               </Box>
 
-                            {/* Items List */}
+              {/* Items List */}
               <NoSSR 
                 fallback={
                   <Box sx={{ px: 3, py: 4, textAlign: 'center' }}>
@@ -630,9 +670,9 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                             <Typography 
                               variant="subtitle1" 
                               sx={{ 
-                                fontWeight: 500,
+                                fontWeight: 600,
                                 color: '#111827',
-                                fontSize: '0.9rem',
+                                fontSize: { xs: '0.95rem', sm: '0.9rem' },
                                 lineHeight: 1.2
                               }}
                             >
@@ -663,7 +703,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                                   textAlign: 'center',
                                   fontWeight: 600,
                                   color: '#111827',
-                                  fontSize: '0.9rem',
+                                  fontSize: { xs: '0.95rem', sm: '0.9rem' },
                                   mx: 0.5
                                 }}
                               >
@@ -696,7 +736,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                               variant="h6" 
                               sx={{ 
                                 color: '#10B981',
-                                fontWeight: 600,
+                                fontWeight: 500,
                                 fontSize: '1.1rem'
                               }}
                             >
@@ -740,9 +780,9 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                                         background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%)',
                                         color: '#059669',
                                         border: '1px solid rgba(34, 197, 94, 0.25)',
-                                        fontSize: '0.65rem',
+                                        fontSize: '0.75rem',
                                         height: 20,
-                                        fontWeight: 600,
+                                        fontWeight: 400,
                                         borderRadius: '10px',
                                         boxShadow: '0 1px 3px rgba(34, 197, 94, 0.1)',
                                         '& .MuiChip-label': {
@@ -838,7 +878,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                         }} />}
                     </Box>
                     <Box>
-                      <Typography sx={{ fontWeight: 600, color: '#374151', fontSize: '0.85rem' }}>
+                      <Typography sx={{ fontWeight: 500, color: '#374151', fontSize: '0.85rem' }}>
                         {selectedPayment.label}
                       </Typography>
                       <Typography sx={{ color: '#6B7280', fontSize: '0.75rem' }}>
@@ -851,8 +891,6 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                 
                 {/* Promo Code Section */}
                 <Box sx={{ mb: 3 }}>
-
-                  
                   {!promoApplied ? (
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       <TextField
@@ -877,7 +915,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                           borderRadius: '12px',
                           px: 2,
                           fontSize: '0.75rem',
-                          fontWeight: 600,
+                          fontWeight: 500,
                           background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
                         }}
                       >
@@ -897,7 +935,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                       }}
                     >
                       <Box>
-                        <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: '#059669' }}>
+                        <Typography sx={{ fontSize: '0.8rem', fontWeight: 500, color: '#059669' }}>
                           {promoApplied}
                         </Typography>
                         <Typography sx={{ fontSize: '0.7rem', color: '#059669' }}>
@@ -921,7 +959,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                     <Typography sx={{ color: '#6B7280', fontSize: '0.85rem' }}>
                       ยอดรวมสินค้า
                     </Typography>
-                    <Typography sx={{ fontWeight: 600, color: '#111827', fontSize: '0.85rem' }}>
+                    <Typography sx={{ fontWeight: 500, color: '#111827', fontSize: '0.85rem' }}>
                       ฿{mounted ? getSubtotal().toFixed(0) : '0'}
                     </Typography>
                   </Box>
@@ -929,7 +967,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                     <Typography sx={{ color: '#6B7280', fontSize: '0.85rem' }}>
                       ค่าจัดส่ง
                     </Typography>
-                    <Typography sx={{ fontWeight: 600, color: '#111827', fontSize: '0.85rem' }}>
+                    <Typography sx={{ fontWeight: 500, color: '#111827', fontSize: '0.85rem' }}>
                       ฿{deliveryFee.toFixed(0)}
                     </Typography>
                   </Box>
@@ -938,14 +976,14 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                       <Typography sx={{ color: '#10B981', fontSize: '0.85rem' }}>
                         ส่วนลด ({promoApplied})
                       </Typography>
-                      <Typography sx={{ fontWeight: 600, color: '#10B981', fontSize: '0.85rem' }}>
+                      <Typography sx={{ fontWeight: 500, color: '#10B981', fontSize: '0.85rem' }}>
                         -฿{discount.toFixed(0)}
                       </Typography>
                     </Box>
                   )}
                   <Divider sx={{ mb: 2, opacity: 0.3 }} />
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-                    <Typography sx={{ fontWeight: 600, color: '#111827', fontSize: '1rem' }}>
+                    <Typography sx={{ fontWeight: 500, color: '#111827', fontSize: '1rem' }}>
                       รวมทั้งสิ้น
                     </Typography>
                     <Typography sx={{ fontWeight: 700, color: '#111827', fontSize: '1rem' }}>
@@ -994,7 +1032,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
       >
         <Box sx={{ p: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.1rem' }}>
+            <Typography variant="h6" sx={{ fontWeight: 500, fontSize: '1.1rem' }}>
               เลือกที่อยู่จัดส่ง
             </Typography>
             <IconButton 
@@ -1064,12 +1102,14 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                     filter: selectedAddress.id === address.id ? 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' : 'none',
                     fontSize: 22
                   }}>
-                    {address.icon}
+                    {address.id === 'home' ? <Home sx={{ color: selectedAddress.id === address.id ? 'white' : '#10B981', fontSize: 22 }} /> : 
+                     address.id === 'work' ? <Work sx={{ color: selectedAddress.id === address.id ? 'white' : '#10B981', fontSize: 22 }} /> :
+                     <LocationOn sx={{ color: selectedAddress.id === address.id ? 'white' : '#10B981', fontSize: 22 }} />}
                   </Box>
                 </Box>
                 <Box sx={{ flex: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                    <Typography sx={{ fontWeight: 500, fontSize: '0.9rem' }}>
                       {address.label}
                     </Typography>
                     {address.isDefault && (
@@ -1081,7 +1121,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                           py: 0.2,
                           borderRadius: '6px',
                           fontSize: '0.6rem',
-                          fontWeight: 600
+                          fontWeight: 500
                         }}
                       >
                         ค่าเริ่มต้น
@@ -1106,7 +1146,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                       animation: 'checkPulse 0.3s ease-out'
                     }}
                   >
-                    <Typography sx={{ color: 'white', fontSize: '0.9rem', fontWeight: 600 }}>
+                    <Typography sx={{ color: 'white', fontSize: '0.9rem', fontWeight: 500 }}>
                       ✓
                     </Typography>
                   </Box>
@@ -1132,7 +1172,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
       >
         <Box sx={{ p: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.1rem' }}>
+            <Typography variant="h6" sx={{ fontWeight: 500, fontSize: '1.1rem' }}>
               เลือกวิธีการชำระเงิน
             </Typography>
             <IconButton 
@@ -1224,7 +1264,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                     }} />}
                 </Box>
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                  <Typography sx={{ fontWeight: 500, fontSize: '0.9rem' }}>
                     {payment.label}
                   </Typography>
                   <Typography sx={{ color: '#6B7280', fontSize: '0.8rem' }}>
@@ -1253,7 +1293,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                       animation: 'checkPulse 0.3s ease-out'
                     }}
                   >
-                    <Typography sx={{ color: 'white', fontSize: '0.9rem', fontWeight: 600 }}>
+                    <Typography sx={{ color: 'white', fontSize: '0.9rem', fontWeight: 500 }}>
                       ✓
                     </Typography>
                   </Box>

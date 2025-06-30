@@ -102,14 +102,14 @@ export async function POST(req: NextRequest) {
           })
           .toBuffer();
       } else if (variant === 'gallery' || category === 'gallery') {
-        // Gallery image: resize to 800x600 (4:3 aspect ratio) for gallery display
+        // Gallery image: resize to 1280x720 (16:9 aspect ratio) for gallery display
         processedBuffer = await sharp(inputBuffer)
-          .resize(800, 600, {
+          .resize(1280, 720, {
             fit: 'cover',
             position: 'center'
           })
           .jpeg({ 
-            quality: 88,
+            quality: 90,
             progressive: true 
           })
           .toBuffer();

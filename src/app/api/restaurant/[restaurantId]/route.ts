@@ -6,38 +6,72 @@ export async function GET(
   { params }: { params: Promise<{ restaurantId: string }> }
 ) {
   try {
-    const resolvedParams = await params
-    const { restaurantId } = resolvedParams
+    const { restaurantId } = await params
 
+    // ดึงข้อมูลร้านอาหารพร้อม categories และ menu items
     const restaurant = await prisma.restaurant.findUnique({
       where: {
-        id: restaurantId
+        id: restaurantId,
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        address: true,
+        phone: true,
+        email: true,
+        imageUrl: true,
+        status: true,
+        isOpen: true,
+        minOrderAmount: true,
+        deliveryFee: true,
+        deliveryRadius: true,
+        openTime: true,
+        closeTime: true,
+        locationName: true,
         categories: {
           where: {
-            isActive: true
+            isActive: true,
           },
           orderBy: {
-            sortOrder: 'asc'
+            sortOrder: 'asc',
           },
-          include: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            imageUrl: true,
+            sortOrder: true,
+            isActive: true,
             menuItems: {
               where: {
-                isAvailable: true
+                isAvailable: true,
               },
               orderBy: {
-                sortOrder: 'asc'
-              }
-            }
-          }
-        }
-      }
+                sortOrder: 'asc',
+              },
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                price: true,
+                originalPrice: true,
+                imageUrl: true,
+                isAvailable: true,
+                sortOrder: true,
+                calories: true,
+              },
+            },
+          },
+        },
+        createdAt: true,
+        updatedAt: true,
+      },
     })
 
     if (!restaurant) {
       return NextResponse.json(
-        { message: 'ไม่พบร้านอาหาร' },
+        { message: 'ไม่พบร้านอาหารนี้' },
         { status: 404 }
       )
     }
@@ -58,7 +92,7 @@ export async function GET(
   } catch (error) {
     console.error('Error fetching restaurant:', error)
     return NextResponse.json(
-      { message: 'เกิดข้อผิดพลาดในการดึงข้อมูลร้าน' },
+      { message: 'เกิดข้อผิดพลาดในการดึงข้อมูลร้านอาหาร' },
       { status: 500 }
     )
   }
