@@ -96,14 +96,27 @@ export const authOptions: NextAuthOptions = {
       return baseUrl;
     },
     async signIn({ user, account, profile }) {
+      console.log('🔐 SignIn callback triggered:', { 
+        provider: account?.provider, 
+        userId: account?.providerAccountId,
+        userEmail: user.email,
+        userName: user.name 
+      });
+
       // สำหรับ LINE provider ให้สร้าง user ใหม่เป็น customer เสมอ
       if (account?.provider === 'line') {
         try {
-          console.log('LINE signIn data:', { user, account, profile });
+          console.log('📱 LINE signIn data:', { user, account, profile });
+          
+          // ตรวจสอบการเชื่อมต่อ database
+          if (!process.env.DATABASE_URL) {
+            console.warn('⚠️ No DATABASE_URL found, using JWT-only session');
+            return true; // อนุญาตให้ login แต่ไม่บันทึก database
+          }
           
           // ตรวจสอบว่ามี email หรือไม่
           if (!user.email) {
-            console.error('LINE user has no email');
+            console.log('📧 LINE user has no email, creating mock email');
             // ถ้าไม่มี email ให้ใช้ LINE user ID แทน
             const lineUserId = account.providerAccountId;
             const mockEmail = `line_${lineUserId}@line.local`;
@@ -126,6 +139,7 @@ export const authOptions: NextAuthOptions = {
             });
 
             if (!existingUser) {
+              console.log('👤 Creating new LINE user with mock email');
               // สร้าง user ใหม่สำหรับ LINE login โดยใช้ mock email
               await prisma.user.create({
                 data: {
@@ -136,6 +150,9 @@ export const authOptions: NextAuthOptions = {
                   emailVerified: new Date()
                 }
               });
+              console.log('✅ User created successfully');
+            } else {
+              console.log('👤 Existing LINE user found');
             }
             return true;
           }
@@ -146,6 +163,7 @@ export const authOptions: NextAuthOptions = {
           });
 
           if (!existingUser) {
+            console.log('👤 Creating new LINE user with email');
             // สร้าง user ใหม่สำหรับ LINE login
             await prisma.user.create({
               data: {
@@ -156,10 +174,20 @@ export const authOptions: NextAuthOptions = {
                 emailVerified: new Date()
               }
             });
+            console.log('✅ User created successfully');
+          } else {
+            console.log('👤 Existing user found');
           }
           return true;
         } catch (error) {
-          console.error('Error creating LINE user:', error);
+          console.error('❌ Error creating LINE user:', error);
+          
+          // ถ้าไม่มี database ให้ return true เพื่อใช้ JWT session
+          if ((error as Error).message?.includes('Database') || !process.env.DATABASE_URL) {
+            console.warn('⚠️ Database error, falling back to JWT-only session');
+            return true;
+          }
+          
           return false;
         }
       }
