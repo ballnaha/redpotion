@@ -20,12 +20,20 @@ export default withAuth(
                      req.nextUrl.searchParams.has('liff') ||
                      req.nextUrl.searchParams.get('openExternalBrowser') === '1'
     
-    // If accessing root from LINE, redirect to default restaurant with LIFF flag
-    if (isLineApp && req.nextUrl.pathname === '/') {
+    // ถ้าเป็น LINE app และเข้า root path ให้ redirect ไป LIFF page
+    // แต่ไม่ redirect ถ้าอยู่ในหน้าเมนูแล้ว เพื่อป้องกัน loop
+    if (isLineApp && req.nextUrl.pathname === '/' && !req.nextUrl.pathname.includes('/menu/')) {
       const defaultRestaurantId = 'cmcg20f2i00029hu8p2am75df'
       const url = new URL(`/menu/${defaultRestaurantId}`, req.url)
       url.searchParams.set('liff', 'true')
+      console.log('Middleware redirecting LIFF to:', url.toString())
       return NextResponse.redirect(url)
+    }
+
+    // ป้องกัน redirect loop - ถ้าอยู่ในหน้าเมนูแล้วและมี liff flag ให้ผ่าน
+    if (req.nextUrl.pathname.includes('/menu/') && req.nextUrl.searchParams.has('liff')) {
+      console.log('Already in menu with LIFF flag, allowing through')
+      return NextResponse.next()
     }
 
     // If user is on auth page and already authenticated, redirect appropriately

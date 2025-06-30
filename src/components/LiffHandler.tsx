@@ -18,11 +18,26 @@ function LiffLogic({ defaultRestaurantId = 'cmcg20f2i00029hu8p2am75df', children
   const [isLiff, setIsLiff] = useState(false);
   const [liffLoading, setLiffLoading] = useState(true);
   const [liffError, setLiffError] = useState<string | null>(null);
+  const [hasRedirected, setHasRedirected] = useState(false);
 
   // ตรวจสอบว่าเข้ามาจาก LIFF หรือไม่
   useEffect(() => {
     const checkLiff = async () => {
       try {
+        // ป้องกัน multiple redirects
+        if (hasRedirected) {
+          console.log('🚫 Already redirected, skipping...');
+          return;
+        }
+
+        // ตรวจสอบว่าอยู่ในหน้าเมนูเป้าหมายแล้วหรือไม่
+        const currentPath = window.location.pathname;
+        if (currentPath.includes(`/menu/${defaultRestaurantId}`)) {
+          console.log('✅ Already on target menu page, stopping LIFF logic');
+          setLiffLoading(false);
+          return;
+        }
+
         // ตรวจสอบ query parameter หรือ user agent
         const isFromLiff = searchParams.get('liff') === 'true' || 
                           navigator.userAgent.includes('Line') ||
@@ -32,12 +47,25 @@ function LiffLogic({ defaultRestaurantId = 'cmcg20f2i00029hu8p2am75df', children
                           /Line/.test(navigator.userAgent);
         
         if (isFromLiff && typeof window !== 'undefined') {
+          console.log('🔄 LIFF detected, status:', status);
           setIsLiff(true);
+          
+          // ถ้า authenticated แล้ว ให้ redirect ทันที
+          if (status === 'authenticated' && session) {
+            console.log('✅ Already authenticated, redirecting to menu...');
+            setHasRedirected(true);
+            // ใช้ window.location.replace เพื่อป้องกัน loop
+            const targetUrl = `/menu/${defaultRestaurantId}`;
+            window.location.replace(targetUrl);
+            return;
+          }
           
           // ถ้าไม่มี LIFF SDK ให้ใช้วิธี auto login ธรรมดา
           if (!window.liff) {
             console.log('🔄 No LIFF SDK, using standard LINE login...');
             if (status === 'unauthenticated') {
+              console.log('🔐 Starting LINE login...');
+              setHasRedirected(true);
               const targetPath = `/menu/${defaultRestaurantId}`;
               await signIn('line', { 
                 callbackUrl: targetPath,
@@ -45,18 +73,14 @@ function LiffLogic({ defaultRestaurantId = 'cmcg20f2i00029hu8p2am75df', children
               });
               return;
             }
-            
-            if (status === 'authenticated') {
-              router.push(`/menu/${defaultRestaurantId}`);
-              return;
-            }
             return;
           }
-                     console.log('🚀 LIFF SDK detected, initializing...');
+          
+          console.log('🚀 LIFF SDK detected, initializing...');
           
           // Initialize LIFF
           await window.liff.init({ 
-            liffId: process.env.NEXT_PUBLIC_LIFF_ID || 'your-liff-id' 
+            liffId: process.env.NEXT_PUBLIC_LIFF_ID || '2007609360-3Z0L8Ekg'
           });
           
           console.log('✅ LIFF initialized successfully');
@@ -64,6 +88,7 @@ function LiffLogic({ defaultRestaurantId = 'cmcg20f2i00029hu8p2am75df', children
           // ตรวจสอบสถานะ login ใน LIFF
           if (!window.liff.isLoggedIn()) {
             console.log('🔐 User not logged in to LINE, redirecting to LINE login...');
+            setHasRedirected(true);
             window.liff.login();
             return;
           }
@@ -73,6 +98,7 @@ function LiffLogic({ defaultRestaurantId = 'cmcg20f2i00029hu8p2am75df', children
           // ถ้า login LINE แล้วแต่ยังไม่ login NextAuth
           if (status === 'unauthenticated') {
             console.log('🔄 Auto signing in with LINE...');
+            setHasRedirected(true);
             // Auto sign in with LINE
             const targetPath = `/menu/${defaultRestaurantId}`;
             await signIn('line', { 
@@ -81,26 +107,21 @@ function LiffLogic({ defaultRestaurantId = 'cmcg20f2i00029hu8p2am75df', children
             });
             return;
           }
-          
-          // ถ้า login แล้วให้ redirect ไปร้าน
-          if (status === 'authenticated') {
-            console.log('✅ Already authenticated, redirecting to restaurant...');
-            router.push(`/menu/${defaultRestaurantId}`);
-            return;
-          }
+        } else {
+          // ไม่ใช่ LIFF ให้แสดงหน้าปกติ
+          setLiffLoading(false);
         }
       } catch (error) {
         console.error('❌ LIFF initialization error:', error);
         setLiffError('ไม่สามารถเชื่อมต่อกับ LINE ได้');
-      } finally {
         setLiffLoading(false);
       }
     };
 
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && status !== 'loading') {
       checkLiff();
     }
-  }, [searchParams, status, router, defaultRestaurantId]);
+  }, [searchParams, status, session, router, defaultRestaurantId, hasRedirected]);
 
   // ถ้าเป็น LIFF และกำลังประมวลผล
   if (isLiff && liffLoading) {

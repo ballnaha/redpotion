@@ -69,20 +69,31 @@ export const authOptions: NextAuthOptions = {
     async redirect({ url, baseUrl }) {
       console.log('NextAuth redirect:', { url, baseUrl });
       
-      // หาก callback URL มี LIFF flag ให้ redirect ตามที่กำหนด
-      if (url.includes('liff=true') || url.includes('menu/')) {
-        return url.startsWith('/') ? `${baseUrl}${url}` : url
+      // ถ้าเป็น LIFF และไม่มี specific callback ให้ไปหน้าเมนู
+      const urlObj = new URL(url, baseUrl);
+      const isLiffCallback = urlObj.searchParams.has('liff') || 
+                           url.includes('liff=true') || 
+                           url.includes('menu/');
+      
+      // หาก callback URL มี LIFF flag หรือเป็นการกลับจาก LINE login
+      if (isLiffCallback) {
+        // ถ้ามี callbackUrl ที่ระบุแล้ว ให้ใช้นั้น
+        if (url.includes('/menu/')) {
+          return url.startsWith('/') ? `${baseUrl}${url}` : url;
+        }
+        // ไม่งั้นให้ไปหน้าเมนูหลัก
+        return `${baseUrl}/menu/cmcg20f2i00029hu8p2am75df`;
       }
       
-      // หลังจาก LINE login สำเร็จ ให้ไปหน้าเมนูหลัก
+      // หลังจาก LINE login สำเร็จและไม่มี callback specific
       if (url === baseUrl || url === `${baseUrl}/`) {
-        return `${baseUrl}/menu/cmcg20f2i00029hu8p2am75df`
+        return `${baseUrl}/menu/cmcg20f2i00029hu8p2am75df`;
       }
       
       // Default redirect behavior
-      if (url.startsWith('/')) return `${baseUrl}${url}`
-      if (new URL(url).origin === baseUrl) return url
-      return baseUrl
+      if (url.startsWith('/')) return `${baseUrl}${url}`;
+      if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
     },
     async signIn({ user, account, profile }) {
       // สำหรับ LINE provider ให้สร้าง user ใหม่เป็น customer เสมอ
