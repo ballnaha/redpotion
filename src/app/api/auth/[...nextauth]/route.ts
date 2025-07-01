@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 
 
-const authOptions: NextAuthOptions = {
+export const authOptions: NextAuthOptions = {
   // ปิด adapter เพื่อใช้ custom signIn callback แทน
   // adapter: process.env.DATABASE_URL ? PrismaAdapter(prisma) : undefined,
   providers: [
@@ -208,6 +208,9 @@ const authOptions: NextAuthOptions = {
 
           if (existingUser) {
             console.log('👤 Existing LINE user found:', existingUser.id);
+            
+            // เก็บ USER role ไว้ให้ผู้ใช้เลือกเอง
+            
             return true;
           }
           
@@ -219,7 +222,7 @@ const authOptions: NextAuthOptions = {
             name: user.name || `LINE User ${lineUserId.slice(-6)}`,
             email: user.email || autoEmail, // ใช้ auto-generated email
             image: user.image,
-            role: 'USER',
+            role: 'USER', // Default role สำหรับ LINE users ใหม่
             emailVerified: user.email ? new Date() : null
           };
           

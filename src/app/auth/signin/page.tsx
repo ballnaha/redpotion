@@ -16,7 +16,6 @@ import {
   IconButton,
   Divider,
   Skeleton,
-  CircularProgress,
 } from '@mui/material'
 import { Visibility, VisibilityOff, Restaurant, Email, Lock } from '@mui/icons-material'
 import Link from 'next/link'
@@ -26,7 +25,7 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [lineLoading, setLineLoading] = useState(false)
+
   const router = useRouter()
   const { data: session, status } = useSession()
 
@@ -75,6 +74,8 @@ export default function SignInPage() {
           router.replace('/restaurant')
         } else if (session.user.role === 'ADMIN') {
           router.replace('/admin')
+        } else if (session.user.role === 'USER') {
+          router.replace('/auth/role-selection')
         } else {
           router.replace('/')
         }
@@ -140,26 +141,7 @@ export default function SignInPage() {
     setLoading(false)
   }
 
-  const handleLineLogin = async () => {
-    setLineLoading(true)
-    setError('')
-    
-    try {
-      console.log('🚀 Starting LINE login...')
-      
-      // ใช้ window.location เพื่อ redirect ไปยัง LINE OAuth URL โดยตรง
-      const lineLoginUrl = `/api/auth/signin/line?callbackUrl=${encodeURIComponent('/menu/cmcg20f2i00029hu8p2am75df')}`
-      console.log('🔗 Redirecting to:', lineLoginUrl)
-      
-      window.location.href = lineLoginUrl
-      
-      // ไม่ต้อง setLineLoading(false) เพราะจะ redirect ออกจากหน้านี้
-    } catch (error) {
-      console.error('❌ LINE login exception:', error)
-      setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย LINE')
-      setLineLoading(false)
-    }
-  }
+
 
   return (
     <Container maxWidth="sm">
@@ -177,7 +159,7 @@ export default function SignInPage() {
             </Typography>
 
             <Typography variant="h5" align="center" gutterBottom sx={{ mt: 3, mb: 3 }}>
-              เข้าสู่ระบบ
+              เข้าสู่ระบบสำหรับแอดมิน
             </Typography>
 
             {error && (
@@ -199,6 +181,8 @@ export default function SignInPage() {
                           router.replace('/restaurant')
                         } else if (session?.user?.role === 'ADMIN') {
                           router.replace('/admin')
+                        } else if (session?.user?.role === 'USER') {
+                          router.replace('/auth/role-selection')
                         } else {
                           router.replace('/')
                         }
@@ -265,45 +249,7 @@ export default function SignInPage() {
               </Button>
             </form>
 
-            <Divider sx={{ my: 3 }}>
-              <Typography variant="body2" color="text.secondary">
-                หรือ
-              </Typography>
-            </Divider>
 
-            {/* LINE Login Button */}
-            <Button
-              fullWidth
-              variant="contained"
-              onClick={handleLineLogin}
-              disabled={lineLoading}
-              sx={{
-                mb: 2,
-                backgroundColor: '#06C755',
-                color: 'white',
-                py: 1.5,
-                fontSize: '1rem',
-                fontWeight: 500,
-                '&:hover': {
-                  backgroundColor: '#05B04A'
-                },
-                '&:disabled': {
-                  backgroundColor: '#a0a0a0'
-                },
-                position: 'relative'
-              }}
-            >
-              {lineLoading ? (
-                <>
-                  <CircularProgress size={20} sx={{ color: 'white', mr: 1 }} />
-                  กำลังเชื่อมต่อ LINE...
-                </>
-              ) : (
-                <>
-                  📱 เข้าสู่ระบบด้วย LINE
-                </>
-              )}
-            </Button>
 
             <Divider sx={{ my: 2 }}>
               <Typography variant="body2" color="text.secondary">
