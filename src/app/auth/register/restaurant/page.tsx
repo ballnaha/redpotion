@@ -408,6 +408,9 @@ export default function RestaurantRegisterPage() {
 
       showSuccess('สมัครสมาชิกสำเร็จ! กำลังเข้าสู่ระบบ...')
 
+      // รอสักครู่ก่อน auto sign in เพื่อให้ database commit เสร็จ
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
       // Auto sign in
       const result = await signIn('credentials', {
         email: formData.email,
@@ -415,9 +418,13 @@ export default function RestaurantRegisterPage() {
         redirect: false,
       })
 
+      console.log('Auto sign in result:', result)
+
       if (result?.error) {
+        console.error('Auto sign in failed:', result.error)
         showWarning('สมัครสำเร็จแต่ไม่สามารถเข้าสู่ระบบอัตโนมัติได้ กรุณาเข้าสู่ระบบด้วยตนเอง')
-        router.push('/auth/signin')
+        // ใช้ callbackUrl เพื่อ redirect กลับมาหน้าร้านหลัง sign in
+        router.push('/auth/signin?callbackUrl=' + encodeURIComponent('/restaurant'))
       } else {
         showSuccess('เข้าสู่ระบบสำเร็จ! กำลังไปยังหน้าร้านอาหาร...')
         
@@ -425,7 +432,9 @@ export default function RestaurantRegisterPage() {
         await new Promise(resolve => setTimeout(resolve, 1500))
         
         showInfo('ร้านอาหารของคุณอยู่ในระหว่างการตรวจสอบ ระบบจะแจ้งผลภายใน 1-2 วันทำการ')
-        router.push('/restaurant')
+        
+        // Force refresh หลัง sign in สำเร็จ เพื่อให้ middleware ทำงานอย่างถูกต้อง
+        window.location.href = '/restaurant'
       }
     } catch (error: any) {
       console.error('Registration error:', error)

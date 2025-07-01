@@ -11,7 +11,8 @@ export default withAuth(
     const isRestaurantManagement = req.nextUrl.pathname === '/restaurant' || 
                                   req.nextUrl.pathname.startsWith('/restaurant/settings') ||
                                   req.nextUrl.pathname.startsWith('/restaurant/menu') ||
-                                  req.nextUrl.pathname.startsWith('/restaurant/gallery')
+                                  req.nextUrl.pathname.startsWith('/restaurant/gallery') ||
+                                  req.nextUrl.pathname.startsWith('/restaurant/liff-setup')
     const isAdmin = req.nextUrl.pathname.startsWith('/admin')
 
     // Handle LIFF routing - detect LINE browser and redirect to specific restaurant
@@ -113,6 +114,7 @@ export const config = {
     '/restaurant/settings/:path*',
     '/restaurant/menu/:path*',
     '/restaurant/gallery/:path*',
+    '/restaurant/liff-setup/:path*',
     '/admin/:path*',
     '/auth/:path*',
     '/api/restaurant/:path*'
