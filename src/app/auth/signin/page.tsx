@@ -71,24 +71,34 @@ export default function SignInPage() {
       
       // ถ้าไม่มี error ใน URL ให้ redirect
       if (!urlError) {
-        // ถ้ามี callbackUrl ให้ไปที่นั่นก่อน (สำหรับ restaurant owners)
-        if (callbackUrl && session.user.role === 'RESTAURANT_OWNER') {
-          const decodedUrl = decodeURIComponent(callbackUrl)
-          console.log('🔄 Redirecting to callbackUrl:', decodedUrl)
-          router.replace(decodedUrl)
-          return
-        }
+        console.log('🔄 User already authenticated, redirecting...', {
+          role: session.user.role,
+          callbackUrl: callbackUrl
+        })
         
-        // ไม่เช่นนั้นให้ redirect ตาม role ปกติ
-        if (session.user.role === 'RESTAURANT_OWNER') {
-          router.replace('/restaurant')
-        } else if (session.user.role === 'ADMIN') {
-          router.replace('/admin')
-        } else if (session.user.role === 'USER') {
-          router.replace('/auth/role-selection')
-        } else {
-          router.replace('/')
-        }
+        // เพิ่ม delay เล็กน้อยเพื่อให้ UI แสดงข้อความ loading
+        const timer = setTimeout(() => {
+          // ถ้ามี callbackUrl ให้ไปที่นั่นก่อน (สำหรับ restaurant owners)
+          if (callbackUrl && session.user.role === 'RESTAURANT_OWNER') {
+            const decodedUrl = decodeURIComponent(callbackUrl)
+            console.log('🔄 Redirecting to callbackUrl:', decodedUrl)
+            window.location.href = decodedUrl // ใช้ window.location.href เพื่อ force refresh
+            return
+          }
+          
+          // ไม่เช่นนั้นให้ redirect ตาม role ปกติ
+          if (session.user.role === 'RESTAURANT_OWNER') {
+            window.location.href = '/restaurant'
+          } else if (session.user.role === 'ADMIN') {
+            window.location.href = '/admin'
+          } else if (session.user.role === 'USER') {
+            window.location.href = '/auth/role-selection'
+          } else {
+            window.location.href = '/'
+          }
+        }, 1500)
+        
+        return () => clearTimeout(timer)
       }
       // ถ้ามี error ให้อยู่ในหน้า signin เพื่อแสดง error message
     }
@@ -119,9 +129,27 @@ export default function SignInPage() {
     const urlParams = new URLSearchParams(window.location.search)
     const urlError = urlParams.get('error')
     
-    // ถ้าไม่มี error ให้ hide form
+    // ถ้าไม่มี error ให้แสดง loading และ redirect
     if (!urlError) {
-      return null
+      return (
+        <Container maxWidth="sm">
+          <Box sx={{ mt: 8, mb: 4, textAlign: 'center' }}>
+            <Card>
+              <CardContent sx={{ p: 4 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, justifyContent: 'center' }}>
+                  <Image src="/images/logo_trim.png" alt="logo" width={150} height={100} />
+                </Box>
+                <Typography variant="h6" gutterBottom>
+                  คุณเข้าสู่ระบบแล้ว กำลังนำทางไปยังหน้าที่เหมาะสม...
+                </Typography>
+                <Box sx={{ mt: 3 }}>
+                  <Skeleton variant="rectangular" width="100%" height={4} />
+                </Box>
+              </CardContent>
+            </Card>
+          </Box>
+        </Container>
+      )
     }
     // ถ้ามี error ให้แสดง form เพื่อให้ user เห็น error message
   }
