@@ -47,6 +47,7 @@ function useRestaurantStatus() {
   const { data: session } = useSession();
   const [restaurantStatus, setRestaurantStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasRestaurant, setHasRestaurant] = useState(true);
 
   useEffect(() => {
     const fetchRestaurantStatus = async () => {
@@ -60,9 +61,22 @@ function useRestaurantStatus() {
         if (response.ok) {
           const restaurant = await response.json();
           setRestaurantStatus(restaurant.status);
+          setHasRestaurant(true);
+        } else if (response.status === 404) {
+          // ไม่มีร้านอาหาร - แสดง simplified layout
+          console.log('📝 No restaurant found for this owner');
+          setRestaurantStatus('NO_RESTAURANT');
+          setHasRestaurant(false);
+        } else {
+          // Error อื่นๆ - ให้แสดง simplified layout เพื่อความปลอดภัย
+          console.error('Error fetching restaurant status:', response.status);
+          setRestaurantStatus('ERROR');
+          setHasRestaurant(false);
         }
       } catch (error) {
         console.error('Error fetching restaurant status:', error);
+        setRestaurantStatus('ERROR');
+        setHasRestaurant(false);
       } finally {
         setLoading(false);
       }
@@ -71,7 +85,7 @@ function useRestaurantStatus() {
     fetchRestaurantStatus();
   }, [session]);
 
-  return { restaurantStatus, loading };
+  return { restaurantStatus, loading, hasRestaurant };
 }
 
 // Simplified Layout for non-active restaurants
@@ -379,7 +393,7 @@ export default function RestaurantLayout({
   const isTablet = useMediaQuery(theme.breakpoints.between('md', 'lg'));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopOpen, setDesktopOpen] = useState(true);
-  const { restaurantStatus, loading } = useRestaurantStatus();
+  const { restaurantStatus, loading, hasRestaurant } = useRestaurantStatus();
   
   // Move hooks to the top before any conditional returns
   const pathname = usePathname();
@@ -415,8 +429,8 @@ export default function RestaurantLayout({
     );
   }
 
-  // Use simplified layout if restaurant status is not ACTIVE
-  if (restaurantStatus && restaurantStatus !== 'ACTIVE') {
+  // Use simplified layout if restaurant status is not ACTIVE or if no restaurant exists
+  if (!hasRestaurant || (restaurantStatus && restaurantStatus !== 'ACTIVE')) {
     return (
       <SessionProvider>
         <SimplifiedLayout>
