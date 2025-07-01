@@ -141,9 +141,22 @@ export const authOptions: NextAuthOptions = {
       }
       
       // สำหรับ LIFF หรือไม่มี callback URL ที่ชัดเจน ให้ไปหน้าเมนู
-      const defaultMenuUrl = `${baseUrl}/menu/cmcg20f2i00029hu8p2am75df`;
-      console.log('🏠 Using default menu URL:', defaultMenuUrl);
-      return defaultMenuUrl;
+      try {
+        // ดึง default restaurant จาก API
+        const defaultRestaurantResponse = await fetch(`${baseUrl}/api/restaurant/default`);
+        if (defaultRestaurantResponse.ok) {
+          const defaultRestaurant = await defaultRestaurantResponse.json();
+          const defaultMenuUrl = `${baseUrl}/menu/${defaultRestaurant.restaurantId}`;
+          console.log('🏠 Using default menu URL from DB:', defaultMenuUrl);
+          return defaultMenuUrl;
+        }
+      } catch (error) {
+        console.error('Error fetching default restaurant:', error);
+      }
+      
+      // Fallback ไปหน้าแรกถ้าไม่หาร้าน default ได้
+      console.log('🏠 Fallback to home page');
+      return baseUrl;
     },
     async signIn({ user, account, profile, email, credentials }) {
       console.log('🔐 SignIn callback triggered:', { 

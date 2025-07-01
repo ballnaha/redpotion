@@ -71,7 +71,7 @@ export default function TestLinePage() {
       hasClientId: !!process.env.NEXT_PUBLIC_LINE_CLIENT_ID,
       nextAuthUrl: typeof window !== 'undefined' ? window.location.origin : 'Server-side',
       expectedCallbackUrl: `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/api/auth/callback/line`,
-      testLoginUrl: `/api/auth/signin/line?callbackUrl=${encodeURIComponent('/menu/cmcg20f2i00029hu8p2am75df')}`,
+      testLoginUrl: `/api/auth/signin/line?callbackUrl=${encodeURIComponent('/menu/[DYNAMIC_RESTAURANT_ID]')}`,
       timestamp: new Date().toISOString()
     }
     return config
@@ -90,7 +90,7 @@ export default function TestLinePage() {
     console.log('🚀 Testing LINE login...')
     
     // ทดสอบ direct redirect
-    const lineLoginUrl = `/api/auth/signin/line?callbackUrl=${encodeURIComponent('/menu/cmcg20f2i00029hu8p2am75df')}`
+    const lineLoginUrl = `/api/auth/signin/line?callbackUrl=${encodeURIComponent('/menu/[DYNAMIC_RESTAURANT_ID]')}`
     console.log('🔗 Generated LINE login URL:', lineLoginUrl)
     
     // แสดงผลลัพธ์การสร้าง URL แทนการ redirect จริง
@@ -198,11 +198,24 @@ export default function TestLinePage() {
               <Button
                 variant="contained"
                 color="success"
-                onClick={() => {
+                onClick={async () => {
                   if (clientInfo.mounted) {
-                    const lineLoginUrl = `/api/auth/signin/line?callbackUrl=${encodeURIComponent('/menu/cmcg20f2i00029hu8p2am75df')}`
-                    console.log('🚀 Direct LINE login redirect to:', lineLoginUrl)
-                    window.location.href = lineLoginUrl
+                    try {
+                      // Fetch default restaurant ID
+                      const response = await fetch('/api/restaurant/default');
+                      if (response.ok) {
+                        const data = await response.json();
+                        const lineLoginUrl = `/api/auth/signin/line?callbackUrl=${encodeURIComponent(`/menu/${data.restaurantId}`)}`
+                        console.log('🚀 Direct LINE login redirect to:', lineLoginUrl)
+                        window.location.href = lineLoginUrl
+                      } else {
+                        console.error('Failed to fetch default restaurant');
+                        alert('ไม่พบร้านอาหารที่ใช้งานได้');
+                      }
+                    } catch (error) {
+                      console.error('Error:', error);
+                      alert('เกิดข้อผิดพลาดในการดึงข้อมูลร้าน');
+                    }
                   }
                 }}
                 disabled={loading || !clientInfo.mounted}

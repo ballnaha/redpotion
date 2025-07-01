@@ -11,7 +11,7 @@ interface LiffHandlerProps {
 }
 
 // Component ที่ใช้ useSearchParams ต้อง wrap ด้วย Suspense
-function LiffLogic({ defaultRestaurantId = 'cmcg20f2i00029hu8p2am75df', children }: LiffHandlerProps) {
+function LiffLogic({ defaultRestaurantId, children }: LiffHandlerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
@@ -19,20 +19,47 @@ function LiffLogic({ defaultRestaurantId = 'cmcg20f2i00029hu8p2am75df', children
   const [liffLoading, setLiffLoading] = useState(true);
   const [liffError, setLiffError] = useState<string | null>(null);
   const [hasRedirected, setHasRedirected] = useState(false);
+  const [actualDefaultRestaurantId, setActualDefaultRestaurantId] = useState<string | null>(null);
+
+  // Fetch default restaurant ID
+  useEffect(() => {
+    const fetchDefaultRestaurant = async () => {
+      if (defaultRestaurantId) {
+        setActualDefaultRestaurantId(defaultRestaurantId);
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/restaurant/default');
+        if (response.ok) {
+          const data = await response.json();
+          setActualDefaultRestaurantId(data.restaurantId);
+        } else {
+          console.error('Failed to fetch default restaurant');
+          setLiffError('ไม่พบร้านอาหารที่ใช้งานได้');
+        }
+      } catch (error) {
+        console.error('Error fetching default restaurant:', error);
+        setLiffError('เกิดข้อผิดพลาดในการดึงข้อมูลร้าน');
+      }
+    };
+
+    fetchDefaultRestaurant();
+  }, [defaultRestaurantId]);
 
   // ตรวจสอบว่าเข้ามาจาก LIFF หรือไม่
   useEffect(() => {
     const checkLiff = async () => {
       try {
         // ป้องกัน multiple redirects
-        if (hasRedirected) {
-          console.log('🚫 Already redirected, skipping...');
+        if (hasRedirected || !actualDefaultRestaurantId) {
+          console.log('🚫 Already redirected or no restaurant ID, skipping...');
           return;
         }
 
         // ตรวจสอบว่าอยู่ในหน้าเมนูเป้าหมายแล้วหรือไม่
         const currentPath = window.location.pathname;
-        if (currentPath.includes(`/menu/${defaultRestaurantId}`)) {
+        if (currentPath.includes(`/menu/${actualDefaultRestaurantId}`)) {
           console.log('✅ Already on target menu page, stopping LIFF logic');
           setLiffLoading(false);
           return;
@@ -55,7 +82,7 @@ function LiffLogic({ defaultRestaurantId = 'cmcg20f2i00029hu8p2am75df', children
             console.log('✅ Already authenticated, redirecting to menu...');
             setHasRedirected(true);
             // ใช้ window.location.replace เพื่อป้องกัน loop
-            const targetUrl = `/menu/${defaultRestaurantId}`;
+            const targetUrl = `/menu/${actualDefaultRestaurantId}`;
             window.location.replace(targetUrl);
             return;
           }
@@ -66,7 +93,7 @@ function LiffLogic({ defaultRestaurantId = 'cmcg20f2i00029hu8p2am75df', children
             if (status === 'unauthenticated') {
               console.log('🔐 Starting LINE login...');
               setHasRedirected(true);
-              const targetPath = `/menu/${defaultRestaurantId}`;
+              const targetPath = `/menu/${actualDefaultRestaurantId}`;
               await signIn('line', { 
                 callbackUrl: targetPath,
                 redirect: true 
@@ -100,7 +127,7 @@ function LiffLogic({ defaultRestaurantId = 'cmcg20f2i00029hu8p2am75df', children
             console.log('🔄 Auto signing in with LINE...');
             setHasRedirected(true);
             // Auto sign in with LINE
-            const targetPath = `/menu/${defaultRestaurantId}`;
+            const targetPath = `/menu/${actualDefaultRestaurantId}`;
             await signIn('line', { 
               callbackUrl: targetPath,
               redirect: true 
@@ -121,7 +148,7 @@ function LiffLogic({ defaultRestaurantId = 'cmcg20f2i00029hu8p2am75df', children
     if (typeof window !== 'undefined' && status !== 'loading') {
       checkLiff();
     }
-  }, [searchParams, status, session, router, defaultRestaurantId, hasRedirected]);
+  }, [searchParams, status, session, router, actualDefaultRestaurantId, hasRedirected]);
 
   // ถ้าเป็น LIFF และกำลังประมวลผล
   if (isLiff && liffLoading) {

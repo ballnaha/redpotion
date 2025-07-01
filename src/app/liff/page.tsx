@@ -1,20 +1,46 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Box, CircularProgress, Typography, Card } from '@mui/material';
 
 export default function LiffLandingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    // Auto redirect to default restaurant with LIFF flag
-    const defaultRestaurantId = 'cmcg20f2i00029hu8p2am75df';
-    const targetUrl = `/menu/${defaultRestaurantId}?liff=true`;
-    
-    console.log('🚀 LIFF Landing: Redirecting to', targetUrl);
-    router.replace(targetUrl);
-  }, [router]);
+    const handleRedirect = async () => {
+      // ตรวจสอบ restaurant parameter จาก URL
+      const restaurantId = searchParams.get('restaurant');
+      
+      if (restaurantId) {
+        // ถ้ามี restaurant ID ให้ redirect ไปยังร้านนั้น
+        const targetUrl = `/menu/${restaurantId}?liff=true`;
+        console.log('🚀 LIFF Landing: Redirecting to specific restaurant', targetUrl);
+        router.replace(targetUrl);
+      } else {
+        // ถ้าไม่มี restaurant ID ให้หาร้าน default จาก API
+        try {
+          const response = await fetch('/api/restaurant/default');
+          if (response.ok) {
+            const defaultRestaurant = await response.json();
+            const redirectUrl = `/api/liff/redirect?restaurant=${defaultRestaurant.restaurantId}`;
+            console.log('🚀 LIFF Landing: Using default restaurant from DB', redirectUrl);
+            router.replace(redirectUrl);
+          } else {
+            // ถ้าไม่หาร้าน default ได้ ให้ไปหน้าแรก
+            console.log('🚀 LIFF Landing: No default restaurant, redirecting to home');
+            router.replace('/');
+          }
+        } catch (error) {
+          console.error('Error fetching default restaurant:', error);
+          router.replace('/');
+        }
+      }
+    };
+
+    handleRedirect();
+  }, [router, searchParams]);
 
   return (
     <Box sx={{ 

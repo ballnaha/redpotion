@@ -23,10 +23,9 @@ export default withAuth(
     // ถ้าเป็น LINE app และเข้า root path ให้ redirect ไป LIFF page
     // แต่ไม่ redirect ถ้าอยู่ในหน้าเมนูแล้ว เพื่อป้องกัน loop
     if (isLineApp && req.nextUrl.pathname === '/' && !req.nextUrl.pathname.includes('/menu/')) {
-      const defaultRestaurantId = 'cmcg20f2i00029hu8p2am75df'
-      const url = new URL(`/menu/${defaultRestaurantId}`, req.url)
-      url.searchParams.set('liff', 'true')
-      console.log('Middleware redirecting LIFF to:', url.toString())
+      // Redirect ไป LIFF page เพื่อหา default restaurant จาก API
+      const url = new URL('/liff', req.url)
+      console.log('Middleware redirecting LIFF to LIFF page:', url.toString())
       return NextResponse.redirect(url)
     }
 

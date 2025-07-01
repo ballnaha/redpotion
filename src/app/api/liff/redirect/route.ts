@@ -1,27 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const restaurantId = searchParams.get('restaurantId') || 'cmcg20f2i00029hu8p2am75df';
-  
-  // ตรวจสอบ User Agent เพื่อดูว่าเป็น LINE App หรือไม่
-  const userAgent = request.headers.get('user-agent') || '';
-  const isLineApp = userAgent.includes('Line');
-  
-  console.log('LIFF Redirect API:', {
-    userAgent,
-    isLineApp,
-    restaurantId,
-    searchParams: Object.fromEntries(searchParams.entries())
-  });
+  try {
+    const { searchParams } = new URL(request.url);
+    const restaurantId = searchParams.get('restaurant');
+    
+    console.log('🔗 LIFF Redirect API called with restaurant:', restaurantId);
 
-  // Redirect ไปยังหน้าเมนูพร้อม LIFF flag
-  const targetUrl = new URL(`/menu/${restaurantId}`, request.url);
-  targetUrl.searchParams.set('liff', 'true');
-  
-  if (isLineApp) {
-    targetUrl.searchParams.set('auto_login', 'true');
+    // ถ้าไม่มี restaurantId ให้ redirect ไปหน้าแรก
+    if (!restaurantId) {
+      console.log('❌ No restaurant ID provided, redirecting to home');
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+
+    // ตรวจสอบว่าร้านอาหารมีอยู่จริงและ active
+    const restaurant = await prisma.restaurant.findFirst({
+      where: {
+        id: restaurantId,
+        status: 'ACTIVE'
+      }
+    });
+
+    if (!restaurant) {
+      console.log('❌ Restaurant not found or not active:', restaurantId);
+      return NextResponse.redirect(new URL('/not-found', request.url));
+    }
+
+    // สร้าง URL สำหรับ menu พร้อม LIFF flag
+    const menuUrl = `/menu/${restaurantId}?liff=true`;
+    console.log('✅ Redirecting to menu:', menuUrl);
+    
+    return NextResponse.redirect(new URL(menuUrl, request.url));
+    
+  } catch (error) {
+    console.error('❌ LIFF Redirect API Error:', error);
+    return NextResponse.redirect(new URL('/', request.url));
   }
-
-  return NextResponse.redirect(targetUrl);
 }

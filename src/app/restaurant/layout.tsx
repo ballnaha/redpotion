@@ -32,7 +32,8 @@ import {
   Close as CloseIcon,
   AccountCircle,
   Logout,
-  Person
+  Person,
+  PhoneAndroid
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { SessionProvider, useSession, signOut } from 'next-auth/react';
@@ -443,6 +444,12 @@ export default function RestaurantLayout({
       icon: <PhotoLibrary />, 
       href: '/restaurant/gallery',
       active: pathname.startsWith('/restaurant/gallery')
+    },
+    { 
+      text: 'LINE LIFF Setup', 
+      icon: <PhoneAndroid />, 
+      href: '/restaurant/liff-setup',
+      active: pathname.startsWith('/restaurant/liff-setup')
     },
     { 
       text: 'Orders', 

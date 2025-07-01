@@ -64,6 +64,7 @@ model Restaurant {
   phone          String
   email          String?
   imageUrl       String?
+  liffId         String?
   status         RestaurantStatus @default(PENDING)
   latitude       Float?
   longitude      Float?
