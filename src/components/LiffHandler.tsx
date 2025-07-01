@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn, useSession } from 'next-auth/react';
-import { Box, CircularProgress, Typography, Alert, Card } from '@mui/material';
+import { Box, CircularProgress, Typography, Alert, Card, Button } from '@mui/material';
 
 interface LiffHandlerProps {
   defaultRestaurantId?: string;
@@ -21,11 +21,27 @@ function LiffLogic({ defaultRestaurantId, children }: LiffHandlerProps) {
   const [hasRedirected, setHasRedirected] = useState(false);
   const [actualDefaultRestaurantId, setActualDefaultRestaurantId] = useState<string | null>(null);
 
-  // Fetch default restaurant ID
+  // Fetch default restaurant ID เฉพาะเมื่อจำเป็น
   useEffect(() => {
     const fetchDefaultRestaurant = async () => {
+      // ตรวจสอบว่าต้องการข้อมูลร้านอาหารหรือไม่
+      const needsRestaurantData = typeof window !== 'undefined' && (
+        window.location.pathname.startsWith('/menu/') ||
+        window.location.pathname.startsWith('/restaurant/') ||
+        window.location.pathname.startsWith('/cart/') ||
+        window.location.search.includes('liff') ||
+        defaultRestaurantId // ถ้ามีการส่ง defaultRestaurantId เข้ามา
+      );
+
+      if (!needsRestaurantData) {
+        console.log('📝 Page does not need restaurant data, skipping fetch');
+        setLiffLoading(false);
+        return;
+      }
+
       if (defaultRestaurantId) {
         setActualDefaultRestaurantId(defaultRestaurantId);
+        setLiffLoading(false);
         return;
       }
 
@@ -33,14 +49,25 @@ function LiffLogic({ defaultRestaurantId, children }: LiffHandlerProps) {
         const response = await fetch('/api/restaurant/default');
         if (response.ok) {
           const data = await response.json();
+          console.log('✅ Default restaurant fetched:', data);
           setActualDefaultRestaurantId(data.restaurantId);
         } else {
-          console.error('Failed to fetch default restaurant');
-          setLiffError('ไม่พบร้านอาหารที่ใช้งานได้');
+          const errorData = await response.json();
+          console.log('📝 No default restaurant available:', errorData);
+          
+          // ถ้าไม่มีร้านอาหาร
+          if (response.status === 404) {
+            console.log('🔄 No restaurants available');
+            setActualDefaultRestaurantId(null);
+          } else {
+            setLiffError('เกิดข้อผิดพลาดในการดึงข้อมูลร้าน');
+          }
         }
       } catch (error) {
         console.error('Error fetching default restaurant:', error);
         setLiffError('เกิดข้อผิดพลาดในการดึงข้อมูลร้าน');
+      } finally {
+        setLiffLoading(false);
       }
     };
 
@@ -52,8 +79,15 @@ function LiffLogic({ defaultRestaurantId, children }: LiffHandlerProps) {
     const checkLiff = async () => {
       try {
         // ป้องกัน multiple redirects
-        if (hasRedirected || !actualDefaultRestaurantId) {
-          console.log('🚫 Already redirected or no restaurant ID, skipping...');
+        if (hasRedirected) {
+          console.log('🚫 Already redirected, skipping...');
+          return;
+        }
+
+        // ถ้าไม่มีร้านอาหาร ให้แสดงหน้าแรกปกติ
+        if (!actualDefaultRestaurantId) {
+          console.log('📝 No default restaurant available, showing normal page...');
+          setLiffLoading(false);
           return;
         }
 
@@ -536,6 +570,64 @@ function LiffLogic({ defaultRestaurantId, children }: LiffHandlerProps) {
           >
             กำลังเข้าสู่ระบบด้วย LINE...
           </Typography>
+        </Card>
+      </Box>
+    );
+  }
+
+  // ตรวจสอบว่าอยู่ในหน้าที่ต้องการร้านอาหารหรือไม่
+  const isRestaurantRelatedPage = typeof window !== 'undefined' && (
+    window.location.pathname.startsWith('/menu/') ||
+    window.location.pathname.startsWith('/restaurant/') ||
+    window.location.pathname.startsWith('/cart/') ||
+    window.location.search.includes('liff') ||
+    isLiff
+  );
+
+  // ถ้าไม่ใช่หน้าที่เกี่ยวข้องกับร้านอาหาร ให้แสดง children ปกติ
+  if (!isRestaurantRelatedPage) {
+    return <>{children}</>;
+  }
+
+  // ถ้าเป็นหน้าที่เกี่ยวข้องกับร้านอาหารแต่ไม่มีร้านอาหาร ให้แสดงหน้า fallback
+  if (isRestaurantRelatedPage && actualDefaultRestaurantId === null && !liffLoading && !isLiff) {
+    return (
+      <Box sx={{ 
+        minHeight: '100vh', 
+        background: 'linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        p: 3
+      }}>
+        <Card sx={{ maxWidth: 500, textAlign: 'center', p: 4 }}>
+          <Box sx={{ mb: 3, fontSize: '4rem' }}>
+            🏪
+          </Box>
+          <Typography variant="h5" gutterBottom color="primary">
+            ยังไม่มีร้านอาหารให้บริการ
+          </Typography>
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+            ขณะนี้ยังไม่มีร้านอาหารที่เข้าร่วมระบบ Red Potion
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            หากคุณเป็นเจ้าของร้านอาหารและต้องการเข้าร่วม
+          </Typography>
+          <Box sx={{ mt: 3 }}>
+            <Button 
+              variant="contained" 
+              href="/auth/register/restaurant"
+              sx={{ mr: 2 }}
+            >
+              สมัครเป็นพาร์ทเนอร์
+            </Button>
+            <Button 
+              variant="outlined" 
+              href="/"
+            >
+              กลับหน้าหลัก
+            </Button>
+          </Box>
         </Card>
       </Box>
     );

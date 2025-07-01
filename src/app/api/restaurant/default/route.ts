@@ -21,7 +21,8 @@ export async function GET() {
 
     if (!defaultRestaurant) {
       return NextResponse.json({ 
-        error: 'No active restaurant found' 
+        error: 'No active restaurant found',
+        message: 'ยังไม่มีร้านอาหารที่เปิดให้บริการในขณะนี้'
       }, { status: 404 });
     }
 
