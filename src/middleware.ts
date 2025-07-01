@@ -37,8 +37,11 @@ export default withAuth(
     }
 
     // If user is on auth page and already authenticated, redirect appropriately
-    // แต่ให้ตรวจสอบว่าไม่ใช่การ refresh หรือ initial load
-    if (isAuthPage && isAuth && !req.nextUrl.searchParams.has('callbackUrl')) {
+    // แต่ไม่ redirect ถ้ามี callbackUrl หรือเป็น signin/error pages เพื่อป้องกัน loop
+    if (isAuthPage && isAuth && 
+        !req.nextUrl.searchParams.has('callbackUrl') &&
+        !req.nextUrl.pathname.includes('/signin') &&
+        !req.nextUrl.pathname.includes('/error')) {
       if (token.role === 'RESTAURANT_OWNER') {
         return NextResponse.redirect(new URL('/restaurant', req.url))
       } else if (token.role === 'ADMIN') {

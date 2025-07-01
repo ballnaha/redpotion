@@ -77,18 +77,47 @@ export default function SignInPage() {
         })
         
         // เพิ่ม delay เล็กน้อยเพื่อให้ UI แสดงข้อความ loading
-        const timer = setTimeout(() => {
-          // ถ้ามี callbackUrl ให้ไปที่นั่นก่อน (สำหรับ restaurant owners)
+        const timer = setTimeout(async () => {
+          // ตรวจสอบว่ามีร้านอาหารก่อนจะ redirect
           if (callbackUrl && session.user.role === 'RESTAURANT_OWNER') {
             const decodedUrl = decodeURIComponent(callbackUrl)
+            
+            // ถ้า callback ไปหน้า restaurant ให้ตรวจสอบว่ามีร้านอาหารหรือไม่
+            if (decodedUrl.includes('/restaurant')) {
+              try {
+                const response = await fetch('/api/restaurant/default')
+                if (!response.ok) {
+                  console.log('⚠️ No restaurants available, redirecting to home instead')
+                  window.location.href = '/'
+                  return
+                }
+              } catch (error) {
+                console.log('⚠️ Error checking restaurants, redirecting to home')
+                window.location.href = '/'
+                return
+              }
+            }
+            
             console.log('🔄 Redirecting to callbackUrl:', decodedUrl)
-            window.location.href = decodedUrl // ใช้ window.location.href เพื่อ force refresh
+            window.location.href = decodedUrl
             return
           }
           
           // ไม่เช่นนั้นให้ redirect ตาม role ปกติ
           if (session.user.role === 'RESTAURANT_OWNER') {
-            window.location.href = '/restaurant'
+            // ตรวจสอบว่ามีร้านอาหารก่อน
+            try {
+              const response = await fetch('/api/restaurant/default')
+              if (response.ok) {
+                window.location.href = '/restaurant'
+              } else {
+                console.log('⚠️ No restaurants available for restaurant owner, redirecting to home')
+                window.location.href = '/'
+              }
+            } catch (error) {
+              console.log('⚠️ Error checking restaurants, redirecting to home')
+              window.location.href = '/'
+            }
           } else if (session.user.role === 'ADMIN') {
             window.location.href = '/admin'
           } else if (session.user.role === 'USER') {
@@ -140,10 +169,45 @@ export default function SignInPage() {
                   <Image src="/images/logo_trim.png" alt="logo" width={150} height={100} />
                 </Box>
                 <Typography variant="h6" gutterBottom>
-                  คุณเข้าสู่ระบบแล้ว กำลังนำทางไปยังหน้าที่เหมาะสม...
+                  คุณเข้าสู่ระบบแล้ว
+                </Typography>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  กำลังตรวจสอบข้อมูลและนำทางไปยังหน้าที่เหมาะสม...
                 </Typography>
                 <Box sx={{ mt: 3 }}>
                   <Skeleton variant="rectangular" width="100%" height={4} />
+                </Box>
+                
+                {/* Manual override buttons */}
+                <Box sx={{ mt: 3, display: 'flex', gap: 1, justifyContent: 'center' }}>
+                  <Button 
+                    size="small" 
+                    variant="outlined" 
+                    href="/"
+                    sx={{ fontSize: '0.75rem' }}
+                  >
+                    หน้าหลัก
+                  </Button>
+                  {session?.user?.role === 'RESTAURANT_OWNER' && (
+                    <Button 
+                      size="small" 
+                      variant="outlined" 
+                      href="/restaurant"
+                      sx={{ fontSize: '0.75rem' }}
+                    >
+                      จัดการร้าน
+                    </Button>
+                  )}
+                  {session?.user?.role === 'ADMIN' && (
+                    <Button 
+                      size="small" 
+                      variant="outlined" 
+                      href="/admin"
+                      sx={{ fontSize: '0.75rem' }}
+                    >
+                      Admin
+                    </Button>
+                  )}
                 </Box>
               </CardContent>
             </Card>
@@ -204,11 +268,15 @@ export default function SignInPage() {
 
 
             <Typography variant="h6" align="center" gutterBottom sx={{ fontWeight: '400', color: 'primary.main' }}>
-              ระบบจัดการร้านอาหาร
+              เดอะ เรด โพชั่น
             </Typography>
 
             <Typography variant="h5" align="center" gutterBottom sx={{ mt: 3, mb: 3 }}>
-              เข้าสู่ระบบสำหรับแอดมิน
+              เข้าสู่ระบบ
+            </Typography>
+
+            <Typography variant="body2" align="center" gutterBottom sx={{ mb: 3, color: 'text.secondary' }}>
+              สำหรับเจ้าของร้านอาหารและผู้ดูแลระบบ
             </Typography>
 
             {error && (
@@ -300,6 +368,15 @@ export default function SignInPage() {
               >
                 {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
               </Button>
+
+              <Button
+                fullWidth
+                variant="text"
+                href="/"
+                sx={{ mb: 2 }}
+              >
+                กลับหน้าหลัก
+              </Button>
             </form>
 
 
@@ -323,6 +400,19 @@ export default function SignInPage() {
                   สมัครเป็นพาร์ทเนอร์ร้านอาหาร
                 </Button>
               </Link>
+
+              {/* Demo Account Info */}
+              <Box sx={{ mt: 3, p: 2, backgroundColor: 'grey.50', borderRadius: 1 }}>
+                <Typography variant="caption" display="block" gutterBottom sx={{ fontWeight: 'bold' }}>
+                  บัญชีทดสอบ:
+                </Typography>
+                <Typography variant="caption" display="block" sx={{ color: 'text.secondary' }}>
+                  Email: owner@redpotion.com
+                </Typography>
+                <Typography variant="caption" display="block" sx={{ color: 'text.secondary' }}>
+                  Password: password123
+                </Typography>
+              </Box>
               
             </Box>
           </CardContent>
