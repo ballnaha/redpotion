@@ -781,6 +781,40 @@ export default function MenuPageComponent() {
             >
               <NotificationsNone sx={{ fontSize: 20 }} />
             </IconButton>
+
+            {/* User Profile & Logout */}
+            {session?.user && (
+              <IconButton 
+                onClick={() => signOut({ callbackUrl: '/' })}
+                sx={{ 
+                  color: 'rgba(0, 0, 0, 0.7)',
+                  width: 40,
+                  height: 40,
+                  background: 'rgba(255, 255, 255, 0.9)',
+                  backdropFilter: 'blur(4px)',
+                  border: '1px solid rgba(0, 0, 0, 0.08)',
+                  '&:hover': {
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+                  },
+                  transition: 'all 0.2s ease-out'
+                }}
+              >
+                <Avatar 
+                  src={session.user.image || undefined}
+                  sx={{ 
+                    width: 24, 
+                    height: 24, 
+                    fontSize: '0.7rem',
+                    backgroundColor: '#10B981',
+                    color: 'white'
+                  }}
+                >
+                  {session.user.name?.charAt(0)?.toUpperCase() || 'U'}
+                </Avatar>
+              </IconButton>
+            )}
           </Box>
         </Box>
       </Box>
@@ -849,7 +883,26 @@ export default function MenuPageComponent() {
                   
                   {/* Welcome Message */}
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                    <Typography sx={{ fontSize: '0.95rem', color: 'rgba(0, 0, 0, 0.65)', fontWeight: 500, letterSpacing: '0.005em' }}>สวัสดี คุณ</Typography>
+                    <Typography sx={{ fontSize: '0.95rem', color: 'rgba(0, 0, 0, 0.65)', fontWeight: 500, letterSpacing: '0.005em' }}>
+                      สวัสดี{session?.user?.name ? ` คุณ${session.user.name}` : ''}
+                    </Typography>
+                    {session?.user && (
+                      <Chip 
+                        label="LINE" 
+                        size="small"
+                        sx={{ 
+                          background: 'rgba(6, 199, 85, 0.15)',
+                          color: '#06C755',
+                          fontSize: '0.65rem',
+                          height: '18px',
+                          border: '1px solid rgba(6, 199, 85, 0.25)',
+                          fontWeight: 500,
+                          '& .MuiChip-label': {
+                            px: 1
+                          }
+                        }}
+                      />
+                    )}
                   </Box>
                   
                   {/* Status and Time */}

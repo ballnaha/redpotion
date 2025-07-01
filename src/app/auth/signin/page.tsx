@@ -16,6 +16,7 @@ import {
   IconButton,
   Divider,
   Skeleton,
+  CircularProgress,
 } from '@mui/material'
 import { Visibility, VisibilityOff, Restaurant, Email, Lock } from '@mui/icons-material'
 import Link from 'next/link'
@@ -25,6 +26,7 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [lineLoading, setLineLoading] = useState(false)
   const router = useRouter()
   const { data: session, status } = useSession()
 
@@ -34,16 +36,50 @@ export default function SignInPage() {
     password: ''
   })
 
-  // Handle redirect for already authenticated users
+  // Handle URL error parameters
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const urlError = urlParams.get('error')
+      
+      if (urlError) {
+        let errorMessage = ''
+        switch (urlError) {
+          case 'OAuthCallback':
+            errorMessage = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย LINE (OAuth Callback Error)'
+            break
+          case 'OAuthCreateAccount':
+            errorMessage = 'ไม่สามารถสร้างบัญชีผู้ใช้ LINE ได้ กรุณาลองใหม่อีกครั้ง'
+            break
+          case 'line':
+            errorMessage = 'เกิดข้อผิดพลาดในการเชื่อมต่อกับ LINE'
+            break
+          default:
+            errorMessage = `เกิดข้อผิดพลาดในการเข้าสู่ระบบ: ${urlError}`
+        }
+        setError(errorMessage)
+      }
+    }
+  }, [])
+
+  // Handle redirect for already authenticated users (only if no error in URL)
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
-      if (session.user.role === 'RESTAURANT_OWNER') {
-        router.replace('/restaurant')
-      } else if (session.user.role === 'ADMIN') {
-        router.replace('/admin')
-      } else {
-        router.replace('/')
+      // ตรวจสอบว่ามี error parameter ใน URL หรือไม่
+      const urlParams = new URLSearchParams(window.location.search)
+      const urlError = urlParams.get('error')
+      
+      // ถ้าไม่มี error ใน URL ให้ redirect ตาม role
+      if (!urlError) {
+        if (session.user.role === 'RESTAURANT_OWNER') {
+          router.replace('/restaurant')
+        } else if (session.user.role === 'ADMIN') {
+          router.replace('/admin')
+        } else {
+          router.replace('/')
+        }
       }
+      // ถ้ามี error ให้อยู่ในหน้า signin เพื่อแสดง error message
     }
   }, [status, session, router])
 
@@ -67,9 +103,16 @@ export default function SignInPage() {
     )
   }
 
-  // Don't render signin form if already authenticated
+  // Don't render signin form if already authenticated (unless there's an error)
   if (status === 'authenticated') {
-    return null
+    const urlParams = new URLSearchParams(window.location.search)
+    const urlError = urlParams.get('error')
+    
+    // ถ้าไม่มี error ให้ hide form
+    if (!urlError) {
+      return null
+    }
+    // ถ้ามี error ให้แสดง form เพื่อให้ user เห็น error message
   }
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -97,6 +140,27 @@ export default function SignInPage() {
     setLoading(false)
   }
 
+  const handleLineLogin = async () => {
+    setLineLoading(true)
+    setError('')
+    
+    try {
+      console.log('🚀 Starting LINE login...')
+      
+      // ใช้ window.location เพื่อ redirect ไปยัง LINE OAuth URL โดยตรง
+      const lineLoginUrl = `/api/auth/signin/line?callbackUrl=${encodeURIComponent('/menu/cmcg20f2i00029hu8p2am75df')}`
+      console.log('🔗 Redirecting to:', lineLoginUrl)
+      
+      window.location.href = lineLoginUrl
+      
+      // ไม่ต้อง setLineLoading(false) เพราะจะ redirect ออกจากหน้านี้
+    } catch (error) {
+      console.error('❌ LINE login exception:', error)
+      setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย LINE')
+      setLineLoading(false)
+    }
+  }
+
   return (
     <Container maxWidth="sm">
       <Box sx={{ mt: 8, mb: 4 }}>
@@ -119,6 +183,31 @@ export default function SignInPage() {
             {error && (
               <Alert severity="error" sx={{ mt: 2, mb: 2 }}>
                 {error}
+                {status === 'authenticated' && (
+                  <Box sx={{ mt: 2 }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => {
+                        // Clear error และ redirect ตาม role
+                        const urlParams = new URLSearchParams(window.location.search)
+                        urlParams.delete('error')
+                        const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '')
+                        window.history.replaceState({}, '', newUrl)
+                        
+                        if (session?.user?.role === 'RESTAURANT_OWNER') {
+                          router.replace('/restaurant')
+                        } else if (session?.user?.role === 'ADMIN') {
+                          router.replace('/admin')
+                        } else {
+                          router.replace('/')
+                        }
+                      }}
+                    >
+                      ไปยังหน้าหลัก
+                    </Button>
+                  </Box>
+                )}
               </Alert>
             )}
 
@@ -186,7 +275,8 @@ export default function SignInPage() {
             <Button
               fullWidth
               variant="contained"
-              onClick={() => signIn('line', { callbackUrl: '/' })}
+              onClick={handleLineLogin}
+              disabled={lineLoading}
               sx={{
                 mb: 2,
                 backgroundColor: '#06C755',
@@ -197,14 +287,22 @@ export default function SignInPage() {
                 '&:hover': {
                   backgroundColor: '#05B04A'
                 },
-                '&:before': {
-                  content: '"📱"',
-                  marginRight: 1,
-                  fontSize: '1.2rem'
-                }
+                '&:disabled': {
+                  backgroundColor: '#a0a0a0'
+                },
+                position: 'relative'
               }}
             >
-              เข้าสู่ระบบด้วย LINE
+              {lineLoading ? (
+                <>
+                  <CircularProgress size={20} sx={{ color: 'white', mr: 1 }} />
+                  กำลังเชื่อมต่อ LINE...
+                </>
+              ) : (
+                <>
+                  📱 เข้าสู่ระบบด้วย LINE
+                </>
+              )}
             </Button>
 
             <Divider sx={{ my: 2 }}>
