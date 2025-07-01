@@ -67,9 +67,19 @@ export default function SignInPage() {
       // ตรวจสอบว่ามี error parameter ใน URL หรือไม่
       const urlParams = new URLSearchParams(window.location.search)
       const urlError = urlParams.get('error')
+      const callbackUrl = urlParams.get('callbackUrl')
       
-      // ถ้าไม่มี error ใน URL ให้ redirect ตาม role
+      // ถ้าไม่มี error ใน URL ให้ redirect
       if (!urlError) {
+        // ถ้ามี callbackUrl ให้ไปที่นั่นก่อน (สำหรับ restaurant owners)
+        if (callbackUrl && session.user.role === 'RESTAURANT_OWNER') {
+          const decodedUrl = decodeURIComponent(callbackUrl)
+          console.log('🔄 Redirecting to callbackUrl:', decodedUrl)
+          router.replace(decodedUrl)
+          return
+        }
+        
+        // ไม่เช่นนั้นให้ redirect ตาม role ปกติ
         if (session.user.role === 'RESTAURANT_OWNER') {
           router.replace('/restaurant')
         } else if (session.user.role === 'ADMIN') {
@@ -122,17 +132,28 @@ export default function SignInPage() {
     setError('')
 
     try {
+      // ตรวจสอบ callbackUrl จาก URL parameters
+      const urlParams = new URLSearchParams(window.location.search)
+      const callbackUrl = urlParams.get('callbackUrl')
+      
       const result = await signIn('credentials', {
         email: signInData.email,
         password: signInData.password,
+        callbackUrl: callbackUrl ? decodeURIComponent(callbackUrl) : undefined,
         redirect: false
       })
 
       if (result?.error) {
         setError('อีเมลหรือรหัสผ่านไม่ถูกต้อง')
-      } else {
-        // ให้ useEffect จัดการ redirect แทน
-        // เพื่อป้องกันการ redirect ซ้ำซ้อน
+      } else if (result?.ok) {
+        // ถ้าสำเร็จให้ redirect ตาม callbackUrl หรือ default
+        if (callbackUrl) {
+          console.log('🔄 Login success, redirecting to callbackUrl:', decodeURIComponent(callbackUrl))
+          router.replace(decodeURIComponent(callbackUrl))
+        } else {
+          // ให้ useEffect จัดการ redirect ตาม role
+          console.log('🔄 Login success, letting useEffect handle redirect')
+        }
       }
     } catch (error) {
       setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
@@ -171,13 +192,17 @@ export default function SignInPage() {
                       variant="outlined"
                       size="small"
                       onClick={() => {
-                        // Clear error และ redirect ตาม role
+                        // Clear error และ redirect ตาม callbackUrl หรือ role
                         const urlParams = new URLSearchParams(window.location.search)
+                        const callbackUrl = urlParams.get('callbackUrl')
                         urlParams.delete('error')
                         const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '')
                         window.history.replaceState({}, '', newUrl)
                         
-                        if (session?.user?.role === 'RESTAURANT_OWNER') {
+                        // ถ้ามี callbackUrl และเป็น restaurant owner ให้ไปที่นั่น
+                        if (callbackUrl && session?.user?.role === 'RESTAURANT_OWNER') {
+                          router.replace(decodeURIComponent(callbackUrl))
+                        } else if (session?.user?.role === 'RESTAURANT_OWNER') {
                           router.replace('/restaurant')
                         } else if (session?.user?.role === 'ADMIN') {
                           router.replace('/admin')
