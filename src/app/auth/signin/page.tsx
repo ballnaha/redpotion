@@ -78,22 +78,32 @@ export default function SignInPage() {
         
         // เพิ่ม delay เล็กน้อยเพื่อให้ UI แสดงข้อความ loading
         const timer = setTimeout(async () => {
-          // ตรวจสอบว่ามีร้านอาหารก่อนจะ redirect
+          // ตรวจสอบสถานะร้านอาหารก่อนจะ redirect สำหรับ restaurant owner
           if (callbackUrl && session.user.role === 'RESTAURANT_OWNER') {
             const decodedUrl = decodeURIComponent(callbackUrl)
             
-            // ถ้า callback ไปหน้า restaurant ให้ตรวจสอบว่ามีร้านอาหารหรือไม่
+            // ถ้า callback ไปหน้า restaurant ให้ตรวจสอบสถานะร้านอาหาร
             if (decodedUrl.includes('/restaurant')) {
               try {
-                const response = await fetch('/api/restaurant/default')
-                if (!response.ok) {
-                  console.log('⚠️ No restaurants available, redirecting to home instead')
-                  window.location.href = '/'
+                const response = await fetch('/api/restaurant/my-restaurant')
+                if (response.ok) {
+                  const restaurant = await response.json()
+                  
+                  // ถ้าร้านมีสถานะ PENDING ให้ไปหน้า restaurant เพื่อแสดงสถานะ
+                  if (restaurant.status === 'PENDING') {
+                    console.log('🟡 Restaurant is PENDING, redirecting to restaurant page to show status')
+                    window.location.href = '/restaurant'
+                    return
+                  }
+                } else if (response.status === 404) {
+                  console.log('📝 No restaurant found, redirecting to restaurant page for registration')
+                  window.location.href = '/restaurant'
                   return
                 }
+                // ถ้าร้านมีสถานะ ACTIVE หรือสถานะอื่นๆ ให้ไป callbackUrl ตามปกติ
               } catch (error) {
-                console.log('⚠️ Error checking restaurants, redirecting to home')
-                window.location.href = '/'
+                console.log('⚠️ Error checking restaurant status, redirecting to restaurant page')
+                window.location.href = '/restaurant'
                 return
               }
             }
@@ -105,18 +115,33 @@ export default function SignInPage() {
           
           // ไม่เช่นนั้นให้ redirect ตาม role ปกติ
           if (session.user.role === 'RESTAURANT_OWNER') {
-            // ตรวจสอบว่ามีร้านอาหารก่อน
+            // ตรวจสอบสถานะร้านอาหารของ restaurant owner
             try {
-              const response = await fetch('/api/restaurant/default')
+              const response = await fetch('/api/restaurant/my-restaurant')
               if (response.ok) {
+                const restaurant = await response.json()
+                
+                // ตรวจสอบสถานะร้าน
+                if (restaurant.status === 'PENDING') {
+                  console.log('🟡 Restaurant is PENDING, redirecting to restaurant page to show status')
+                  window.location.href = '/restaurant'
+                } else if (restaurant.status === 'ACTIVE') {
+                  console.log('✅ Restaurant is ACTIVE, redirecting to restaurant management')
+                  window.location.href = '/restaurant'
+                } else {
+                  console.log(`⚠️ Restaurant status: ${restaurant.status}, redirecting to restaurant page`)
+                  window.location.href = '/restaurant'
+                }
+              } else if (response.status === 404) {
+                console.log('📝 No restaurant found, redirecting to restaurant page for registration')
                 window.location.href = '/restaurant'
               } else {
-                console.log('⚠️ No restaurants available for restaurant owner, redirecting to home')
-                window.location.href = '/'
+                console.log('⚠️ Error checking restaurant status, redirecting to restaurant page')
+                window.location.href = '/restaurant'
               }
             } catch (error) {
-              console.log('⚠️ Error checking restaurants, redirecting to home')
-              window.location.href = '/'
+              console.log('⚠️ Error checking restaurant status, redirecting to restaurant page')
+              window.location.href = '/restaurant'
             }
           } else if (session.user.role === 'ADMIN') {
             window.location.href = '/admin'
@@ -172,7 +197,7 @@ export default function SignInPage() {
                   คุณเข้าสู่ระบบแล้ว
                 </Typography>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
-                  กำลังตรวจสอบข้อมูลและนำทางไปยังหน้าที่เหมาะสม...
+                  กำลังตรวจสอบข้อมูล...
                 </Typography>
                 <Box sx={{ mt: 3 }}>
                   <Skeleton variant="rectangular" width="100%" height={4} />

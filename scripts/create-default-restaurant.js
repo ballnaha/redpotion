@@ -61,15 +61,9 @@ async function main() {
         liffId: '2007609360-3Z0L8Ekg', // Default LIFF ID
         ownerId: owner.id,
         // Default operating hours
-        operatingHours: {
-          monday: { open: '09:00', close: '22:00', isOpen: true },
-          tuesday: { open: '09:00', close: '22:00', isOpen: true },
-          wednesday: { open: '09:00', close: '22:00', isOpen: true },
-          thursday: { open: '09:00', close: '22:00', isOpen: true },
-          friday: { open: '09:00', close: '22:00', isOpen: true },
-          saturday: { open: '09:00', close: '22:00', isOpen: true },
-          sunday: { open: '09:00', close: '22:00', isOpen: true }
-        }
+        openTime: '09:00',
+        closeTime: '22:00',
+        isOpen: true
       }
     })
     
@@ -77,11 +71,11 @@ async function main() {
     
     // Create a sample menu category
     console.log('📋 Creating sample menu category...')
-    const category = await prisma.menuCategory.create({
+    const category = await prisma.category.create({
       data: {
         name: 'เมนูแนะนำ',
         restaurantId: restaurant.id,
-        order: 1
+        sortOrder: 1
       }
     })
     
@@ -118,4 +112,4 @@ async function main() {
   }
 }
 
-main() 
+main()

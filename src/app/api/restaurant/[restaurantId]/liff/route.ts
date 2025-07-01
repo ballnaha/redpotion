@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { restaurantId: string } }
+  { params }: { params: Promise<{ restaurantId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -14,7 +14,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { restaurantId } = params;
+    const { restaurantId } = await params;
     const { liffId } = await request.json();
 
     // ตรวจสอบว่าผู้ใช้เป็นเจ้าของร้านหรือ Admin
@@ -52,10 +52,10 @@ export async function PUT(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { restaurantId: string } }
+  { params }: { params: Promise<{ restaurantId: string }> }
 ) {
   try {
-    const { restaurantId } = params;
+    const { restaurantId } = await params;
 
     const restaurant = await prisma.restaurant.findUnique({
       where: { id: restaurantId },

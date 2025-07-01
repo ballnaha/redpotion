@@ -78,12 +78,39 @@ export async function GET(
 
     // ตรวจสอบสถานะร้าน
     if (restaurant.status !== 'ACTIVE') {
+      let message = 'ร้านอาหารปิดปรับปรุงชั่วคราว';
+      let statusCode = 403;
+      
+      switch (restaurant.status) {
+        case 'PENDING':
+          message = 'ร้านอาหารของคุณอยู่ในระหว่างการตรวจสอบ กำลังรอการอนุมัติจาก admin';
+          statusCode = 202; // Accepted but still processing
+          break;
+        case 'REJECTED':
+          message = 'ร้านอาหารของคุณไม่ได้รับการอนุมัติ กรุณาติดต่อผู้ดูแลระบบ';
+          statusCode = 403;
+          break;
+        case 'SUSPENDED':
+          message = 'ร้านอาหารของคุณถูกระงับการใช้งานชั่วคราว';
+          statusCode = 403;
+          break;
+        case 'CLOSED':
+          message = 'ร้านอาหารปิดปรับปรุงชั่วคราว';
+          statusCode = 403;
+          break;
+        default:
+          message = `ร้านอาหารมีสถานะ: ${restaurant.status}`;
+          statusCode = 403;
+      }
+      
       return NextResponse.json(
         { 
-          message: 'ร้านอาหารปิดปรับปรุงชั่วคราว',
-          status: restaurant.status 
+          message,
+          status: restaurant.status,
+          restaurantName: restaurant.name,
+          isPending: restaurant.status === 'PENDING'
         },
-        { status: 403 }
+        { status: statusCode }
       )
     }
 

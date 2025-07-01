@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Box, CircularProgress, Typography, Card } from '@mui/material';
+import { Box, CircularProgress, Typography, Card, Alert, Button } from '@mui/material';
 
 export default function LiffLandingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const handleRedirect = async () => {
@@ -28,13 +30,29 @@ export default function LiffLandingPage() {
             console.log('🚀 LIFF Landing: Using default restaurant from DB', redirectUrl);
             router.replace(redirectUrl);
           } else {
-            // ถ้าไม่หาร้าน default ได้ ให้ไปหน้าแรก
-            console.log('🚀 LIFF Landing: No default restaurant, redirecting to home');
-            router.replace('/');
+            // ตรวจสอบสาเหตุที่ไม่มีร้าน default
+            const errorData = await response.json().catch(() => ({}));
+            console.log('🚀 LIFF Landing: No default restaurant, checking for pending restaurants');
+            
+            // ตรวจสอบว่ามีร้านอาหารที่ยังรออนุมัติหรือไม่
+            const pendingResponse = await fetch('/api/admin/restaurants/pending').catch(() => null);
+            if (pendingResponse?.ok) {
+              const pendingRestaurants = await pendingResponse.json();
+              if (pendingRestaurants.length > 0) {
+                setError('pending');
+                setIsLoading(false);
+                return;
+              }
+            }
+            
+            // ถ้าไม่มีร้านเลย
+            setError('no_restaurant');
+            setIsLoading(false);
           }
         } catch (error) {
           console.error('Error fetching default restaurant:', error);
-          router.replace('/');
+          setError('connection_error');
+          setIsLoading(false);
         }
       }
     };
@@ -42,6 +60,149 @@ export default function LiffLandingPage() {
     handleRedirect();
   }, [router, searchParams]);
 
+  // แสดง error state ตามสถานการณ์
+  if (error) {
+    return (
+      <Box sx={{ 
+        minHeight: '100vh', 
+        background: 'linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        p: 3,
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        {/* Background decoration */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: -50,
+            right: -50,
+            width: 200,
+            height: 200,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 152, 0, 0.05) 100%)',
+            filter: 'blur(40px)',
+            animation: 'liquidFloat 6s ease-in-out infinite'
+          }}
+        />
+
+        <Card
+          sx={{
+            maxWidth: 500,
+            width: '100%',
+            background: 'rgba(255, 255, 255, 0.25)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            border: '1px solid rgba(255, 255, 255, 0.18)',
+            borderRadius: 4,
+            boxShadow: '0 8px 32px rgba(31, 38, 135, 0.15)',
+            p: 4,
+            textAlign: 'center',
+            position: 'relative',
+            overflow: 'hidden'
+          }}
+        >
+          {error === 'pending' && (
+            <Alert 
+              severity="info" 
+              sx={{ 
+                mb: 3, 
+                background: 'rgba(33, 150, 243, 0.1)',
+                border: '1px solid rgba(33, 150, 243, 0.2)',
+                '& .MuiAlert-icon': { color: '#2196f3' }
+              }}
+            >
+              <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
+                🎉 ขอบคุณที่สมัครร่วมกับเรา!
+              </Typography>
+              <Typography variant="body1" sx={{ mb: 2 }}>
+                ร้านอาหารของคุณอยู่ในระหว่างการตรวจสอบ<br/>
+                <strong>กำลังรอการอนุมัติจาก admin</strong>
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                📋 ระยะเวลาดำเนินการ: ภายใน 1-2 วันทำการ<br/>
+                📧 เราจะแจ้งผลผ่านอีเมลเมื่อการตรวจสอบเสร็จสิ้น<br/>
+                🔍 กำลังตรวจสอบ: เอกสาร, ข้อมูลร้าน, และความถูกต้องของข้อมูล
+              </Typography>
+            </Alert>
+          )}
+
+          {error === 'no_restaurant' && (
+            <Alert 
+              severity="warning" 
+              sx={{ 
+                mb: 3,
+                background: 'rgba(255, 152, 0, 0.1)',
+                border: '1px solid rgba(255, 152, 0, 0.2)',
+                '& .MuiAlert-icon': { color: '#ff9800' }
+              }}
+            >
+              <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
+                🏪 ยังไม่มีร้านอาหารในระบบ
+              </Typography>
+              <Typography variant="body1">
+                ขณะนี้ยังไม่มีร้านอาหารที่เปิดให้บริการ<br/>
+                กรุณาลองใหม่อีกครั้งในภายหลัง
+              </Typography>
+            </Alert>
+          )}
+
+          {error === 'connection_error' && (
+            <Alert 
+              severity="error" 
+              sx={{ 
+                mb: 3,
+                background: 'rgba(244, 67, 54, 0.1)',
+                border: '1px solid rgba(244, 67, 54, 0.2)',
+                '& .MuiAlert-icon': { color: '#f44336' }
+              }}
+            >
+              <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
+                ⚠️ เกิดข้อผิดพลาด
+              </Typography>
+              <Typography variant="body1">
+                ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้<br/>
+                กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต
+              </Typography>
+            </Alert>
+          )}
+
+          <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'center' }}>
+            <Button 
+              variant="contained" 
+              onClick={() => window.location.reload()}
+              sx={{ 
+                background: 'linear-gradient(135deg, #06C755 0%, #05B04A 100%)',
+                boxShadow: '0 4px 16px rgba(6, 199, 85, 0.3)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #05B04A 0%, #049A3F 100%)',
+                }
+              }}
+            >
+              ลองใหม่อีกครั้ง
+            </Button>
+            <Button 
+              variant="outlined" 
+              onClick={() => router.push('/')}
+              sx={{ 
+                borderColor: 'rgba(6, 199, 85, 0.5)',
+                color: '#06C755',
+                '&:hover': {
+                  borderColor: '#06C755',
+                  background: 'rgba(6, 199, 85, 0.1)'
+                }
+              }}
+            >
+              ไปหน้าแรก
+            </Button>
+          </Box>
+        </Card>
+      </Box>
+    );
+  }
+
+  // แสดง loading state
   return (
     <Box sx={{ 
       minHeight: '100vh', 

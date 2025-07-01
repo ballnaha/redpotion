@@ -376,6 +376,100 @@ export function RestaurantProvider({
               router.replace('/');
             }, 1500);
             return;
+          } else if (response.status === 202) {
+            // ร้านมีสถานะ PENDING
+            const errorData = await response.json();
+            console.log('🟡 ร้านอาหารรอการอนุมัติ:', errorData);
+            
+            // แสดงข้อความแจ้งเตือนสำหรับ PENDING status
+            if (typeof window !== 'undefined') {
+              const notification = document.createElement('div');
+              notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(33, 150, 243, 0.95);
+                color: white;
+                padding: 12px 24px;
+                border-radius: 8px;
+                font-family: inherit;
+                font-size: 14px;
+                z-index: 10000;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                backdrop-filter: blur(10px);
+                animation: slideInDown 0.3s ease-out;
+                text-align: center;
+                max-width: 350px;
+                line-height: 1.4;
+              `;
+              notification.innerHTML = `
+                <div style="font-weight: 600; margin-bottom: 4px;">🎉 ${errorData.restaurantName || 'ร้านอาหาร'}</div>
+                <div style="font-size: 13px;">กำลังรอการอนุมัติจาก admin</div>
+              `;
+              
+              document.body.appendChild(notification);
+              
+              // ลบ notification หลัง 4 วินาที
+              setTimeout(() => {
+                if (notification.parentNode) {
+                  notification.remove();
+                }
+              }, 4000);
+            }
+            
+            // Redirect หลังจาก delay เล็กน้อย
+            setTimeout(() => {
+              router.replace('/');
+            }, 3000);
+            return;
+          } else if (response.status === 403) {
+            // ร้านมีสถานะอื่นๆ (REJECTED, SUSPENDED, CLOSED)
+            const errorData = await response.json();
+            console.log('🔴 ร้านอาหารไม่สามารถเข้าถึงได้:', errorData);
+            
+            // แสดงข้อความแจ้งเตือนตามสถานะ
+            if (typeof window !== 'undefined') {
+              const notification = document.createElement('div');
+              notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(239, 68, 68, 0.95);
+                color: white;
+                padding: 12px 24px;
+                border-radius: 8px;
+                font-family: inherit;
+                font-size: 14px;
+                z-index: 10000;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                backdrop-filter: blur(10px);
+                animation: slideInDown 0.3s ease-out;
+                text-align: center;
+                max-width: 350px;
+                line-height: 1.4;
+              `;
+              notification.innerHTML = `
+                <div style="font-weight: 600; margin-bottom: 4px;">⚠️ ${errorData.restaurantName || 'ร้านอาหาร'}</div>
+                <div style="font-size: 13px;">${errorData.message}</div>
+              `;
+              
+              document.body.appendChild(notification);
+              
+              // ลบ notification หลัง 4 วินาที
+              setTimeout(() => {
+                if (notification.parentNode) {
+                  notification.remove();
+                }
+              }, 4000);
+            }
+            
+            // Redirect หลังจาก delay เล็กน้อย
+            setTimeout(() => {
+              router.replace('/');
+            }, 3000);
+            return;
           } else {
             throw new Error(`เกิดข้อผิดพลาดในการดึงข้อมูลร้าน: ${response.status}`);
           }
