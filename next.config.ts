@@ -53,6 +53,20 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      // Uploads folder should also be cached
+      {
+        source: '/uploads/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+        ],
+      },
       // API routes should not be cached
       {
         source: '/api/(.*)',
@@ -67,6 +81,11 @@ const nextConfig: NextConfig = {
   },
   async rewrites() {
     return [
+      // Static file serving for uploads - redirect to API route in production
+      {
+        source: '/uploads/:path*',
+        destination: '/api/uploads/:path*',
+      },
       // Local development subdomain simulation (รองรับทั้ง legacy และ shortcode)
       {
         source: '/:path*',
