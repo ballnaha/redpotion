@@ -44,13 +44,19 @@ const drawerWidth = 280;
 
 // Hook to check restaurant status
 function useRestaurantStatus() {
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const [restaurantStatus, setRestaurantStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasRestaurant, setHasRestaurant] = useState(true);
 
   useEffect(() => {
     const fetchRestaurantStatus = async () => {
+      // รอให้ session โหลดเสร็จก่อน
+      if (sessionStatus === 'loading') {
+        return;
+      }
+
+      // ถ้าไม่มี session หรือไม่ใช่ restaurant owner
       if (!session?.user?.id || session.user.role !== 'RESTAURANT_OWNER') {
         setLoading(false);
         return;
@@ -83,7 +89,7 @@ function useRestaurantStatus() {
     };
 
     fetchRestaurantStatus();
-  }, [session]);
+  }, [session, sessionStatus]);
 
   return { restaurantStatus, loading, hasRestaurant };
 }
@@ -413,6 +419,7 @@ export default function RestaurantLayout({
       <SessionProvider>
         <Box sx={{ 
           display: 'flex', 
+          flexDirection: 'column',
           justifyContent: 'center', 
           alignItems: 'center', 
           minHeight: '100vh',
@@ -422,8 +429,12 @@ export default function RestaurantLayout({
               rgba(102, 126, 234, 0.1) 100%
             )
           `,
+          gap: 2
         }}>
           <CircularProgress size={60} />
+          <Typography variant="body1" sx={{ color: 'text.secondary', textAlign: 'center' }}>
+            กำลังตรวจสอบสิทธิ์การเข้าใช้งาน...
+          </Typography>
         </Box>
       </SessionProvider>
     );
