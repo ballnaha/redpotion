@@ -189,18 +189,17 @@ export default function RootLayout({
         <SessionProvider>
           <ThemeRegistry>
             <NotificationProvider>
-              <LiffHandler>
-                <div 
-                  style={{ 
-                    width: '100%',
-                    minHeight: '100vh',
-                    backgroundColor: '#ffffff',
-                    overflow: 'hidden'
-                  }}
-                >
-                  {children}
-                </div>
-              </LiffHandler>
+              <LiffHandler />
+              <div 
+                style={{ 
+                  width: '100%',
+                  minHeight: '100vh',
+                  backgroundColor: '#ffffff',
+                  overflow: 'hidden'
+                }}
+              >
+                {children}
+              </div>
             </NotificationProvider>
           </ThemeRegistry>
         </SessionProvider>

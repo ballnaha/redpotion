@@ -12,9 +12,16 @@ declare global {
         pictureUrl?: string;
         statusMessage?: string;
       }>;
+      getAccessToken: () => string;
       sendMessages: (messages: unknown[]) => Promise<void>;
       openWindow: (params: { url: string; external?: boolean }) => void;
       closeWindow: () => void;
+      getOS: () => 'ios' | 'android' | 'web';
+      getLanguage: () => string;
+      getVersion: () => string;
+      getLineVersion: () => string;
+      isInClient: () => boolean;
+      isApiAvailable: (apiName: string) => boolean;
       getContext: () => {
         type: string;
         viewType: string;

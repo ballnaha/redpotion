@@ -70,6 +70,11 @@ export default function ImageUploadDropzone({
   const [deleting, setDeleting] = useState(false);
   const [imageLoadError, setImageLoadError] = useState(false);
 
+  // Sync previewUrl with currentImageUrl prop changes
+  useEffect(() => {
+    setPreviewUrl(currentImageUrl || null);
+  }, [currentImageUrl]);
+
   // Reset image load error when previewUrl changes
   useEffect(() => {
     setImageLoadError(false);
@@ -249,7 +254,7 @@ export default function ImageUploadDropzone({
   const borderRadius = variant === 'avatar' ? '50%' : (variant === 'banner' && size === 'large' ? 0 : 1);
 
   return (
-    <Box sx={{ width: '100%', maxWidth: variant === 'banner' && size === 'large' ? 'none' : 350 }}>
+    <Box sx={{ width: '100%', maxWidth: (variant === 'banner' || variant === 'gallery') && size === 'large' ? 'none' : 350 }}>
       {/* Minimal Professional Preview */}
       {showPreview && previewUrl && !imageLoadError && (
         <Fade in timeout={400}>
@@ -257,8 +262,8 @@ export default function ImageUploadDropzone({
             sx={{ 
               mb: 2.5, 
               position: 'relative', 
-              display: variant === 'banner' && size === 'large' ? 'block' : 'inline-block',
-              width: variant === 'banner' && size === 'large' ? '100%' : 'auto',
+              display: (variant === 'banner' || variant === 'gallery') && size === 'large' ? 'block' : 'inline-block',
+              width: (variant === 'banner' || variant === 'gallery') && size === 'large' ? '100%' : 'auto',
             }}
           >
             <Box
@@ -353,8 +358,8 @@ export default function ImageUploadDropzone({
             sx={{ 
               mb: 2.5, 
               position: 'relative', 
-              display: variant === 'banner' && size === 'large' ? 'block' : 'inline-block',
-              width: variant === 'banner' && size === 'large' ? '100%' : 'auto',
+              display: (variant === 'banner' || variant === 'gallery') && size === 'large' ? 'block' : 'inline-block',
+              width: (variant === 'banner' || variant === 'gallery') && size === 'large' ? '100%' : 'auto',
             }}
           >
             <Box

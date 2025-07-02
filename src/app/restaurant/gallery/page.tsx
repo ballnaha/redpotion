@@ -865,10 +865,10 @@ export default function GalleryPage() {
                 currentImageUrl={formData.imageUrl}
                 restaurantId={restaurant?.id}
                 category="gallery"
-                variant="banner"
+                variant="gallery"
                 size="large"
                 maxFileSize={10 * 1024 * 1024} // 10MB limit for gallery
-                showPreview={!!editingGallery}
+                showPreview={true}
               />
               <Typography 
                 variant="caption" 

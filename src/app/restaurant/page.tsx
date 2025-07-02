@@ -99,19 +99,55 @@ export default function RestaurantPage() {
   // Redirect if not authenticated or not restaurant owner
   // แต่ให้รอ session loading เสร็จก่อน
   useEffect(() => {
-    if (sessionStatus === 'loading') return // รอ session loading เสร็จก่อน
+    console.log('🏪 Restaurant page auth check:', {
+      sessionStatus,
+      userRole: session?.user?.role,
+      userId: session?.user?.id,
+      userEmail: session?.user?.email,
+      currentUrl: typeof window !== 'undefined' ? window.location.href : 'undefined'
+    });
+    
+    if (sessionStatus === 'loading') {
+      console.log('⏳ Session still loading, waiting...');
+      return; // รอ session loading เสร็จก่อน
+    }
     
     if (sessionStatus === 'unauthenticated') {
-      router.replace('/auth/signin')
-    } else if (sessionStatus === 'authenticated' && session?.user?.role !== 'RESTAURANT_OWNER') {
-      router.replace('/')
+      console.log('❌ User not authenticated, redirecting to signin');
+      // เพิ่ม callbackUrl เพื่อกลับมาหน้า restaurant หลัง login
+      const callbackUrl = encodeURIComponent('/restaurant');
+      router.replace(`/auth/signin?callbackUrl=${callbackUrl}`);
+    } else if (sessionStatus === 'authenticated') {
+      // เพิ่มการตรวจสอบ role อย่างละเอียด
+      const userRole = session?.user?.role;
+      
+      if (!userRole) {
+        console.log('⚠️ User role not found in session, might be loading issue');
+        // ลองรอเล็กน้อยแล้วตรวจสอบใหม่
+        setTimeout(() => {
+          if (!session?.user?.role) {
+            console.log('❌ User role still not found, forcing logout');
+            router.replace('/auth/signin');
+          }
+        }, 2000);
+        return;
+      }
+      
+      if (userRole !== 'RESTAURANT_OWNER') {
+        console.log('⚠️ User not restaurant owner, redirecting to home', { role: userRole });
+        router.replace('/');
+      } else {
+        console.log('✅ Restaurant owner authenticated, staying on page');
+      }
     }
-  }, [sessionStatus, session?.user?.role, router])
+  }, [sessionStatus, session?.user?.role, session?.user?.id, router])
 
   // Show loading while session is loading or while redirecting
   if (sessionStatus === 'loading') {
+    console.log('🔄 Rendering loading skeleton - session loading');
     return (
       <Box sx={{ p: { xs: 2, md: 3 } }}>
+        <Typography variant="h6" sx={{ mb: 2 }}>กำลังตรวจสอบสิทธิ์...</Typography>
         <Skeleton variant="text" width="60%" height={60} />
         <Skeleton variant="rectangular" width="100%" height={200} sx={{ mt: 2 }} />
       </Box>
@@ -119,10 +155,27 @@ export default function RestaurantPage() {
   }
 
   // Don't render anything if not authenticated or wrong role (will redirect)
-  if (sessionStatus === 'unauthenticated' || 
-      (sessionStatus === 'authenticated' && session?.user?.role !== 'RESTAURANT_OWNER')) {
+  if (sessionStatus === 'unauthenticated') {
+    console.log('🔄 User unauthenticated, rendering loading skeleton while redirecting');
     return (
       <Box sx={{ p: { xs: 2, md: 3 } }}>
+        <Typography variant="h6" sx={{ mb: 2 }}>กำลังเข้าสู่ระบบ...</Typography>
+        <Skeleton variant="text" width="60%" height={60} />
+        <Skeleton variant="rectangular" width="100%" height={200} sx={{ mt: 2 }} />
+      </Box>
+    )
+  }
+  
+  if (sessionStatus === 'authenticated' && (!session?.user?.role || session?.user?.role !== 'RESTAURANT_OWNER')) {
+    console.log('🔄 Wrong user role or role loading, rendering loading skeleton while redirecting', {
+      hasRole: !!session?.user?.role,
+      role: session?.user?.role
+    });
+    return (
+      <Box sx={{ p: { xs: 2, md: 3 } }}>
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          {!session?.user?.role ? 'กำลังตรวจสอบสิทธิ์...' : 'กำลังเปลี่ยนหน้า...'}
+        </Typography>
         <Skeleton variant="text" width="60%" height={60} />
         <Skeleton variant="rectangular" width="100%" height={200} sx={{ mt: 2 }} />
       </Box>

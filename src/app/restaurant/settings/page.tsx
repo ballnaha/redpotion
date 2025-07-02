@@ -26,10 +26,12 @@ import {
   Upload,
   Business,
   Schedule,
-  DeliveryDining
+  DeliveryDining,
+  LocationOn
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import ImageUploadDropzone, { uploadImageFile } from '../components/ImageUploadDropzone';
+import LocationPicker, { LocationData } from '../components/LocationPicker';
 import { useNotification } from '../../../contexts/NotificationContext';
 
 interface RestaurantData {
@@ -41,6 +43,9 @@ interface RestaurantData {
   email?: string;
   imageUrl?: string;
   status: string;
+  latitude?: number;
+  longitude?: number;
+  locationName?: string;
   businessType?: string;
   taxId?: string;
   bankAccount?: string;
@@ -111,6 +116,14 @@ export default function RestaurantSettingsPage() {
     deliveryRadius: 5
   });
 
+  // Location data separate state
+  const [locationData, setLocationData] = useState<LocationData>({
+    latitude: null,
+    longitude: null,
+    address: '',
+    locationName: ''
+  });
+
   // Auto-populate form when restaurant data loads
   React.useEffect(() => {
     if (restaurant) {
@@ -132,6 +145,14 @@ export default function RestaurantSettingsPage() {
         deliveryFee: restaurant.deliveryFee || 0,
         deliveryRadius: restaurant.deliveryRadius || 5
       });
+
+      // Set location data
+      setLocationData({
+        latitude: restaurant.latitude || null,
+        longitude: restaurant.longitude || null,
+        address: restaurant.address || '',
+        locationName: restaurant.locationName || ''
+      });
     }
   }, [restaurant]);
 
@@ -140,6 +161,17 @@ export default function RestaurantSettingsPage() {
       ...prev,
       [field]: value
     }));
+  };
+
+  const handleLocationChange = (location: LocationData) => {
+    setLocationData(location);
+    // Update address field if location has address
+    if (location.address) {
+      setFormData(prev => ({
+        ...prev,
+        address: location.address
+      }));
+    }
   };
 
   const handleImageChange = async (imageUrl: string | null, file?: File) => {
@@ -251,6 +283,9 @@ export default function RestaurantSettingsPage() {
           phone: formData.phone.trim(),
           email: formData.email.trim(),
           imageUrl: uploadedImageUrl,
+          latitude: locationData.latitude,
+          longitude: locationData.longitude,
+          locationName: locationData.locationName,
           businessType: formData.businessType.trim(),
           taxId: formData.taxId.trim(),
           bankAccount: formData.bankAccount.trim(),
@@ -462,6 +497,28 @@ export default function RestaurantSettingsPage() {
                   placeholder="เขียนคำอธิบายเกี่ยวกับร้านอาหารของคุณ..."
                 />
               </Box>
+            </CardContent>
+          </Card>
+
+          {/* ตำแหน่งร้าน */}
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                <LocationOn color="primary" />
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  ตำแหน่งร้านอาหาร
+                </Typography>
+              </Box>
+              
+              <LocationPicker
+                value={{
+                  ...locationData,
+                  address: formData.address // Always use form address as master
+                }}
+                onChange={handleLocationChange}
+                disabled={saving}
+                required={false}
+              />
             </CardContent>
           </Card>
 

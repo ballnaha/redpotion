@@ -338,6 +338,18 @@ export default function MenuPageComponent() {
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [galleryLoaded, setGalleryLoaded] = useState(false);
 
+  // LINE user state
+  const [lineUser, setLineUser] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    image?: string;
+    lineUserId: string;
+  } | null>(null);
+  const [lineSessionChecked, setLineSessionChecked] = useState(false);
+  const [redirectingToAuth, setRedirectingToAuth] = useState(false);
+
   // แปลงข้อมูลจาก restaurant context ให้เข้ากับ MenuCategory interface
   // และกรองเฉพาะ category ที่มีอาหารอย่างน้อย 1 รายการ
   const categories: MenuCategory[] = restaurant?.menu?.map(category => ({
@@ -353,6 +365,58 @@ export default function MenuPageComponent() {
   // รวมรายการอาหารจากทุกหมวดหมู่
   const menuItems: MenuItem[] = categories.flatMap(category => category.items || []);
   
+  // บังคับ LINE Authentication สำหรับหน้า Menu
+  useEffect(() => {
+    const checkLineSession = async () => {
+      // ป้องกันการ redirect ซ้ำ
+      if (redirectingToAuth) {
+        console.log('⏸️ Already redirecting to auth, skipping check');
+        return;
+      }
+
+      try {
+        console.log('🔍 Checking LINE session for restaurant:', restaurant?.id);
+        const response = await fetch('/api/auth/line-session');
+        const data = await response.json();
+        
+        if (data.authenticated && data.user) {
+          console.log('✅ LINE user found:', data.user.name);
+          setLineUser(data.user);
+          setLineSessionChecked(true);
+        } else {
+          console.log('❌ No LINE session found, requiring LINE login');
+          setLineUser(null);
+          setRedirectingToAuth(true);
+          
+          // บังคับให้ login ด้วย LINE ทันที
+          if (restaurant?.id) {
+            const lineSigninUrl = `/auth/line-signin?restaurant=${restaurant.id}&required=true`;
+            console.log('🔄 Forcing LINE login redirect to:', lineSigninUrl);
+            router.replace(lineSigninUrl);
+            return; // หยุดการทำงานต่อ
+          }
+        }
+      } catch (error) {
+        console.log('⚠️ LINE session check failed, requiring LINE login');
+        setLineUser(null);
+        setRedirectingToAuth(true);
+        
+        // กรณี error ก็ให้ redirect ไป LINE login
+        if (restaurant?.id) {
+          const lineSigninUrl = `/auth/line-signin?restaurant=${restaurant.id}&required=true&error=session_check_failed`;
+          console.log('🔄 Error fallback redirect to:', lineSigninUrl);
+          router.replace(lineSigninUrl);
+          return;
+        }
+      }
+    };
+
+    // ตรวจสอบเฉพาะเมื่อมี restaurant data แล้วและยังไม่ได้ redirect
+    if (restaurant?.id && !redirectingToAuth) {
+      checkLineSession();
+    }
+  }, [restaurant?.id, router, redirectingToAuth]);
+
   // ดึงข้อมูล gallery พร้อมกับการโหลดหน้า (ไม่ต้องรอ)
   useEffect(() => {
     if (restaurant?.id) {
@@ -487,10 +551,9 @@ export default function MenuPageComponent() {
     filteredItems: filteredItems.map(item => ({ name: item.name, category: item.category }))
   });
 
-  // หลังจากมี redirect ใน RestaurantContext แล้ว 
-  // ไม่จำเป็นต้องแสดง error state ที่นี่อีก เพราะจะ redirect ไปหน้าหลักแล้ว
-  // จัดการเฉพาะกรณี !restaurant (กำลังรอ redirect)
-  if (!restaurant) {
+  // ตรวจสอบการ authenticate ก่อนแสดงเนื้อหา
+  // หากยังไม่ได้ตรวจสอบ LINE session หรือไม่มี restaurant ให้แสดง loading
+  if (!restaurant || !lineSessionChecked || !lineUser) {
     return (
       <Box sx={{ 
         minHeight: '100vh', 
@@ -567,7 +630,7 @@ export default function MenuPageComponent() {
               textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
             }}
           >
-            กำลังตรวจสอบข้อมูล...
+            กำลังตรวจสอบการเข้าสู่ระบบ...
           </Typography>
 
           <Typography 
@@ -577,7 +640,7 @@ export default function MenuPageComponent() {
               fontSize: '1rem'
             }}
           >
-            กรุณารอสักครู่
+            กรุณารอสักครู่ ระบบกำลังตรวจสอบ LINE session
           </Typography>
 
           <CircularProgress 
@@ -625,74 +688,18 @@ export default function MenuPageComponent() {
         {/* Customer Header */}
         <Box display="flex" alignItems="center" justifyContent="space-between">
           <Box display="flex" alignItems="center" gap={2}>
-            {/* User Avatar or Login Button */}
-            {session?.user ? (
-              <IconButton 
-                onClick={() => signOut({ callbackUrl: '/' })}
-                sx={{ 
-                  width: 40,
-                  height: 40,
-                  background: 'rgba(255, 255, 255, 0.9)',
-                  backdropFilter: 'blur(4px)',
-                  border: '1px solid rgba(0, 0, 0, 0.08)',
-                  p: 0,
-                  '&:hover': {
-                    background: 'rgba(255, 255, 255, 0.95)',
-                    transform: 'translateY(-1px)',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-                  },
-                  transition: 'all 0.2s ease-out'
-                }}
-              >
-                <Avatar 
-                  src={session.user.image || undefined}
-                  alt={session.user.name || 'User'}
-                  sx={{ 
-                    width: 32, 
-                    height: 32,
-                    fontSize: '0.875rem',
-                    bgcolor: '#10B981',
-                    color: 'white'
-                  }}
-                >
-                  {!session.user.image && session.user.name ? 
-                    session.user.name.charAt(0).toUpperCase() : 
-                    'U'
-                  }
-                </Avatar>
-              </IconButton>
-            ) : (
-              <IconButton 
-                onClick={() => signIn()}
-                sx={{ 
-                  color: 'rgba(0, 0, 0, 0.7)',
-                  width: 40,
-                  height: 40,
-                  background: 'rgba(255, 255, 255, 0.9)',
-                  backdropFilter: 'blur(4px)',
-                  border: '1px solid rgba(0, 0, 0, 0.08)',
-                  p: 0,
-                  '&:hover': {
-                    background: 'rgba(255, 255, 255, 0.95)',
-                    transform: 'translateY(-1px)',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-                  },
-                  transition: 'all 0.2s ease-out'
-                }}
-              >
-                <Avatar 
-                  sx={{ 
-                    width: 32, 
-                    height: 32,
-                    bgcolor: '#6B7280',
-                    color: 'white',
-                    fontSize: '0.875rem'
-                  }}
-                >
-                  ?
-                </Avatar>
-              </IconButton>
-            )}
+          {lineUser?.image && (
+                      <Avatar
+                        src={lineUser.image}
+                        alt={lineUser.name || 'User'}
+                        sx={{
+                          width: 42,
+                          height: 42,
+                          border: '2px solid rgba(6, 199, 85, 0.3)',
+                          boxShadow: '0 2px 8px rgba(6, 199, 85, 0.2)',
+                        }}
+                      />
+                    )}
             <Box>
               <Typography 
                 sx={{ 
@@ -840,71 +847,61 @@ export default function MenuPageComponent() {
                   {restaurant?.name}
                 </Typography>
               </Box>
-            </Box>
-            
-            <CardContent sx={{ px: 3, py: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                
-                <Box sx={{ flex: 1 }}>
-                  
-                  {/* Welcome Message */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                    <Typography sx={{ fontSize: '0.95rem', color: 'rgba(0, 0, 0, 0.65)', fontWeight: 500, letterSpacing: '0.005em' }}>
-                      สวัสดี{session?.user?.name ? ` คุณ${session.user.name}` : ''}
-                    </Typography>
-                    {session?.user && (
+
+              
+
+                             {/* Restaurant Info Glass Bar - ด้านล่างกว้าง 100% */}
+              <Box 
+                sx={{ 
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  background: 'rgba(255, 255, 255, 0.5)',
+
+                  px: 2,
+                  py: 1,
+                  border: '1px solid rgba(0, 0, 0, 0.08)',
+                  borderTop: 'none'
+                }}
+              >
+                {/* Status and Time - บรรทัดแรก */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                  {(() => {
+                    const isOpen = isRestaurantOpen(restaurant?.contact?.hours || '', currentTime);
+                    return (
                       <Chip 
-                        label="LINE" 
+                        label={isOpen ? "เปิดอยู่" : "ปิดอยู่"} 
                         size="small"
                         sx={{ 
-                          background: 'rgba(6, 199, 85, 0.15)',
-                          color: '#06C755',
-                          fontSize: '0.65rem',
-                          height: '18px',
-                          border: '1px solid rgba(6, 199, 85, 0.25)',
-                          fontWeight: 500,
-                          '& .MuiChip-label': {
-                            px: 1
-                          }
+                          background: isOpen 
+                            ? 'rgba(16, 185, 129, 0.2)' 
+                            : 'rgba(239, 68, 68, 0.2)',
+                          color: isOpen ? '#059669' : '#DC2626',
+                          fontSize: '0.7rem',
+                          height: '20px',
+                          border: isOpen 
+                            ? '1px solid rgba(16, 185, 129, 0.3)' 
+                            : '1px solid rgba(239, 68, 68, 0.3)',
+                          fontWeight: 600,
+                          minWidth: 'auto'
                         }}
                       />
-                    )}
-                  </Box>
-                  
-                  {/* Status and Time */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                    
-                    {(() => {
-                      const isOpen = isRestaurantOpen(restaurant?.contact?.hours || '', currentTime);
-                      return (
-                    <Chip 
-                          label={isOpen ? "เปิดอยู่" : "ปิดอยู่"} 
-                      size="small"
-                      sx={{ 
-                            background: isOpen 
-                              ? 'rgba(16, 185, 129, 0.15)' 
-                              : 'rgba(239, 68, 68, 0.15)',
-                            backdropFilter: 'blur(4px)',
-                            color: isOpen ? '#10B981' : '#EF4444',
-                            fontSize: '0.75rem',
-                        height: '22px',
-                            border: isOpen 
-                              ? '1px solid rgba(16, 185, 129, 0.25)' 
-                              : '1px solid rgba(239, 68, 68, 0.25)',
-                            fontWeight: 500,
-                            letterSpacing: '0.005em'
-                          }}
-                        />
-                      );
-                    })()}
-                                          <Typography sx={{ fontSize: '0.85rem', color: 'rgba(0, 0, 0, 0.65)', letterSpacing: '0.005em' }}>
-                        เวลาเปิด : {restaurant?.contact?.hours || '-'} น.
-                    </Typography>
-                      
-                  </Box>
-                  
-                  {/* Address */}
-                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1.5 }}>
+                    );
+                  })()}
+                  <Typography sx={{ 
+                    fontSize: '0.8rem', 
+                    color: 'rgba(0, 0, 0, 0.8)', 
+                    fontWeight: 500 
+                  }}>
+                    เวลาเปิด: {restaurant?.contact?.hours || '-'} น.
+                  </Typography>
+                </Box>
+
+                {/* Address และ Phone - แถวเดียวกัน แบ่งครึ่ง */}
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  {/* Address - 50% */}
+                  <Box sx={{ flex: 1, display: 'flex', alignItems: 'flex-start', gap: 1 }}>
                     <LocationOn sx={{ 
                       color: '#10B981', 
                       fontSize: 16, 
@@ -912,24 +909,23 @@ export default function MenuPageComponent() {
                       flexShrink: 0
                     }} />
                     <Typography sx={{ 
-                      fontSize: '0.9rem', 
-                      color: 'rgba(0, 0, 0, 0.7)',
-                      lineHeight: 1.5,
-                      fontWeight: 500,
-                      letterSpacing: '0.005em'
+                      fontSize: '0.8rem', 
+                      color: 'rgba(0, 0, 0, 0.8)',
+                      lineHeight: 1.4,
+                      fontWeight: 500
                     }}>
                       {restaurant?.contact?.address || '456 ถนนรามคำแหง แขวงหัวหมาก เขตบางกะปิ กรุงเทพฯ 10240'}
                     </Typography>
                   </Box>
-                  
-                  {/* Phone */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+
+                  {/* Phone - 50% */}
+                  <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Box sx={{
                       width: 16,
                       height: 16,
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center'
+                      justifyContent: 'center',
                     }}>
                       <Typography sx={{ 
                         fontSize: '14px', 
@@ -940,19 +936,70 @@ export default function MenuPageComponent() {
                       </Typography>
                     </Box>
                     <Typography sx={{ 
-                      fontSize: '0.9rem', 
-                      color: 'rgba(0, 0, 0, 0.7)',
-                      fontWeight: 500,
-                      letterSpacing: '0.01em'
+                      fontSize: '0.8rem', 
+                      color: 'rgba(0, 0, 0, 0.8)',
+                      fontWeight: 500
                     }}>
                       {restaurant?.contact?.phone || '02-123-4567'}
                     </Typography>
                   </Box>
-                  
                 </Box>
               </Box>
-            </CardContent>
+            </Box>
+            
+
           </Card>
+
+          {/* Welcome Message - ด้านล่างรูป banner */}
+          {(lineUser?.name || session?.user?.name) && (
+            <Box 
+              sx={{ 
+                mt: 2,
+                mx: 2,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                background: 'rgba(255, 255, 255, 0.8)',
+                backdropFilter: 'blur(10px)',
+                borderRadius: '16px',
+                px: 3,
+                py: 1,
+                border: '1px solid rgba(0, 0, 0, 0.08)',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)'
+              }}
+            >
+
+              <Box sx={{ flex: 1 }}>
+                <Typography sx={{ 
+                  fontSize: '1rem', 
+                  fontWeight: 600, 
+                  color: 'rgba(0, 0, 0, 0.85)',
+                  letterSpacing: '0.005em',
+                  mb: 0.5
+                }}>
+                  สวัสดี คุณ{lineUser?.name || session?.user?.name}
+                </Typography>
+                
+              </Box>
+              {(lineUser || session?.user) && (
+                <Chip 
+                  label={lineUser ? "LINE" : "MEMBER"} 
+                  size="small"
+                  sx={{ 
+                    background: lineUser ? 'rgba(6, 199, 85, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                    color: lineUser ? '#059669' : '#2563EB',
+                    fontSize: '0.7rem',
+                    height: '24px',
+                    border: lineUser ? '1px solid rgba(6, 199, 85, 0.25)' : '1px solid rgba(59, 130, 246, 0.25)',
+                    fontWeight: 600,
+                    '& .MuiChip-label': {
+                      px: 1.5
+                    }
+                  }}
+                />
+              )}
+            </Box>
+          )}
         </Box>
 
         {/* Gallery Swiper Slider - แสดงเฉพาะเมื่อมีข้อมูล */}

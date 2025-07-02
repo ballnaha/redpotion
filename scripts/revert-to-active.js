@@ -9,7 +9,7 @@ async function revertToActive() {
     console.log('🔄 Reverting restaurant status to ACTIVE...')
     
     const restaurant = await prisma.restaurant.update({
-      where: { id: 'cmckil8250001j3205w99e5ti' },
+      where: { id: 'cmckbw2fj00029h28foah2xss' },
       data: { status: 'ACTIVE' },
       select: {
         id: true,

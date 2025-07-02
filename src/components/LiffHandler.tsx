@@ -1,665 +1,299 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { signIn, useSession } from 'next-auth/react';
-import { Box, CircularProgress, Typography, Alert, Card, Button } from '@mui/material';
+import { Box, CircularProgress, Typography } from '@mui/material';
 
-interface LiffHandlerProps {
-  defaultRestaurantId?: string;
-  children: React.ReactNode;
-}
-
-// Component ที่ใช้ useSearchParams ต้อง wrap ด้วย Suspense
-function LiffLogic({ defaultRestaurantId, children }: LiffHandlerProps) {
+export default function LiffHandler() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status } = useSession();
-  const [isLiff, setIsLiff] = useState(false);
   const [liffLoading, setLiffLoading] = useState(true);
-  const [liffError, setLiffError] = useState<string | null>(null);
-  const [hasRedirected, setHasRedirected] = useState(false);
-  const [actualDefaultRestaurantId, setActualDefaultRestaurantId] = useState<string | null>(null);
+  const [isLiffPage, setIsLiffPage] = useState(false);
+  const [autoLoginAttempted, setAutoLoginAttempted] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  const [isFromLiff, setIsFromLiff] = useState(false);
+  const [isMenuPage, setIsMenuPage] = useState(false);
 
-  // Fetch default restaurant ID เฉพาะเมื่อจำเป็น
+  // ฟังก์ชันตรวจสอบว่าเข้าจาก LIFF หรือไม่
+  const checkIfFromLiff = () => {
+    if (typeof window === 'undefined') return false;
+    
+    // ตรวจสอบ referrer
+    const referrer = document.referrer;
+    const isLiffReferrer = referrer.includes('liff.line.me') || referrer.includes('liff-web.line.me');
+    
+    // ตรวจสอบ user agent
+    const userAgent = navigator.userAgent;
+    const isLineApp = userAgent.includes('Line') || userAgent.includes('LIFF');
+    
+    // ตรวจสอบ URL parameters ที่บ่งบอกว่าเข้าจาก LIFF
+    const hasLiffParams = window.location.search.includes('liff') || 
+                         window.location.search.includes('utm_source=line');
+    
+    console.log('🔍 LIFF Detection:', {
+      referrer,
+      isLiffReferrer,
+      userAgent,
+      isLineApp,
+      hasLiffParams,
+      pathname: window.location.pathname
+    });
+    
+    return isLiffReferrer || isLineApp || hasLiffParams;
+  };
+
+  // ฟังก์ชันตรวจสอบว่าเป็นหน้า menu หรือไม่
+  const checkIfMenuPage = () => {
+    if (typeof window === 'undefined') return false;
+    return window.location.pathname.startsWith('/menu/');
+  };
+
+  // ตรวจสอบว่าอยู่ในฝั่ง client หรือไม่
   useEffect(() => {
-    const fetchDefaultRestaurant = async () => {
-      // ตรวจสอบว่าต้องการข้อมูลร้านอาหารหรือไม่
-      const needsRestaurantData = typeof window !== 'undefined' && (
-        window.location.pathname.startsWith('/menu/') ||
-        window.location.pathname.startsWith('/restaurant/') ||
-        window.location.pathname.startsWith('/cart/') ||
-        window.location.search.includes('liff') ||
-        defaultRestaurantId // ถ้ามีการส่ง defaultRestaurantId เข้ามา
-      );
+    setIsClient(true);
+  }, []);
 
-      if (!needsRestaurantData) {
-        console.log('📝 Page does not need restaurant data, skipping fetch');
-        setLiffLoading(false);
-        return;
-      }
+  // ตรวจสอบว่าเป็นหน้า LIFF และเข้าจาก LIFF หรือไม่
+  useEffect(() => {
+    if (!isClient) return;
 
-      if (defaultRestaurantId) {
-        setActualDefaultRestaurantId(defaultRestaurantId);
-        setLiffLoading(false);
-        return;
-      }
+    setIsLiffPage(window.location.pathname === '/liff');
+    setIsFromLiff(checkIfFromLiff());
+    setIsMenuPage(checkIfMenuPage());
+  }, [isClient]);
 
+  useEffect(() => {
+    if (!isClient) {
+      setLiffLoading(false);
+      return;
+    }
+
+    const initializeLiff = async () => {
       try {
-        const response = await fetch('/api/restaurant/default');
-        if (response.ok) {
-          const data = await response.json();
-          console.log('✅ Default restaurant fetched:', data);
-          setActualDefaultRestaurantId(data.restaurantId);
-        } else {
-          const errorData = await response.json();
-          console.log('📝 No default restaurant available:', errorData);
+        console.log('🚀 Initializing LIFF...');
+        
+        // ตรวจสอบว่าอยู่ในหน้า auth หรือไม่
+        const isAuthPage = window.location.pathname.startsWith('/auth/');
+        const isLiffPageCheck = window.location.pathname === '/liff';
+        
+        if (isAuthPage && !isLiffPageCheck) {
+          console.log('🚫 Auth page detected, skipping LIFF initialization');
+          setLiffLoading(false);
+          return;
+        }
+
+        console.log('🔍 Is from LIFF:', isFromLiff);
+        console.log('🔍 Is menu page:', isMenuPage);
+
+        // ตรวจสอบว่าต้องการ LIFF หรือไม่ (รวมหน้า menu ด้วย)
+        const needsLiff = isLiffPageCheck || 
+                          isFromLiff ||
+                          isMenuPage ||
+                          window.location.pathname.startsWith('/cart/') ||
+                          searchParams.get('liff') === 'true' ||
+                          navigator.userAgent.includes('Line');
+
+        if (!needsLiff) {
+          console.log('🚫 Page does not need LIFF, skipping initialization');
+          setLiffLoading(false);
+          return;
+        }
+
+        // สำหรับหน้า menu ที่ไม่ใช่ LIFF ให้ปล่อยให้ MenuPageComponent จัดการ authentication เอง
+        if (isMenuPage && !isFromLiff && !isLiffPageCheck) {
+          console.log('📱 Menu page detected (non-LIFF), letting MenuPageComponent handle authentication');
+          setLiffLoading(false);
+          return;
+        }
+
+        const liffId = process.env.NODE_ENV === 'production' 
+          ? process.env.NEXT_PUBLIC_LIFF_ID_PROD 
+          : process.env.NEXT_PUBLIC_LIFF_ID_DEV || '2007609360-3Z0L8Ekg';
+
+        if (!liffId) {
+          console.warn('⚠️ LIFF ID not configured');
+          setLiffLoading(false);
+          return;
+        }
+
+        if (!window.liff) {
+          console.log('⚠️ LIFF SDK not available');
+          setLiffLoading(false);
+          return;
+        }
+
+        await window.liff.init({ liffId });
+        console.log('✅ LIFF initialized successfully');
+
+        // ตรวจสอบสถานะการ login
+        if (window.liff.isLoggedIn()) {
+          console.log('✅ User is logged in to LINE');
           
-          // ถ้าไม่มีร้านอาหาร
-          if (response.status === 404) {
-            console.log('🔄 No restaurants available');
-            setActualDefaultRestaurantId(null);
-          } else {
-            setLiffError('เกิดข้อผิดพลาดในการดึงข้อมูลร้าน');
+          // ถ้าอยู่ในหน้า LIFF หรือเข้าจาก LIFF ให้จัดการ auto login
+          if (isLiffPageCheck || (isFromLiff && !autoLoginAttempted)) {
+            setAutoLoginAttempted(true);
+            await handleLiffAutoLogin();
+          }
+        } else {
+          console.log('ℹ️ User not logged in to LINE');
+          
+          // ถ้าอยู่ในหน้า LIFF หรือเข้าจาก LIFF ให้ redirect ไป LINE signin
+          if (isLiffPageCheck || isFromLiff) {
+            const restaurantId = searchParams.get('restaurant') || extractRestaurantIdFromPath();
+            const lineSigninUrl = restaurantId 
+              ? `/auth/line-signin?restaurant=${restaurantId}`
+              : '/auth/line-signin';
+            
+            console.log('🔄 Redirecting to LINE signin:', lineSigninUrl);
+            router.replace(lineSigninUrl);
           }
         }
+
       } catch (error) {
-        console.error('Error fetching default restaurant:', error);
-        setLiffError('เกิดข้อผิดพลาดในการดึงข้อมูลร้าน');
+        console.error('❌ LIFF initialization error:', error);
       } finally {
         setLiffLoading(false);
       }
     };
 
-    fetchDefaultRestaurant();
-  }, [defaultRestaurantId]);
-
-  // ตรวจสอบว่าเข้ามาจาก LIFF หรือไม่
-  useEffect(() => {
-    const checkLiff = async () => {
+    // ฟังก์ชันตรวจสอบ LINE session
+    const checkLineSession = async () => {
       try {
-        // ป้องกัน multiple redirects
-        if (hasRedirected) {
-          console.log('🚫 Already redirected, skipping...');
-          return;
-        }
-
-        // ถ้าไม่มีร้านอาหาร ให้แสดงหน้าแรกปกติ
-        if (!actualDefaultRestaurantId) {
-          console.log('📝 No default restaurant available, showing normal page...');
-          setLiffLoading(false);
-          return;
-        }
-
-        // ตรวจสอบว่าอยู่ในหน้าเมนูเป้าหมายแล้วหรือไม่
-        const currentPath = window.location.pathname;
-        if (currentPath.includes(`/menu/${actualDefaultRestaurantId}`)) {
-          console.log('✅ Already on target menu page, stopping LIFF logic');
-          setLiffLoading(false);
-          return;
-        }
-
-        // ตรวจสอบ query parameter หรือ user agent
-        const isFromLiff = searchParams.get('liff') === 'true' || 
-                          navigator.userAgent.includes('Line') ||
-                          window.location.search.includes('liff') ||
-                          window.location.search.includes('openExternalBrowser') ||
-                          // ตรวจสอบว่าเข้ามาจาก LINE app
-                          /Line/.test(navigator.userAgent);
+        const response = await fetch('/api/auth/line-session', {
+          method: 'GET',
+          credentials: 'include'
+        });
         
-        if (isFromLiff && typeof window !== 'undefined') {
-          console.log('🔄 LIFF detected, status:', status);
-          setIsLiff(true);
-          
-          // ถ้า authenticated แล้ว ให้ redirect ทันที
-          if (status === 'authenticated' && session) {
-            console.log('✅ Already authenticated, redirecting to menu...');
-            setHasRedirected(true);
-            // ใช้ window.location.replace เพื่อป้องกัน loop
-            const targetUrl = `/menu/${actualDefaultRestaurantId}`;
-            window.location.replace(targetUrl);
-            return;
-          }
-          
-          // ถ้าไม่มี LIFF SDK ให้ใช้วิธี auto login ธรรมดา
-          if (!window.liff) {
-            console.log('🔄 No LIFF SDK, using standard LINE login...');
-            if (status === 'unauthenticated') {
-              console.log('🔐 Starting LINE login...');
-              setHasRedirected(true);
-              const targetPath = `/menu/${actualDefaultRestaurantId}`;
-              await signIn('line', { 
-                callbackUrl: targetPath,
-                redirect: true 
-              });
-              return;
-            }
-            return;
-          }
-          
-          console.log('🚀 LIFF SDK detected, initializing...');
-          
-          // Initialize LIFF
-          await window.liff.init({ 
-            liffId: process.env.NEXT_PUBLIC_LIFF_ID || '2007609360-3Z0L8Ekg'
-          });
-          
-          console.log('✅ LIFF initialized successfully');
-          
-          // ตรวจสอบสถานะ login ใน LIFF
-          if (!window.liff.isLoggedIn()) {
-            console.log('🔐 User not logged in to LINE, redirecting to LINE login...');
-            setHasRedirected(true);
-            window.liff.login();
-            return;
-          }
-          
-          console.log('✅ User already logged in to LINE');
-          
-          // ถ้า login LINE แล้วแต่ยังไม่ login NextAuth
-          if (status === 'unauthenticated') {
-            console.log('🔄 Auto signing in with LINE...');
-            setHasRedirected(true);
-            // Auto sign in with LINE
-            const targetPath = `/menu/${actualDefaultRestaurantId}`;
-            await signIn('line', { 
-              callbackUrl: targetPath,
-              redirect: true 
-            });
-            return;
-          }
-        } else {
-          // ไม่ใช่ LIFF ให้แสดงหน้าปกติ
-          setLiffLoading(false);
+        if (response.ok) {
+          const data = await response.json();
+          return data.success && data.user;
         }
+        return false;
       } catch (error) {
-        console.error('❌ LIFF initialization error:', error);
-        setLiffError('ไม่สามารถเชื่อมต่อกับ LINE ได้');
-        setLiffLoading(false);
+        console.error('❌ Error checking LINE session:', error);
+        return false;
       }
     };
 
-    if (typeof window !== 'undefined' && status !== 'loading') {
-      checkLiff();
-    }
-  }, [searchParams, status, session, router, actualDefaultRestaurantId, hasRedirected]);
+    const extractRestaurantIdFromPath = () => {
+      const path = window.location.pathname;
+      const menuMatch = path.match(/\/menu\/([^\/]+)/);
+      const cartMatch = path.match(/\/cart\/([^\/]+)/);
+      
+      return menuMatch?.[1] || cartMatch?.[1] || null;
+    };
 
-  // ถ้าเป็น LIFF และกำลังประมวลผล
-  if (isLiff && liffLoading) {
-    return (
-      <Box sx={{ 
-        minHeight: '100vh', 
-        background: 'linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        p: 3,
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        {/* Background decoration */}
-        <Box
-          sx={{
-            position: 'absolute',
-            top: -50,
-            right: -50,
-            width: 200,
-            height: 200,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, rgba(6, 199, 85, 0.1) 0%, rgba(5, 176, 74, 0.05) 100%)',
-            filter: 'blur(40px)',
-            animation: 'liquidFloat 6s ease-in-out infinite'
-          }}
-        />
-        <Box
-          sx={{
-            position: 'absolute',
-            bottom: -100,
-            left: -100,
-            width: 300,
-            height: 300,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, rgba(6, 199, 85, 0.1) 0%, rgba(5, 176, 74, 0.05) 100%)',
-            filter: 'blur(60px)',
-            animation: 'liquidFloat 8s ease-in-out infinite reverse'
-          }}
-        />
+    const handleLiffAutoLogin = async () => {
+      try {
+        console.log('🔐 Handling LIFF auto login...');
+        
+        if (!window.liff) {
+          console.error('❌ LIFF SDK not available');
+          return;
+        }
+        
+        const accessToken = window.liff.getAccessToken();
+        if (!accessToken) {
+          console.error('❌ No access token available');
+          return;
+        }
 
-        <Card
-          sx={{
-            maxWidth: 400,
-            width: '100%',
-            background: 'rgba(255, 255, 255, 0.25)',
-            backdropFilter: 'blur(20px) saturate(180%)',
-            border: '1px solid rgba(255, 255, 255, 0.18)',
-            borderRadius: 4,
-            boxShadow: '0 8px 32px rgba(31, 38, 135, 0.15)',
-            p: 5,
-            textAlign: 'center',
-            position: 'relative',
-            overflow: 'hidden',
-            animation: 'fadeInUp 0.6s ease-out both'
-          }}
-        >
-          {/* Shimmer effect */}
-          <Box
-            sx={{
-              position: 'absolute',
-              top: 0,
-              left: '-100%',
-              width: '100%',
-              height: '100%',
-              background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent)',
-              animation: 'shimmer 2s infinite'
-            }}
-          />
+        const restaurantId = searchParams.get('restaurant') || extractRestaurantIdFromPath();
+        console.log('📱 Sending auto login request with restaurantId:', restaurantId);
 
-          {/* Loading Icon */}
-          <Box
-            sx={{
-              width: 80,
-              height: 80,
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, rgba(6, 199, 85, 0.2) 0%, rgba(5, 176, 74, 0.1) 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 24px',
-              border: '2px solid rgba(6, 199, 85, 0.2)',
-              animation: 'liquidFloat 3s ease-in-out infinite'
-            }}
-          >
-            <CircularProgress 
-              size={40} 
-              sx={{ 
-                color: '#06C755',
-                filter: 'drop-shadow(0 2px 8px rgba(6, 199, 85, 0.3))'
-              }} 
-            />
-          </Box>
+        const response = await fetch('/api/auth/line-login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            accessToken,
+            restaurantId
+          })
+        });
 
-          <Typography 
-            variant="h5" 
-            sx={{ 
-              fontWeight: 700,
-              mb: 2,
-              color: 'rgba(0, 0, 0, 0.9)',
-              textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-              '@media (max-width: 600px)': {
-                fontSize: '1.25rem'
-              }
-            }}
-          >
-            เชื่อมต่อกับ LINE
-          </Typography>
+        const data = await response.json();
 
-          <Typography 
-            sx={{ 
-              color: 'rgba(0, 0, 0, 0.7)',
-              lineHeight: 1.6,
-              fontSize: '1rem',
-              '@media (max-width: 600px)': {
-                fontSize: '0.9rem'
-              }
-            }}
-          >
-            กำลังตรวจสอบการเข้าสู่ระบบ...
-          </Typography>
-        </Card>
-      </Box>
-    );
-  }
-
-  // ถ้าเป็น LIFF และเกิด error
-  if (isLiff && liffError) {
-    return (
-      <Box sx={{ 
-        minHeight: '100vh', 
-        background: 'linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        p: 3,
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        {/* Background decoration */}
-        <Box
-          sx={{
-            position: 'absolute',
-            top: -50,
-            right: -50,
-            width: 200,
-            height: 200,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)',
-            filter: 'blur(40px)',
-            animation: 'liquidFloat 6s ease-in-out infinite'
-          }}
-        />
-        <Box
-          sx={{
-            position: 'absolute',
-            bottom: -100,
-            left: -100,
-            width: 300,
-            height: 300,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)',
-            filter: 'blur(60px)',
-            animation: 'liquidFloat 8s ease-in-out infinite reverse'
-          }}
-        />
-
-        <Card
-          sx={{
-            maxWidth: 400,
-            width: '100%',
-            background: 'rgba(255, 255, 255, 0.25)',
-            backdropFilter: 'blur(20px) saturate(180%)',
-            border: '1px solid rgba(255, 255, 255, 0.18)',
-            borderRadius: 4,
-            boxShadow: '0 8px 32px rgba(31, 38, 135, 0.15)',
-            p: 5,
-            textAlign: 'center',
-            position: 'relative',
-            overflow: 'hidden',
-            animation: 'fadeInUp 0.6s ease-out both'
-          }}
-        >
-          {/* Shimmer effect */}
-          <Box
-            sx={{
-              position: 'absolute',
-              top: 0,
-              left: '-100%',
-              width: '100%',
-              height: '100%',
-              background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent)',
-              animation: 'shimmer 2s infinite'
-            }}
-          />
-
-          {/* Error Icon */}
-          <Box
-            sx={{
-              width: 80,
-              height: 80,
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.1) 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 24px',
-              border: '2px solid rgba(239, 68, 68, 0.2)',
-              animation: 'liquidFloat 3s ease-in-out infinite'
-            }}
-          >
-            <Typography
-              sx={{
-                fontSize: '2rem',
-                color: '#EF4444',
-                filter: 'drop-shadow(0 2px 8px rgba(239, 68, 68, 0.3))'
-              }}
-            >
-              ⚠️
-            </Typography>
-          </Box>
-
-          <Typography 
-            variant="h5" 
-            sx={{ 
-              fontWeight: 700,
-              mb: 2,
-              color: 'rgba(0, 0, 0, 0.9)',
-              textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-              '@media (max-width: 600px)': {
-                fontSize: '1.25rem'
-              }
-            }}
-          >
-            เกิดข้อผิดพลาด
-          </Typography>
-
-          <Typography 
-            sx={{ 
-              color: 'rgba(0, 0, 0, 0.7)',
-              mb: 3,
-              lineHeight: 1.6,
-              fontSize: '1rem',
-              '@media (max-width: 600px)': {
-                fontSize: '0.9rem'
-              }
-            }}
-          >
-            {liffError}
-          </Typography>
+        if (response.ok && data.success) {
+          console.log('✅ LIFF auto login successful:', data.user.name);
+          console.log('🔄 Auto redirecting to:', data.redirectUrl);
           
-          <Typography 
-            sx={{ 
-              color: 'rgba(0, 0, 0, 0.5)',
-              fontSize: '0.85rem',
-              fontStyle: 'italic'
-            }}
-          >
-            โปรดลองใหม่อีกครั้งหรือติดต่อผู้ดูแลระบบ
-          </Typography>
-        </Card>
-      </Box>
-    );
+          // Auto redirect ทันที
+          router.replace(data.redirectUrl);
+        } else {
+          console.error('❌ LIFF auto login failed:', data.error);
+          
+          // ถ้า auto login ล้มเหลว ให้ไป LINE signin page
+          const restaurantId = searchParams.get('restaurant') || extractRestaurantIdFromPath();
+          const lineSigninUrl = restaurantId 
+            ? `/auth/line-signin?restaurant=${restaurantId}&error=auto_login_failed`
+            : '/auth/line-signin?error=auto_login_failed';
+          
+          router.replace(lineSigninUrl);
+        }
+
+      } catch (error) {
+        console.error('❌ LIFF auto login error:', error);
+        
+        // ถ้าเกิด error ให้ไป LINE signin page
+        const restaurantId = searchParams.get('restaurant') || extractRestaurantIdFromPath();
+        const lineSigninUrl = restaurantId 
+          ? `/auth/line-signin?restaurant=${restaurantId}&error=auto_login_error`
+          : '/auth/line-signin?error=auto_login_error';
+        
+        router.replace(lineSigninUrl);
+      }
+    };
+
+    // ตรวจสอบว่า LIFF SDK โหลดแล้วหรือยัง
+    if (window.liff) {
+      initializeLiff();
+    } else {
+      // รอ LIFF SDK โหลด
+      const checkLiff = setInterval(() => {
+        if (window.liff) {
+          clearInterval(checkLiff);
+          initializeLiff();
+        }
+      }, 100);
+
+      // Timeout หลัง 10 วินาที
+      setTimeout(() => {
+        clearInterval(checkLiff);
+        if (!window.liff) {
+          console.warn('⚠️ LIFF SDK not loaded within timeout');
+          setLiffLoading(false);
+        }
+      }, 10000);
+    }
+
+  }, [isClient, router, searchParams, autoLoginAttempted, isFromLiff, isMenuPage]);
+
+  // ไม่แสดงอะไรเลยในฝั่ง server-side
+  if (!isClient) {
+    return null;
   }
 
-  // ถ้าเป็น LIFF และกำลัง redirect หรือ sign in
-  if (isLiff && (status === 'loading' || status === 'unauthenticated')) {
+  // แสดง loading เมื่อกำลัง auto login หรือตรวจสอบ session ในหน้า menu
+  if (liffLoading && (isLiffPage || isFromLiff || isMenuPage)) {
     return (
       <Box sx={{ 
-        minHeight: '100vh', 
-        background: 'linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        p: 3,
-        position: 'relative',
-        overflow: 'hidden'
+        display: 'flex', 
+        flexDirection: 'column',
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        minHeight: '100vh',
+        background: '#ffffff',
+        gap: 2
       }}>
-        {/* Background decoration */}
-        <Box
-          sx={{
-            position: 'absolute',
-            top: -50,
-            right: -50,
-            width: 200,
-            height: 200,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, rgba(6, 199, 85, 0.1) 0%, rgba(5, 176, 74, 0.05) 100%)',
-            filter: 'blur(40px)',
-            animation: 'liquidFloat 6s ease-in-out infinite'
-          }}
-        />
-        <Box
-          sx={{
-            position: 'absolute',
-            bottom: -100,
-            left: -100,
-            width: 300,
-            height: 300,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, rgba(6, 199, 85, 0.1) 0%, rgba(5, 176, 74, 0.05) 100%)',
-            filter: 'blur(60px)',
-            animation: 'liquidFloat 8s ease-in-out infinite reverse'
-          }}
-        />
-
-        <Card
-          sx={{
-            maxWidth: 400,
-            width: '100%',
-            background: 'rgba(255, 255, 255, 0.25)',
-            backdropFilter: 'blur(20px) saturate(180%)',
-            border: '1px solid rgba(255, 255, 255, 0.18)',
-            borderRadius: 4,
-            boxShadow: '0 8px 32px rgba(31, 38, 135, 0.15)',
-            p: 5,
-            textAlign: 'center',
-            position: 'relative',
-            overflow: 'hidden',
-            animation: 'fadeInUp 0.6s ease-out both'
-          }}
-        >
-          {/* Shimmer effect */}
-          <Box
-            sx={{
-              position: 'absolute',
-              top: 0,
-              left: '-100%',
-              width: '100%',
-              height: '100%',
-              background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent)',
-              animation: 'shimmer 2s infinite'
-            }}
-          />
-
-          {/* Login Icon */}
-          <Box
-            sx={{
-              width: 80,
-              height: 80,
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, rgba(6, 199, 85, 0.2) 0%, rgba(5, 176, 74, 0.1) 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 24px',
-              border: '2px solid rgba(6, 199, 85, 0.2)',
-              animation: 'liquidFloat 3s ease-in-out infinite'
-            }}
-          >
-            <CircularProgress 
-              size={40} 
-              sx={{ 
-                color: '#06C755',
-                filter: 'drop-shadow(0 2px 8px rgba(6, 199, 85, 0.3))'
-              }} 
-            />
-          </Box>
-
-          <Typography 
-            variant="h5" 
-            sx={{ 
-              fontWeight: 700,
-              mb: 2,
-              color: 'rgba(0, 0, 0, 0.9)',
-              textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-              '@media (max-width: 600px)': {
-                fontSize: '1.25rem'
-              }
-            }}
-          >
-            เข้าสู่ระบบ
-          </Typography>
-
-          <Typography 
-            sx={{ 
-              color: 'rgba(0, 0, 0, 0.7)',
-              lineHeight: 1.6,
-              fontSize: '1rem',
-              '@media (max-width: 600px)': {
-                fontSize: '0.9rem'
-              }
-            }}
-          >
-            กำลังเข้าสู่ระบบด้วย LINE...
-          </Typography>
-        </Card>
+        <CircularProgress />
+        <Typography variant="body2" color="text.secondary">
+          {isMenuPage && !isFromLiff ? 'กำลังตรวจสอบสิทธิ์...' : 'กำลัง Login อัตโนมัติ...'}
+        </Typography>
       </Box>
     );
   }
 
-  // ตรวจสอบว่าอยู่ในหน้าที่ต้องการร้านอาหารหรือไม่
-  const isRestaurantRelatedPage = typeof window !== 'undefined' && (
-    window.location.pathname.startsWith('/menu/') ||
-    window.location.pathname.startsWith('/restaurant/') ||
-    window.location.pathname.startsWith('/cart/') ||
-    window.location.search.includes('liff') ||
-    isLiff
-  );
-
-  // ถ้าไม่ใช่หน้าที่เกี่ยวข้องกับร้านอาหาร ให้แสดง children ปกติ
-  if (!isRestaurantRelatedPage) {
-    return <>{children}</>;
-  }
-
-  // ถ้าเป็นหน้าที่เกี่ยวข้องกับร้านอาหารแต่ไม่มีร้านอาหาร ให้แสดงหน้า fallback
-  if (isRestaurantRelatedPage && actualDefaultRestaurantId === null && !liffLoading && !isLiff) {
-    return (
-      <Box sx={{ 
-        minHeight: '100vh', 
-        background: 'linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        p: 3
-      }}>
-        <Card sx={{ maxWidth: 500, textAlign: 'center', p: 4 }}>
-          <Box sx={{ mb: 3, fontSize: '4rem' }}>
-            🏪
-          </Box>
-          <Typography variant="h5" gutterBottom color="primary">
-            ยังไม่มีร้านอาหารให้บริการ
-          </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-            ขณะนี้ยังไม่มีร้านอาหารที่เข้าร่วมระบบ Red Potion
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            หากคุณเป็นเจ้าของร้านอาหารและต้องการเข้าร่วม
-          </Typography>
-          <Box sx={{ mt: 3 }}>
-            <Button 
-              variant="contained" 
-              href="/auth/register/restaurant"
-              sx={{ mr: 2 }}
-            >
-              สมัครเป็นพาร์ทเนอร์
-            </Button>
-            <Button 
-              variant="outlined" 
-              href="/"
-            >
-              กลับหน้าหลัก
-            </Button>
-          </Box>
-        </Card>
-      </Box>
-    );
-  }
-
-  // ถ้าไม่ใช่ LIFF หรือ process เสร็จแล้ว ให้แสดง children ปกติ
-  return <>{children}</>;
-}
-
-// Loading fallback สำหรับ Suspense
-function LiffFallback() {
-  return (
-    <Box sx={{ 
-      minHeight: '100vh', 
-      background: 'linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      p: 3
-    }}>
-      <CircularProgress size={40} sx={{ color: '#06C755' }} />
-    </Box>
-  );
-}
-
-// Main component ที่ wrap ด้วย Suspense
-export default function LiffHandler({ defaultRestaurantId, children }: LiffHandlerProps) {
-  return (
-    <Suspense fallback={<LiffFallback />}>
-      <LiffLogic defaultRestaurantId={defaultRestaurantId}>
-        {children}
-      </LiffLogic>
-    </Suspense>
-  );
+  // ไม่แสดง UI component สำหรับหน้าอื่นๆ
+  return null;
 } 
