@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import {
   Box,
   Card,
@@ -11,6 +11,7 @@ import {
   Container,
   Button,
   Divider,
+  CircularProgress,
 } from '@mui/material'
 import { Error as ErrorIcon, Home, Login } from '@mui/icons-material'
 import Link from 'next/link'
@@ -52,7 +53,8 @@ const errorSolutions: Record<string, string> = {
   Default: 'ลองรีเฟรชหน้าเว็บหรือเข้าสู่ระบบใหม่อีกครั้ง'
 }
 
-export default function AuthErrorPage() {
+// Component ที่ใช้ useSearchParams ต้องอยู่ใน Suspense boundary
+function AuthErrorContent() {
   const searchParams = useSearchParams()
   const [errorType, setErrorType] = useState<string>('Default')
 
@@ -141,5 +143,30 @@ export default function AuthErrorPage() {
         </Card>
       </Box>
     </Container>
+  )
+}
+
+// Loading fallback component
+function AuthErrorLoading() {
+  return (
+    <Container maxWidth="sm">
+      <Box sx={{ mt: 8, mb: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+        <Box sx={{ textAlign: 'center' }}>
+          <CircularProgress size={40} sx={{ mb: 2, color: '#10B981' }} />
+          <Typography variant="body2" color="text.secondary">
+            กำลังโหลด...
+          </Typography>
+        </Box>
+      </Box>
+    </Container>
+  )
+}
+
+// Main component ที่ห่อด้วย Suspense
+export default function AuthErrorPage() {
+  return (
+    <Suspense fallback={<AuthErrorLoading />}>
+      <AuthErrorContent />
+    </Suspense>
   )
 } 

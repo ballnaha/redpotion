@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Box, CircularProgress, Typography } from '@mui/material';
 
-export default function LiffHandler() {
+// Component ที่ใช้ useSearchParams ต้องอยู่ใน Suspense boundary
+function LiffHandlerContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [liffLoading, setLiffLoading] = useState(true);
@@ -198,102 +199,127 @@ export default function LiffHandler() {
           return;
         }
 
-        const restaurantId = searchParams.get('restaurant') || extractRestaurantIdFromPath();
-        console.log('📱 Sending auto login request with restaurantId:', restaurantId);
+        console.log('🎯 Access token obtained');
 
-        const response = await fetch('/api/auth/line-login', {
+        // ส่ง access token ไปยัง backend
+        const loginResponse = await fetch('/api/auth/line-login', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            accessToken,
-            restaurantId
+            accessToken: accessToken
           })
         });
 
-        const data = await response.json();
+        if (loginResponse.ok) {
+          const loginData = await loginResponse.json();
+          console.log('✅ LINE login successful:', loginData);
 
-        if (response.ok && data.success) {
-          console.log('✅ LIFF auto login successful:', data.user.name);
-          console.log('🔄 Auto redirecting to:', data.redirectUrl);
-          
-          // Auto redirect ทันที
-          router.replace(data.redirectUrl);
-        } else {
-          console.error('❌ LIFF auto login failed:', data.error);
-          
-          // ถ้า auto login ล้มเหลว ให้ไป LINE signin page
+          // ถ้าเป็น user ใหม่ ให้ redirect ไป role selection
+          if (loginData.isNewUser) {
+            console.log('👤 New user detected, redirecting to role selection');
+            router.replace('/auth/role-selection');
+            return;
+          }
+
+          // ถ้า login สำเร็จ ให้ redirect ไปยังหน้าที่เหมาะสม
           const restaurantId = searchParams.get('restaurant') || extractRestaurantIdFromPath();
-          const lineSigninUrl = restaurantId 
-            ? `/auth/line-signin?restaurant=${restaurantId}&error=auto_login_failed`
-            : '/auth/line-signin?error=auto_login_failed';
           
-          router.replace(lineSigninUrl);
+          if (restaurantId) {
+            if (loginData.user.role === 'CUSTOMER') {
+              console.log('🍽️ Customer redirect to menu');
+              router.replace(`/menu/${restaurantId}`);
+            } else if (loginData.user.role === 'RESTAURANT_OWNER') {
+              console.log('🏪 Restaurant owner redirect to dashboard');
+              router.replace('/restaurant');
+            } else {
+              console.log('🏠 Default redirect to home');
+              router.replace('/');
+            }
+          } else {
+            if (loginData.user.role === 'RESTAURANT_OWNER') {
+              router.replace('/restaurant');
+            } else {
+              router.replace('/');
+            }
+          }
+        } else {
+          console.error('❌ LINE login failed');
+          const errorData = await loginResponse.json();
+          console.error('Error details:', errorData);
         }
 
       } catch (error) {
-        console.error('❌ LIFF auto login error:', error);
-        
-        // ถ้าเกิด error ให้ไป LINE signin page
-        const restaurantId = searchParams.get('restaurant') || extractRestaurantIdFromPath();
-        const lineSigninUrl = restaurantId 
-          ? `/auth/line-signin?restaurant=${restaurantId}&error=auto_login_error`
-          : '/auth/line-signin?error=auto_login_error';
-        
-        router.replace(lineSigninUrl);
+        console.error('❌ Auto login error:', error);
       }
     };
 
-    // ตรวจสอบว่า LIFF SDK โหลดแล้วหรือยัง
-    if (window.liff) {
-      initializeLiff();
-    } else {
-      // รอ LIFF SDK โหลด
-      const checkLiff = setInterval(() => {
-        if (window.liff) {
-          clearInterval(checkLiff);
-          initializeLiff();
-        }
-      }, 100);
+    initializeLiff();
+  }, [isClient, isFromLiff, isMenuPage, router, searchParams]);
 
-      // Timeout หลัง 10 วินาที
-      setTimeout(() => {
-        clearInterval(checkLiff);
-        if (!window.liff) {
-          console.warn('⚠️ LIFF SDK not loaded within timeout');
-          setLiffLoading(false);
-        }
-      }, 10000);
-    }
-
-  }, [isClient, router, searchParams, autoLoginAttempted, isFromLiff, isMenuPage]);
-
-  // ไม่แสดงอะไรเลยในฝั่ง server-side
-  if (!isClient) {
-    return null;
-  }
-
-  // แสดง loading เมื่อกำลัง auto login หรือตรวจสอบ session ในหน้า menu
-  if (liffLoading && (isLiffPage || isFromLiff || isMenuPage)) {
+  // แสดง loading spinner ขณะกำลังโหลด LIFF
+  if (liffLoading) {
     return (
-      <Box sx={{ 
-        display: 'flex', 
-        flexDirection: 'column',
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        minHeight: '100vh',
-        background: '#ffffff',
-        gap: 2
-      }}>
-        <CircularProgress />
-        <Typography variant="body2" color="text.secondary">
-          {isMenuPage && !isFromLiff ? 'กำลังตรวจสอบสิทธิ์...' : 'กำลัง Login อัตโนมัติ...'}
-        </Typography>
+      <Box
+        sx={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+          zIndex: 9999
+        }}
+      >
+        <Box sx={{ textAlign: 'center' }}>
+          <CircularProgress size={40} sx={{ mb: 2, color: '#10B981' }} />
+          <Typography variant="body2" color="text.secondary">
+            กำลังเชื่อมต่อ LINE...
+          </Typography>
+        </Box>
       </Box>
     );
   }
 
-  // ไม่แสดง UI component สำหรับหน้าอื่นๆ
   return null;
+}
+
+// Loading fallback component
+function LiffHandlerFallback() {
+  return (
+    <Box
+      sx={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        zIndex: 9999
+      }}
+    >
+      <Box sx={{ textAlign: 'center' }}>
+        <CircularProgress size={40} sx={{ mb: 2, color: '#10B981' }} />
+        <Typography variant="body2" color="text.secondary">
+          กำลังโหลด...
+        </Typography>
+      </Box>
+    </Box>
+  );
+}
+
+// Main component ที่ห่อด้วy Suspense
+export default function LiffHandler() {
+  return (
+    <Suspense fallback={<LiffHandlerFallback />}>
+      <LiffHandlerContent />
+    </Suspense>
+  );
 } 

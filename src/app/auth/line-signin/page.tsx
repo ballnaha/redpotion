@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { 
   Box, 
@@ -9,7 +9,8 @@ import {
   Typography, 
   Button,
   Alert,
-  Container
+  Container,
+  CircularProgress
 } from '@mui/material'
 import Image from 'next/image'
 
@@ -22,7 +23,8 @@ interface LineUser {
   lineUserId: string
 }
 
-export default function LineSignInPage() {
+// Component ที่ใช้ useSearchParams ต้องอยู่ใน Suspense boundary
+function LineSignInContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
@@ -198,95 +200,99 @@ export default function LineSignInPage() {
           accessToken = window.liff.getAccessToken()
         } catch (tokenError) {
           console.error('❌ Error getting access token:', tokenError);
-          setError('ไม่สามารถรับ Access Token จาก LINE ได้')
-          setLoading(false)
-          return
-        }
-        
-        if (!accessToken) {
-          setError('ไม่สามารถรับ Access Token จาก LINE ได้')
+          setError('ไม่สามารถดึงข้อมูลการยืนยันตัวตนได้')
           setLoading(false)
           return
         }
 
-        console.log('🔐 Sending access token to server...')
-        const loginResponse = await fetch('/api/auth/line-login', {
+        if (!accessToken) {
+          setError('ไม่สามารถดึงข้อมูลการยืนยันตัวตนจาก LINE ได้')
+          setLoading(false)
+          return
+        }
+
+        console.log('🎯 Access token obtained, sending to backend...')
+
+        // ส่งไปยัง backend
+        const response = await fetch('/api/auth/line-login', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            accessToken,
-            restaurantId
+            accessToken: accessToken
           })
         })
 
-        const loginData = await loginResponse.json()
+        const data = await response.json()
 
-        if (loginResponse.ok && loginData.success) {
-          console.log('✅ LINE login successful:', loginData.user.name)
-          setLineUser(loginData.user)
+        if (response.ok && data.success) {
+          console.log('✅ LINE login successful:', data.user.name)
           
-          // Redirect ตาม redirectUrl จาก server
-          setTimeout(() => {
-            router.replace(loginData.redirectUrl)
-          }, 1000)
+          // ถ้าเป็น user ใหม่ ให้ redirect ไป role selection
+          if (data.isNewUser) {
+            console.log('👤 New user detected, redirecting to role selection')
+            router.replace('/auth/role-selection')
+            return
+          }
+
+          // Redirect ตาม context
+          if (restaurantId) {
+            console.log('🏪 Redirecting to restaurant menu:', restaurantId)
+            router.replace(`/menu/${restaurantId}`)
+          } else if (data.user.role === 'RESTAURANT_OWNER') {
+            console.log('🏪 Restaurant owner redirecting to dashboard')
+            router.replace('/restaurant')
+          } else {
+            console.log('🏠 Default redirecting to home')
+            router.replace('/')
+          }
         } else {
-          console.error('❌ LINE login failed:', loginData.error)
-          setError(loginData.error || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
+          console.error('❌ LINE login failed:', data.error)
+          setError(data.error || 'การเข้าสู่ระบบด้วย LINE ล้มเหลว')
         }
       } else {
-        console.log('⚠️ Not in LIFF environment or LIFF SDK not available')
-        
-        // ตรวจสอบว่ามี LIFF SDK หรือไม่
-        if (!window.liff) {
-          setError('กรุณาเปิดหน้านี้ผ่าน LINE App หรือ LIFF URL')
-          setLoading(false)
-          return
-        }
-        
-        // ถ้าไม่ได้อยู่ใน LIFF ให้ redirect ไป LIFF URL
-        const liffId = process.env.NODE_ENV === 'production' 
-          ? process.env.NEXT_PUBLIC_LIFF_ID_PROD 
-          : process.env.NEXT_PUBLIC_LIFF_ID_DEV || '2007609360-3Z0L8Ekg'
-        
-        if (!liffId) {
-          setError('LIFF ID ไม่ได้ตั้งค่า กรุณาติดต่อผู้ดูแลระบบ')
-          setLoading(false)
-          return
-        }
-        
-        const liffUrl = `https://liff.line.me/${liffId}`
-        const targetUrl = restaurantId 
-          ? `${liffUrl}?restaurant=${restaurantId}`
-          : liffUrl
-          
-        console.log('🔄 Redirecting to LIFF URL:', targetUrl)
-        window.location.href = targetUrl
+        // ถ้าไม่อยู่ใน LINE environment
+        console.log('⚠️ Not in LINE environment, showing manual instructions')
+        setError('กรุณาเปิดลิงก์นี้ในแอป LINE')
       }
 
     } catch (error) {
-      console.error('❌ LINE login exception:', error)
-      
-      if (error instanceof Error && error.message.includes('LIFF SDK not loaded')) {
-        setError('ไม่สามารถโหลด LINE SDK ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่อีกครั้ง')
+      console.error('❌ LINE signin error:', error)
+      if (error instanceof Error) {
+        if (error.message.includes('LIFF SDK not loaded')) {
+          setError('ไม่สามารถโหลด LINE SDK ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต')
+        } else {
+          setError(`เกิดข้อผิดพลาด: ${error.message}`)
+        }
       } else {
-        setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย LINE')
+        setError('เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ')
       }
     }
 
     setLoading(false)
   }
 
-  // แสดง loading ขณะตรวจสอบ session
+  // กำลังตรวจสอบ session
   if (checkingSession) {
     return (
       <Container maxWidth="sm">
-        <Box sx={{ mt: 8, mb: 4, textAlign: 'center' }}>
+        <Box sx={{ 
+          minHeight: '100vh', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          py: 4 
+        }}>
           <Card>
-            <CardContent sx={{ p: 4 }}>
-              <Typography variant="h6" gutterBottom>
-                กำลังตรวจสอบสถานะ...
+            <CardContent sx={{ p: 4, textAlign: 'center' }}>
+              <Box sx={{ mb: 3 }}>
+                <Image src="/images/logo_trim.png" alt="logo" width={150} height={100} />
+              </Box>
+              
+              <CircularProgress sx={{ mb: 2, color: '#06C755' }} />
+              <Typography variant="body2" color="text.secondary">
+                กำลังตรวจสอบสถานะการเข้าสู่ระบบ...
               </Typography>
             </CardContent>
           </Card>
@@ -295,24 +301,34 @@ export default function LineSignInPage() {
     )
   }
 
-  // แสดง success message ถ้า login แล้ว
+  // แสดงข้อมูล user ที่ล็อกอินแล้ว
   if (lineUser) {
     return (
       <Container maxWidth="sm">
-        <Box sx={{ mt: 8, mb: 4, textAlign: 'center' }}>
+        <Box sx={{ 
+          minHeight: '100vh', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          py: 4 
+        }}>
           <Card>
-            <CardContent sx={{ p: 4 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, justifyContent: 'center' }}>
+            <CardContent sx={{ p: 4, textAlign: 'center' }}>
+              <Box sx={{ mb: 3 }}>
                 <Image src="/images/logo_trim.png" alt="logo" width={150} height={100} />
               </Box>
-              <Typography variant="h6" gutterBottom>
-                เข้าสู่ระบบด้วย LINE สำเร็จ
-              </Typography>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                สวัสดี {lineUser.name}
-              </Typography>
+              
+              <Alert severity="success" sx={{ mb: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  เข้าสู่ระบบสำเร็จ!
+                </Typography>
+                <Typography>
+                  ยินดีต้อนรับ {lineUser.name}
+                </Typography>
+              </Alert>
+              
               <Typography variant="body2" color="text.secondary">
-                กำลังเปลี่ยนหน้า...
+                กำลังนำท่านไปยังหน้าเมนู...
               </Typography>
             </CardContent>
           </Card>
@@ -321,98 +337,152 @@ export default function LineSignInPage() {
     )
   }
 
+  const getErrorMessage = (errorType: string | null) => {
+    switch (errorType) {
+      case 'auto_login_failed':
+        return 'การเข้าสู่ระบบอัตโนมัติล้มเหลว กรุณาลองเข้าสู่ระบบใหม่'
+      case 'auto_login_error':
+        return 'เกิดข้อผิดพลาดในการเข้าสู่ระบบอัตโนมัติ กรุณาลองใหม่อีกครั้ง'
+      case 'session_required':
+        return 'จำเป็นต้องเข้าสู่ระบบด้วย LINE เพื่อดูเมนู'
+      default:
+        return null
+    }
+  }
+
+  const errorMessage = getErrorMessage(errorType)
+
   return (
     <Container maxWidth="sm">
-      <Box sx={{ mt: 8, mb: 4 }}>
+      <Box sx={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        py: 4 
+      }}>
         <Card>
-          <CardContent sx={{ p: 4 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, justifyContent: 'center' }}>
+          <CardContent sx={{ p: 4, textAlign: 'center' }}>
+            {/* Logo */}
+            <Box sx={{ mb: 3 }}>
               <Image src="/images/logo_trim.png" alt="logo" width={150} height={100} />
             </Box>
 
-            <Typography variant="h6" align="center" gutterBottom sx={{ fontWeight: '400', color: 'primary.main' }}>
-              เดอะ เรด โพชั่น
+            {/* Title */}
+            <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', color: '#06C755' }}>
+              {isRequired ? 'จำเป็นต้องเข้าสู่ระบบ' : 'เข้าสู่ระบบด้วย LINE'}
             </Typography>
 
-            <Typography variant="h5" align="center" gutterBottom sx={{ mt: 3, mb: 3 }}>
-              {isRequired ? 'จำเป็นต้องเข้าสู่ระบบด้วย LINE' : 'เข้าสู่ระบบด้วย LINE'}
-            </Typography>
-
+            {/* Required message */}
             {isRequired && (
               <Alert severity="info" sx={{ mb: 3 }}>
                 <Typography variant="body2">
-                  การเข้าถึงเมนูอาหารต้องใช้การเข้าสู่ระบบด้วย LINE เท่านั้น
+                  กรุณาเข้าสู่ระบบด้วย LINE เพื่อดูเมนูและสั่งอาหาร
                 </Typography>
               </Alert>
             )}
 
-            {errorType && (
+            {/* Error from URL parameters */}
+            {errorMessage && (
               <Alert severity="warning" sx={{ mb: 3 }}>
                 <Typography variant="body2">
-                  {errorType === 'session_check_failed' && 'ไม่สามารถตรวจสอบสถานะการเข้าสู่ระบบได้'}
-                  {errorType === 'auto_login_failed' && 'การเข้าสู่ระบบอัตโนมัติล้มเหลว'}
-                  {errorType === 'auto_login_error' && 'เกิดข้อผิดพลาดในการเข้าสู่ระบบอัตโนมัติ'}
+                  {errorMessage}
                 </Typography>
               </Alert>
             )}
 
-            <Typography variant="body2" align="center" gutterBottom sx={{ mb: 3, color: 'text.secondary' }}>
-              {isRequired 
-                ? 'กรุณาเข้าสู่ระบบด้วย LINE เพื่อดูเมนูและสั่งอาหาร' 
-                : (restaurantId ? 'เพื่อดูเมนูและสั่งอาหาร' : 'สำหรับลูกค้าและผู้ใช้งานทั่วไป')}
-            </Typography>
-
+            {/* Error from component state */}
             {error && (
-              <Alert severity="error" sx={{ mt: 2, mb: 2 }}>
-                {error}
-                <Box sx={{ mt: 2 }}>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={() => setError('')}
-                  >
-                    ลองอีกครั้ง
-                  </Button>
-                </Box>
+              <Alert severity="error" sx={{ mb: 3 }}>
+                <Typography variant="body2">
+                  {error}
+                </Typography>
               </Alert>
             )}
 
+            {/* Description */}
+            <Typography variant="body1" sx={{ mb: 4, color: 'text.secondary' }}>
+              {restaurantId 
+                ? 'เข้าสู่ระบบเพื่อดูเมนูและสั่งอาหาร' 
+                : 'เข้าสู่ระบบเพื่อใช้งานแอปพลิเคชัน'
+              }
+            </Typography>
+
+            {/* Login Button */}
             <Button
-              fullWidth
               variant="contained"
+              size="large"
+              fullWidth
               onClick={handleLineSignIn}
               disabled={loading}
-              sx={{ 
-                mt: 3, 
-                mb: 2,
-                backgroundColor: '#00C300',
+              sx={{
+                backgroundColor: '#06C755',
+                color: 'white',
+                py: 2,
+                fontSize: '1.1rem',
+                fontWeight: 'bold',
                 '&:hover': {
-                  backgroundColor: '#00A300'
+                  backgroundColor: '#05B94C',
                 },
                 '&:disabled': {
-                  backgroundColor: '#cccccc'
+                  backgroundColor: '#cccccc',
                 }
               }}
             >
-              {loading ? 'กำลังเตรียม LINE...' : 'เข้าสู่ระบบด้วย LINE'}
+              {loading ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CircularProgress size={20} color="inherit" />
+                  กำลังเข้าสู่ระบบ...
+                </Box>
+              ) : (
+                'เข้าสู่ระบบด้วย LINE'
+              )}
             </Button>
 
-            <Box sx={{ textAlign: 'center', mt: 3 }}>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                เป็นเจ้าของร้านอาหาร?
-              </Typography>
-              <Button 
-                variant="outlined"
-                fullWidth
-                href="/auth/signin"
-                sx={{ fontWeight: '400' }}
-              >
-                เข้าสู่ระบบสำหรับร้านอาหาร
-              </Button>
-            </Box>
+            {/* Help text */}
+            <Typography variant="body2" sx={{ mt: 3, color: 'text.secondary' }}>
+              หากมีปัญหาในการเข้าสู่ระบบ กรุณาตรวจสอบว่าเปิดลิงก์ในแอป LINE
+            </Typography>
           </CardContent>
         </Card>
       </Box>
     </Container>
+  )
+}
+
+// Loading fallback component
+function LineSignInLoading() {
+  return (
+    <Container maxWidth="sm">
+      <Box sx={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        py: 4 
+      }}>
+        <Card>
+          <CardContent sx={{ p: 4, textAlign: 'center' }}>
+            <Box sx={{ mb: 3 }}>
+              <Image src="/images/logo_trim.png" alt="logo" width={150} height={100} />
+            </Box>
+            
+            <CircularProgress size={40} sx={{ mb: 2, color: '#06C755' }} />
+            <Typography variant="body2" color="text.secondary">
+              กำลังโหลด...
+            </Typography>
+          </CardContent>
+        </Card>
+      </Box>
+    </Container>
+  )
+}
+
+// Main component ที่ห่อด้วย Suspense
+export default function LineSignInPage() {
+  return (
+    <Suspense fallback={<LineSignInLoading />}>
+      <LineSignInContent />
+    </Suspense>
   )
 } 

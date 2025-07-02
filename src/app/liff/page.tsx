@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Box, CircularProgress, Typography, Card, Alert, Button } from '@mui/material';
 
-export default function LiffLandingPage() {
+// Component ที่ใช้ useSearchParams ต้องอยู่ใน Suspense boundary
+function LiffLandingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
@@ -223,7 +224,7 @@ export default function LiffLandingPage() {
           width: 200,
           height: 200,
           borderRadius: '50%',
-          background: 'linear-gradient(135deg, rgba(6, 199, 85, 0.1) 0%, rgba(5, 176, 74, 0.05) 100%)',
+          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(52, 211, 153, 0.05) 100%)',
           filter: 'blur(40px)',
           animation: 'liquidFloat 6s ease-in-out infinite'
         }}
@@ -236,7 +237,7 @@ export default function LiffLandingPage() {
           width: 300,
           height: 300,
           borderRadius: '50%',
-          background: 'linear-gradient(135deg, rgba(6, 199, 85, 0.1) 0%, rgba(5, 176, 74, 0.05) 100%)',
+          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(129, 140, 248, 0.05) 100%)',
           filter: 'blur(60px)',
           animation: 'liquidFloat 8s ease-in-out infinite reverse'
         }}
@@ -244,7 +245,7 @@ export default function LiffLandingPage() {
 
       <Card
         sx={{
-          maxWidth: 400,
+          maxWidth: 500,
           width: '100%',
           background: 'rgba(255, 255, 255, 0.25)',
           backdropFilter: 'blur(20px) saturate(180%)',
@@ -271,58 +272,115 @@ export default function LiffLandingPage() {
           }}
         />
 
-        {/* Loading Icon */}
+        {/* Loading Animation */}
         <Box
           sx={{
             width: 80,
             height: 80,
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, rgba(6, 199, 85, 0.2) 0%, rgba(5, 176, 74, 0.1) 100%)',
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(52, 211, 153, 0.1) 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             margin: '0 auto 24px',
-            border: '2px solid rgba(6, 199, 85, 0.2)',
+            border: '2px solid rgba(16, 185, 129, 0.2)',
             animation: 'liquidFloat 3s ease-in-out infinite'
           }}
         >
           <CircularProgress 
             size={40} 
             sx={{ 
-              color: '#06C755',
-              filter: 'drop-shadow(0 2px 8px rgba(6, 199, 85, 0.3))'
+              color: '#10B981',
+              filter: 'drop-shadow(0 2px 8px rgba(16, 185, 129, 0.3))'
             }} 
           />
         </Box>
 
+        {/* Loading Text */}
         <Typography 
-          variant="h5" 
+          variant="h4" 
           sx={{ 
             fontWeight: 700,
             mb: 2,
             color: 'rgba(0, 0, 0, 0.9)',
             textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
             '@media (max-width: 600px)': {
-              fontSize: '1.25rem'
+              fontSize: '1.5rem'
             }
           }}
         >
-          เริ่มต้นใช้งาน
+          กำลังเชื่อมต่อ...
         </Typography>
 
+        {/* Loading Message */}
         <Typography 
           sx={{ 
             color: 'rgba(0, 0, 0, 0.7)',
+            mb: 2,
             lineHeight: 1.6,
-            fontSize: '1rem',
+            fontSize: '1.1rem',
             '@media (max-width: 600px)': {
-              fontSize: '0.9rem'
+              fontSize: '1rem'
             }
           }}
         >
-          กำลังเตรียมความพร้อม...
+          กำลังนำท่านไปยังร้านอาหาร<br />
+          กรุณารอสักครู่...
+        </Typography>
+
+        {/* Help Text */}
+        <Typography 
+          sx={{ 
+            color: 'rgba(0, 0, 0, 0.5)',
+            fontSize: '0.9rem',
+            fontStyle: 'italic'
+          }}
+        >
+          หากใช้เวลานานกว่าปกติ กรุณาลองรีเฟรชหน้านี้
         </Typography>
       </Card>
     </Box>
+  );
+}
+
+// Loading fallback component
+function LiffLandingLoading() {
+  return (
+    <Box sx={{ 
+      minHeight: '100vh', 
+      background: 'linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      p: 3
+    }}>
+      <Card
+        sx={{
+          maxWidth: 500,
+          width: '100%',
+          background: 'rgba(255, 255, 255, 0.25)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          border: '1px solid rgba(255, 255, 255, 0.18)',
+          borderRadius: 4,
+          boxShadow: '0 8px 32px rgba(31, 38, 135, 0.15)',
+          p: 5,
+          textAlign: 'center',
+        }}
+      >
+        <CircularProgress size={40} sx={{ mb: 2, color: '#10B981' }} />
+        <Typography variant="body2" color="text.secondary">
+          กำลังโหลด...
+        </Typography>
+      </Card>
+    </Box>
+  );
+}
+
+// Main component ที่ห่อด้วย Suspense
+export default function LiffLandingPage() {
+  return (
+    <Suspense fallback={<LiffLandingLoading />}>
+      <LiffLandingContent />
+    </Suspense>
   );
 } 
