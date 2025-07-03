@@ -34,7 +34,9 @@ import {
   ListItemText,
   ListItemSecondaryAction,
   Tooltip,
-  useMediaQuery
+  useMediaQuery,
+  Skeleton,
+  Stack
 } from '@mui/material';
 import {
   Add,
@@ -48,7 +50,11 @@ import {
   Save,
   Cancel,
   LocalOffer,
-  Close
+  Close,
+  Star,
+  LocalFireDepartment,
+  FiberNew,
+  Whatshot
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import ImageUploadDropzone, { uploadImageFile } from '../components/ImageUploadDropzone';
@@ -76,6 +82,7 @@ interface MenuItem {
   isAvailable: boolean;
   sortOrder: number;
   calories?: number;
+  tags?: string[];
   categoryId: string;
   category?: Category;
   addons?: Addon[];
@@ -153,6 +160,7 @@ export default function MenuManagementPage() {
     imageUrl: '',
     isAvailable: true,
     calories: 0,
+    tags: [] as string[],
     categoryId: '',
     addons: [] as Addon[]
   });
@@ -437,6 +445,7 @@ export default function MenuManagementPage() {
         imageUrl: menuItem.imageUrl || '',
         isAvailable: menuItem.isAvailable,
         calories: menuItem.calories || 0,
+        tags: menuItem.tags || [],
         categoryId: menuItem.categoryId,
         addons: []
       });
@@ -461,6 +470,7 @@ export default function MenuManagementPage() {
         imageUrl: '',
         isAvailable: true,
         calories: 0,
+        tags: [],
         categoryId: categories.length > 0 ? categories[0].id : '',
         addons: []
       });
@@ -518,6 +528,24 @@ export default function MenuManagementPage() {
     setNewAddon({ name: '', price: 0, isAvailable: true });
     setEditingAddon(null);
   };
+
+  // Tags Management Functions
+  const handleTagToggle = (tag: string) => {
+    setMenuItemForm(prev => ({
+      ...prev,
+      tags: prev.tags.includes(tag) 
+        ? prev.tags.filter(t => t !== tag)
+        : [...prev.tags, tag]
+    }));
+  };
+
+  // Available tags with icons and labels
+  const availableTags = [
+    { value: 'recommended', label: 'เมนูแนะนำ', icon: <Star />, color: '#fbbf24' },
+    { value: 'bestseller', label: 'ขายดี', icon: <LocalFireDepartment />, color: '#f97316' },
+    { value: 'new', label: 'เมนูใหม่', icon: <FiberNew />, color: '#06b6d4' }
+    
+  ];
 
   const removeAddonFromForm = (index: number) => {
     setMenuItemForm(prev => ({
@@ -597,6 +625,7 @@ export default function MenuManagementPage() {
           imageUrl: uploadedImageUrl || null,
           isAvailable: menuItemForm.isAvailable,
           calories: menuItemForm.calories > 0 ? Number(menuItemForm.calories) : null,
+          tags: menuItemForm.tags,
           categoryId: menuItemForm.categoryId,
           addons: menuItemForm.addons
         }),
@@ -637,8 +666,33 @@ export default function MenuManagementPage() {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-        <CircularProgress size={60} />
+      <Box sx={{ p: 3 }}>
+        <Skeleton variant="text" width="60%" height={40} sx={{ mb: 2 }} />
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+          <Box sx={{ display: 'flex', gap: 3, mb: 2 }}>
+            <Skeleton variant="text" width={120} height={48} />
+            <Skeleton variant="text" width={120} height={48} />
+          </Box>
+        </Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Skeleton variant="text" width={150} height={32} />
+          <Skeleton variant="rectangular" width={120} height={36} sx={{ borderRadius: 1 }} />
+        </Box>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }, gap: 3 }}>
+          {[...Array(6)].map((_, index) => (
+            <Card key={index}>
+              <Skeleton variant="rectangular" height={160} />
+              <CardContent>
+                <Skeleton variant="text" width="80%" />
+                <Skeleton variant="text" width="60%" />
+                <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}>
+                  <Skeleton variant="text" width="40%" />
+                  <Skeleton variant="text" width="30%" />
+                </Box>
+              </CardContent>
+            </Card>
+          ))}
+        </Box>
       </Box>
     );
   }
@@ -1015,6 +1069,32 @@ export default function MenuManagementPage() {
                         color="secondary"
                       />
                     )}
+                    {/* Tags Badges */}
+                    {menuItem.tags && menuItem.tags.length > 0 && (
+                      menuItem.tags.map((tagValue) => {
+                        const tag = availableTags.find(t => t.value === tagValue);
+                        if (!tag) return null;
+                        return (
+                          <Chip
+                            key={tagValue}
+                            icon={tag.icon}
+                            label={tag.label}
+                            size="small"
+                            variant="filled"
+                            sx={{
+                              backgroundColor: `${tag.color}20`,
+                              borderColor: tag.color,
+                              color: tag.color,
+                              '& .MuiChip-icon': {
+                                color: tag.color
+                              },
+                              fontSize: '0.7rem',
+                              height: '24px'
+                            }}
+                          />
+                        );
+                      })
+                    )}
                   </Box>
                   
                   <Box sx={{ mt: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
@@ -1329,6 +1409,64 @@ export default function MenuManagementPage() {
                 category="menu"
                 restaurantId={restaurant?.id}
               />
+            </Card>
+
+            {/* Tags Management */}
+            <Card sx={{ p: 2 }}>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                ป้ายกำกับ
+              </Typography>
+              <Typography 
+                variant="body2" 
+                color="text.secondary" 
+                sx={{ mb: 2 }}
+              >
+                เลือกป้ายกำกับที่เหมาะสมกับเมนูนี้
+              </Typography>
+              
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                {availableTags.map((tag) => (
+                  <Chip
+                    key={tag.value}
+                    icon={tag.icon}
+                    label={tag.label}
+                    onClick={() => handleTagToggle(tag.value)}
+                    variant={menuItemForm.tags.includes(tag.value) ? "filled" : "outlined"}
+                    sx={{
+                      mb: 1,
+                      backgroundColor: menuItemForm.tags.includes(tag.value) 
+                        ? `${tag.color}20` 
+                        : 'transparent',
+                      borderColor: tag.color,
+                      color: menuItemForm.tags.includes(tag.value) 
+                        ? tag.color 
+                        : 'text.secondary',
+                      '& .MuiChip-icon': {
+                        color: menuItemForm.tags.includes(tag.value) 
+                          ? tag.color 
+                          : 'text.secondary'
+                      },
+                      '&:hover': {
+                        backgroundColor: `${tag.color}15`,
+                        borderColor: tag.color,
+                        color: tag.color,
+                        '& .MuiChip-icon': {
+                          color: tag.color
+                        }
+                      },
+                      transition: 'all 0.2s ease'
+                    }}
+                  />
+                ))}
+              </Stack>
+
+              {menuItemForm.tags.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    ป้ายกำกับที่เลือก: {menuItemForm.tags.length} รายการ
+                  </Typography>
+                </Box>
+              )}
             </Card>
 
             {/* Add-ons Management */}

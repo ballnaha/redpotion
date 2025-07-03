@@ -37,13 +37,27 @@ export async function GET(request: NextRequest) {
         restaurantId: restaurant.id,
         ...(categoryId && { categoryId })
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        price: true,
+        originalPrice: true,
+        imageUrl: true,
+        isAvailable: true,
+        sortOrder: true,
+        calories: true,
+        // @ts-ignore - Prisma client not yet regenerated after migration
+        tags: true,
+        categoryId: true,
         category: {
           select: {
             id: true,
             name: true
           }
-        }
+        },
+        createdAt: true,
+        updatedAt: true
       },
       orderBy: [
         { sortOrder: 'asc' },
@@ -127,6 +141,7 @@ export async function POST(request: NextRequest) {
       categoryId, 
       imageUrl,
       calories,
+      tags = [],
       isAvailable = true,
       addons = []
     } = data
@@ -186,12 +201,12 @@ export async function POST(request: NextRequest) {
     await prisma.$executeRaw`
       INSERT INTO "MenuItem" (
         id, name, description, price, "originalPrice", "imageUrl", 
-        calories, "isAvailable", "sortOrder", "restaurantId", "categoryId", 
+        calories, tags, "isAvailable", "sortOrder", "restaurantId", "categoryId", 
         "createdAt", "updatedAt"
       ) VALUES (
         ${menuItemId}, ${name.trim()}, ${description?.trim()}, ${parseFloat(price)}, 
         ${originalPrice ? parseFloat(originalPrice) : null}, ${imageUrl}, 
-        ${calories > 0 ? parseInt(calories) : null}, ${Boolean(isAvailable)}, 
+        ${calories > 0 ? parseInt(calories) : null}, ${tags}::text[], ${Boolean(isAvailable)}, 
         ${sortOrder}, ${restaurant.id}, ${categoryId}, 
         NOW(), NOW()
       )

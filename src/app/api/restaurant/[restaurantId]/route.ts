@@ -60,6 +60,8 @@ export async function GET(
                 isAvailable: true,
                 sortOrder: true,
                 calories: true,
+                // @ts-ignore - Prisma client not yet regenerated after migration
+                tags: true,
               },
             },
           },

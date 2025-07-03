@@ -12,11 +12,12 @@ interface LineProfile {
 interface LineLoginRequest {
   accessToken: string
   restaurantId?: string
+  returnUrl?: string
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { accessToken, restaurantId }: LineLoginRequest = await req.json()
+    const { accessToken, restaurantId, returnUrl }: LineLoginRequest = await req.json()
 
     if (!accessToken) {
       return NextResponse.json(
@@ -103,10 +104,27 @@ export async function POST(req: NextRequest) {
 
     console.log('✅ LINE Login successful for user:', user.name)
 
-    // กำหนด redirect URL ตาม restaurantId
-    let redirectUrl = '/'
-    if (restaurantId) {
-      redirectUrl = `/menu/${restaurantId}`
+    // ตรวจสอบ user role และ restaurantId เพื่อตัดสินใจ redirect
+    let shouldRedirectToRestaurant = false
+    let finalRedirectUrl = '/'
+
+    // ใช้ returnUrl ถ้ามี, ไม่เช่นนั้นใช้ logic เดิม
+    if (returnUrl) {
+      console.log('🔄 Using returnUrl:', returnUrl)
+      finalRedirectUrl = returnUrl
+      if (returnUrl.includes('/menu/') || returnUrl.includes('/cart/')) {
+        shouldRedirectToRestaurant = true
+      }
+    } else if (restaurantId) {
+      console.log('🏪 RestaurantId provided:', restaurantId)
+      shouldRedirectToRestaurant = true
+      finalRedirectUrl = `/menu/${restaurantId}`
+    } else if (user.role === 'RESTAURANT_OWNER') {
+      console.log('👨‍🍳 Restaurant owner login')
+      finalRedirectUrl = '/restaurant'
+    } else {
+      console.log('👤 Regular user login to home')
+      finalRedirectUrl = '/'
     }
 
     const response = NextResponse.json({
@@ -119,7 +137,9 @@ export async function POST(req: NextRequest) {
         image: user.image,
         lineUserId: user.lineUserId
       },
-      redirectUrl
+      redirectUrl: finalRedirectUrl,
+      shouldRedirectToRestaurant,
+      restaurantId: restaurantId || null
     })
 
     // ตั้งค่า cookie สำหรับ session

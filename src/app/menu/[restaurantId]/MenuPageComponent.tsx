@@ -3,6 +3,7 @@
 import { useRestaurant } from './context/RestaurantContext';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getAppConfig } from '@/lib/appConfig';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { Box, Typography, Card, CardContent, CardMedia, Button, Chip, 
          CircularProgress, Alert, IconButton, Drawer, List, ListItem, ListItemText,
@@ -23,50 +24,28 @@ import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import 'swiper/css/effect-fade';
 
-// Add custom styles for animations and smooth scrolling
+// Simple animations only
 const globalStyles = `
-  html {
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-  }
-  
-  * {
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-  
-  @keyframes slideIn {
-    from {
-      opacity: 0;
-      transform: scaleX(0);
-    }
-    to {
-      opacity: 1;
-      transform: scaleX(1);
-    }
-  }
-  
   @keyframes fadeInUp {
     0% {
       opacity: 0;
-      transform: translateY(8px) scale(0.99);
+      transform: translateY(8px);
     }
     100% {
       opacity: 1;
-      transform: translateY(0) scale(1);
+      transform: translateY(0);
     }
   }
   
   .menu-items-container {
     opacity: 1;
     transform: translateY(0);
-    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    will-change: opacity, transform;
+    transition: opacity 0.2s ease;
   }
   
   .menu-items-container.changing {
     opacity: 0;
-    transform: translateY(5px);
+    transform: translateY(4px);
   }
 `;
 
@@ -82,6 +61,7 @@ interface MenuCategory {
   id: string;
   name: string;
   icon: string;
+  imageUrl?: string;
   items: MenuItem[];
 }
 
@@ -349,6 +329,29 @@ export default function MenuPageComponent() {
   } | null>(null);
   const [lineSessionChecked, setLineSessionChecked] = useState(false);
   const [redirectingToAuth, setRedirectingToAuth] = useState(false);
+  const [sessionCheckInProgress, setSessionCheckInProgress] = useState(false);
+
+  // ตรวจสอบว่าเป็น LINE app หรือไม่
+  const [isLineApp, setIsLineApp] = useState(false);
+
+  useEffect(() => {
+    const userAgent = navigator.userAgent;
+    const lineAppDetected = userAgent.includes('Line') || userAgent.includes('LIFF');
+    setIsLineApp(lineAppDetected);
+    
+    if (lineAppDetected) {
+      // เพิ่ม class สำหรับ LINE app - Simple approach
+      document.body.classList.add('line-app');
+      
+      return () => {
+        document.body.classList.remove('line-app');
+      };
+    }
+    
+    return () => {
+      document.body.classList.remove('line-app');
+    };
+  }, []);
 
   // แปลงข้อมูลจาก restaurant context ให้เข้ากับ MenuCategory interface
   // และกรองเฉพาะ category ที่มีอาหารอย่างน้อย 1 รายการ
@@ -356,6 +359,7 @@ export default function MenuPageComponent() {
     id: category.id,
     name: category.name,
     icon: 'LocalDining', // ใช้ icon เริ่มต้น
+    imageUrl: (category as any).imageUrl, // เพิ่ม imageUrl จาก category data
     items: (category.items || []).map(item => ({
       ...item,
       category: category.id // ตั้งค่า category เป็น category ID ที่ถูกต้อง
@@ -365,14 +369,94 @@ export default function MenuPageComponent() {
   // รวมรายการอาหารจากทุกหมวดหมู่
   const menuItems: MenuItem[] = categories.flatMap(category => category.items || []);
   
-  // บังคับ LINE Authentication สำหรับหน้า Menu
+  // ตรวจสอบ LINE Authentication สำหรับหน้า Menu
   useEffect(() => {
     const checkLineSession = async () => {
-      // ป้องกันการ redirect ซ้ำ
-      if (redirectingToAuth) {
-        console.log('⏸️ Already redirecting to auth, skipping check');
+      // ป้องกันการ redirect ซ้ำและการเรียกซ้อน
+      if (redirectingToAuth || sessionCheckInProgress) {
+        console.log('⏸️ Already redirecting to auth or check in progress, skipping check');
         return;
       }
+
+      setSessionCheckInProgress(true);
+
+      // ตรวจสอบว่ามาจาก LIFF หรือไม่
+      const urlParams = new URLSearchParams(window.location.search);
+      const isFromLiff = urlParams.get('liff') === 'true';
+      const hasTimestamp = urlParams.get('t');
+      const returnParam = urlParams.get('return');
+      
+      const config = getAppConfig();
+      
+      // ถ้า config ให้ข้ามการตรวจสอบ
+      if (config.skipAuthenticationCheck) {
+        console.log('🔓 Authentication check skipped by config');
+        setLineSessionChecked(true);
+        setSessionCheckInProgress(false);
+        return;
+      }
+
+      // ถ้ามาจาก LIFF ที่เพิ่งมา login แล้วให้ข้ามการตรวจสอบ
+      if (isFromLiff && hasTimestamp) {
+        console.log('🔗 Fresh LIFF access detected, skipping authentication check');
+        
+        // สำหรับ LIFF access ให้ตรวจสอบ session จริงทันที
+        try {
+          const response = await fetch('/api/auth/line-session');
+          const data = await response.json();
+          if (data.authenticated && data.user) {
+            setLineUser(data.user);
+            setLineSessionChecked(true);
+            setSessionCheckInProgress(false);
+            if (config.enableDebugLogs) {
+              console.log('✅ LIFF session check successful:', data.user.name);
+              console.log('🔍 Session data:', data.user);
+            }
+          } else {
+            // ถ้าไม่มี session ให้ใช้ mock user ชั่วคราว
+            if (config.enableMockUser) {
+              setLineUser({ 
+                id: 'liff-user', 
+                name: 'LINE User', 
+                email: 'line@user.temp',
+                role: 'CUSTOMER',
+                lineUserId: 'temp'
+              });
+              setLineSessionChecked(true);
+              setSessionCheckInProgress(false);
+              if (config.enableDebugLogs) {
+                console.log('🔧 Using mock user for LIFF access');
+              }
+            }
+          }
+        } catch (error) {
+          // ในกรณี error ให้ใช้ mock user
+          if (config.enableMockUser) {
+            setLineUser({ 
+              id: 'liff-user', 
+              name: 'LINE User', 
+              email: 'line@user.temp',
+              role: 'CUSTOMER',
+              lineUserId: 'temp'
+            });
+            setLineSessionChecked(true);
+            setSessionCheckInProgress(false);
+            if (config.enableDebugLogs) {
+              console.log('🔧 Using mock user due to session error');
+            }
+          }
+        }
+        
+        return;
+      }
+
+      // ถ้ามี return parameter แสดงว่าเพิ่งกลับมาจากหน้าอื่น
+      if (returnParam) {
+        console.log('🔄 Returned from:', returnParam, '- checking session');
+      }
+
+      // เพิ่ม delay เล็กน้อยเพื่อให้หน้าโหลดเสร็จก่อน
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       try {
         console.log('🔍 Checking LINE session for restaurant:', restaurant?.id);
@@ -381,41 +465,65 @@ export default function MenuPageComponent() {
         
         if (data.authenticated && data.user) {
           console.log('✅ LINE user found:', data.user.name);
+          if (config.enableDebugLogs) {
+            console.log('🔍 Session maintained - User data:', data.user);
+          }
           setLineUser(data.user);
           setLineSessionChecked(true);
+          setSessionCheckInProgress(false);
         } else {
           console.log('❌ No LINE session found, requiring LINE login');
           setLineUser(null);
-          setRedirectingToAuth(true);
           
-          // บังคับให้ login ด้วย LINE ทันที
-          if (restaurant?.id) {
-            const lineSigninUrl = `/auth/line-signin?restaurant=${restaurant.id}&required=true`;
-            console.log('🔄 Forcing LINE login redirect to:', lineSigninUrl);
-            router.replace(lineSigninUrl);
-            return; // หยุดการทำงานต่อ
+          // ถ้าไม่ได้มาจาก LINE app ให้แสดงข้อความแจ้งเตือน
+          const userAgent = navigator.userAgent;
+          const isLineApp = userAgent.includes('Line') || userAgent.includes('LIFF');
+          
+          if (!isLineApp) {
+            // แสดงข้อความแจ้งเตือนให้เข้าผ่าน LINE app
+            alert('กรุณาเข้าใช้งานผ่าน LINE application เท่านั้น');
+            window.location.href = 'https://line.me/th/';
+            return;
           }
+          
+          // Redirect ไป LINE signin
+          setTimeout(() => {
+            if (!redirectingToAuth) {
+              setRedirectingToAuth(true);
+              setSessionCheckInProgress(false);
+              
+              if (restaurant?.id) {
+                const lineSigninUrl = `/auth/line-signin?restaurant=${restaurant.id}&required=true&t=${Date.now()}`;
+                console.log('🔄 Redirecting to LINE login:', lineSigninUrl);
+                window.location.href = lineSigninUrl;
+              }
+            }
+          }, 1000);
         }
       } catch (error) {
         console.log('⚠️ LINE session check failed, requiring LINE login');
         setLineUser(null);
-        setRedirectingToAuth(true);
         
-        // กรณี error ก็ให้ redirect ไป LINE login
-        if (restaurant?.id) {
-          const lineSigninUrl = `/auth/line-signin?restaurant=${restaurant.id}&required=true&error=session_check_failed`;
-          console.log('🔄 Error fallback redirect to:', lineSigninUrl);
-          router.replace(lineSigninUrl);
-          return;
-        }
+        setTimeout(() => {
+          if (!redirectingToAuth) {
+            setRedirectingToAuth(true);
+            setSessionCheckInProgress(false);
+            
+            if (restaurant?.id) {
+              const lineSigninUrl = `/auth/line-signin?restaurant=${restaurant.id}&required=true&error=session_check_failed&t=${Date.now()}`;
+              console.log('🔄 Error fallback redirect to:', lineSigninUrl);
+              window.location.href = lineSigninUrl;
+            }
+          }
+        }, 1000);
       }
     };
 
     // ตรวจสอบเฉพาะเมื่อมี restaurant data แล้วและยังไม่ได้ redirect
-    if (restaurant?.id && !redirectingToAuth) {
+    if (restaurant?.id && !redirectingToAuth && !lineSessionChecked && !sessionCheckInProgress) {
       checkLineSession();
     }
-  }, [restaurant?.id, router, redirectingToAuth]);
+  }, [restaurant?.id, redirectingToAuth, sessionCheckInProgress]); // เอา lineSessionChecked ออกเพื่อป้องกัน infinite loop
 
   // ดึงข้อมูล gallery พร้อมกับการโหลดหน้า (ไม่ต้องรอ)
   useEffect(() => {
@@ -479,7 +587,13 @@ export default function MenuPageComponent() {
     
     // Debug: แสดงข้อมูลร้าน (เปิดเมื่อต้องการ debug)
     if (restaurant && categories.length > 0) {
-      console.log('🏪 Categories:', categories.map(cat => ({ id: cat.id, name: cat.name, itemCount: cat.items.length })));
+      console.log('🏪 Categories:', categories.map(cat => ({ 
+        id: cat.id, 
+        name: cat.name, 
+        imageUrl: cat.imageUrl,
+        hasImage: !!cat.imageUrl,
+        itemCount: cat.items.length 
+      })));
       console.log('🍽️ Menu Items:', menuItems.map(item => ({ id: item.id, name: item.name, category: item.category })));
       console.log('📋 Selected Category:', selectedCategory);
     }
@@ -507,7 +621,7 @@ export default function MenuPageComponent() {
     return cartItem ? cartItem.quantity : 0;
   };
 
-  // Handle category change with smooth animation
+  // Handle category change - ใน LINE app ใช้ fixed layout ไม่ต้องกังวลเรื่อง scroll
   const handleCategoryChange = (categoryId: string) => {
     console.log('🔄 Category Change:', { from: selectedCategory, to: categoryId, isAnimating });
     
@@ -515,40 +629,58 @@ export default function MenuPageComponent() {
     
     setIsAnimating(true);
     
-    // Smooth transition with optimized timing
+    // Haptic feedback
+    if (navigator.vibrate) {
+      navigator.vibrate(50);
+    }
+    
+    // เปลี่ยน category
     requestAnimationFrame(() => {
+      console.log('✅ Setting new category:', categoryId);
+      setSelectedCategory(categoryId);
+      setAnimationKey(prev => prev + 1);
+      
       setTimeout(() => {
-        console.log('✅ Setting new category:', categoryId);
-        setSelectedCategory(categoryId);
-        setAnimationKey(prev => prev + 1);
-        
-        // Reset animation state after transition completes
-        requestAnimationFrame(() => {
-          setTimeout(() => {
-            setIsAnimating(false);
-          }, 50);
-        });
+        setIsAnimating(false);
       }, 200);
     });
+    
+    // สำหรับ desktop ให้ scroll ได้ปกติ
+    if (!isLineApp) {
+      // สำหรับ desktop browser ใช้ scroll preservation ตามเดิม
+      const currentScrollY = window.scrollY;
+      
+              // Desktop scroll เหมือนเดิม
+        setTimeout(() => {
+          setIsAnimating(false);
+        }, 200);
+    }
   };
 
   const filteredItems = categories.length > 0 && selectedCategory && selectedCategory !== 'all'
     ? menuItems.filter(item => item.category === selectedCategory)
     : menuItems;
 
+  // Remove duplicates for "all" category by using Map with item.id as key
+  const deduplicatedItems = selectedCategory === 'all' 
+    ? Array.from(new Map(filteredItems.map(item => [item.id, item])).values())
+    : filteredItems;
+
   const searchFilteredItems = searchQuery 
-    ? filteredItems.filter(item => 
+    ? deduplicatedItems.filter(item => 
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.description.toLowerCase().includes(searchQuery.toLowerCase())
       )
-    : filteredItems;
+    : deduplicatedItems;
 
   // Debug การกรองรายการอาหาร
   console.log('🔍 Filter Debug:', {
     selectedCategory,
     totalMenuItems: menuItems.length,
     filteredItemsCount: filteredItems.length,
-    filteredItems: filteredItems.map(item => ({ name: item.name, category: item.category }))
+    deduplicatedItemsCount: deduplicatedItems.length,
+    searchFilteredItemsCount: searchFilteredItems.length,
+    deduplicatedItems: deduplicatedItems.map(item => ({ name: item.name, category: item.category, id: item.id }))
   });
 
   // ตรวจสอบการ authenticate ก่อนแสดงเนื้อหา
@@ -656,33 +788,64 @@ export default function MenuPageComponent() {
     );
   }
 
+  const ContentWrapper = ({ children }: { children: React.ReactNode }) => {
+    if (isLineApp) {
+      return (
+        <Box 
+          className="line-app"
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
+        >
+          {children}
+        </Box>
+      );
+    }
+
+    return (
+      <Box 
+        className="menu-page"
+        sx={{ 
+          minHeight: '100vh',
+          background: 'linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%)',
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          overflowX: 'hidden',
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          scrollBehavior: 'smooth'
+        }}
+      >
+        {children}
+      </Box>
+    );
+  };
+
   return (
-    <Box 
-      sx={{ 
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%)',
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        overflowX: 'hidden',
-        overflowY: 'auto',
-        WebkitOverflowScrolling: 'touch',
-        scrollBehavior: 'smooth'
-      }}
-    >
-      {/* Fixed Header with Glass Effect */}
+    <ContentWrapper>
+      {/* Fixed Header */}
       <Box
         sx={{
-          p: 2,
-          background: 'rgba(255, 255, 255, 0.25)',
-          backdropFilter: 'blur(20px)',
-          position: 'fixed',
+          position: isLineApp ? 'relative' : 'fixed',
           top: 0,
           left: 0,
           right: 0,
           zIndex: 1000,
+          p: 2,
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(20px)',
           borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+          flexShrink: 0, // ป้องกันการหดตัว
         }}
       >
         {/* Customer Header */}
@@ -792,8 +955,22 @@ export default function MenuPageComponent() {
         </Box>
       </Box>
 
-      {/* Main Content */}
-      <Box sx={{ pt: 10, pb: 8 }}>
+      {/* Scrollable Main Content */}
+      <Box 
+        className={isLineApp ? "line-app-content" : ""}
+        sx={{ 
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          pt: isLineApp ? 0 : 10,
+          pb: isLineApp ? 0 : 8,
+          ...(isLineApp && {
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain',
+            WebkitOverscrollBehavior: 'contain',
+          })
+        }}
+      >
         {/* Restaurant Info Card with Glass Effect */}
         <Box sx={{ mb: 3 }}>
           <Card 
@@ -1243,69 +1420,87 @@ export default function MenuPageComponent() {
         </Box>
         )}
 
-        {/* Premium Category Grid */}
-        <Box sx={{ px: 2, mb: 3 }}>
+        {/* Category Swiper */}
+        <Box sx={{ mb: 3 }}>
           {categories.length > 0 ? (
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-                gap: 1.2,
-              maxWidth: '100%'
-            }}
-          >
-            {categories.map((category) => (
-              <Box
-                key={category.id}
-                onClick={() => handleCategoryChange(category.id)}
+            <Swiper
+              className="category-swiper"
+              spaceBetween={12}
+              slidesPerView="auto"
+              freeMode={true}
+              grabCursor={true}
+            >
+              {categories.map((category) => (
+                <SwiperSlide
+                  key={category.id}
+                  style={{ 
+                    width: 'auto',
+                    minWidth: '80px',
+                    maxWidth: '120px'
+                  }}
+                >
+                  <Box
+                    onClick={(e) => {
+                      // Haptic feedback
+                      if (navigator.vibrate) {
+                        navigator.vibrate(50);
+                      }
+                      handleCategoryChange(category.id);
+                    }}
                 sx={{
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
                   py: 1.5,
-                  px: 0.8,
+                  px: 1,
                   borderRadius: '12px',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease-out',
                   background: selectedCategory === category.id 
                     ? 'rgba(16, 185, 129, 0.1)'
                     : 'rgba(255, 255, 255, 0.9)',
                   border: selectedCategory === category.id 
-                    ? '1.5px solid rgba(16, 185, 129, 0.3)' 
-                    : '1px solid rgba(0, 0, 0, 0.08)',
-                  position: 'relative',
-                  minHeight: '40px',
-                  backdropFilter: 'blur(5px)',
-                  boxShadow: selectedCategory === category.id
-                    ? '0 2px 8px rgba(16, 185, 129, 0.15)'
-                    : '0 1px 4px rgba(0, 0, 0, 0.04)',
-                  '&:hover': {
-                    transform: 'translateY(-1px)',
-                    background: selectedCategory === category.id 
-                      ? 'rgba(16, 185, 129, 0.15)'
-                      : 'rgba(255, 255, 255, 1)',
-                    border: selectedCategory === category.id 
-                      ? '1.5px solid rgba(16, 185, 129, 0.4)' 
-                      : '1px solid rgba(16, 185, 129, 0.2)',
-                    boxShadow: selectedCategory === category.id
-                      ? '0 4px 12px rgba(16, 185, 129, 0.2)'
-                      : '0 2px 8px rgba(0, 0, 0, 0.08)',
-                    '& .category-icon': {
-                      transform: 'scale(1.1)'
-                    },
-                    '& .category-text': {
-                      color: selectedCategory === category.id 
-                        ? 'rgba(16, 185, 129, 1)' 
-                        : 'rgba(0, 0, 0, 0.8)'
-                    }
-                  },
-                  '&:active': {
-                    transform: 'translateY(0px) scale(0.98)'
-                  }
+                    ? '2px solid rgba(16, 185, 129, 0.5)' 
+                    : '1px solid rgba(0, 0, 0, 0.1)',
+                  minHeight: '60px',
                 }}
               >
-                
+                {/* Category Image or Icon */}
+                {category.imageUrl ? (
+                  <Box
+                    component="img"
+                    src={category.imageUrl}
+                    alt={category.name}
+                    sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 1,
+                      objectFit: 'cover',
+                      mb: 0.5,
+                    }}
+                  />
+                ) : (
+                  <Box
+                    sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 1,
+                      background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      mb: 0.5,
+                      border: '1px solid #cbd5e1',
+                    }}
+                  >
+                    <Typography sx={{ fontSize: '18px' }}>
+                      {category.id === 'virtual-recommended' ? '⭐' :
+                       category.id === 'virtual-bestseller' ? '🔥' : 
+                       '🍽️'}
+                    </Typography>
+                  </Box>
+                )}
+
                 <Typography 
                   className="category-text"
                   sx={{ 
@@ -1343,8 +1538,9 @@ export default function MenuPageComponent() {
                   />
                 )}
               </Box>
+            </SwiperSlide>
             ))}
-          </Box>
+          </Swiper>
           ) : (
             <Box 
               sx={{ 
@@ -1407,7 +1603,7 @@ export default function MenuPageComponent() {
             >
               {searchFilteredItems.map((item, index) => (
                 <Card
-                  key={item.id}
+                  key={`${selectedCategory}-${item.id}-${index}`}
                   onClick={() => router.push(`/menu/${restaurant?.id}/item/${item.id}`)}
                   sx={{
                     borderRadius: 1,
@@ -1602,8 +1798,19 @@ export default function MenuPageComponent() {
         </Box>
       </Box>
 
-      {/* Footer Navigation */}
-      <FooterNavbar initialValue={1} />
-    </Box>
+      {/* Fixed Footer */}
+      <Box
+        sx={{
+          flexShrink: 0, // ป้องกันการหดตัว
+          position: isLineApp ? 'relative' : 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 1000,
+        }}
+      >
+        <FooterNavbar initialValue={1} />
+      </Box>
+    </ContentWrapper>
   );
 }

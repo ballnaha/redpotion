@@ -52,7 +52,11 @@ export async function POST(req: NextRequest) {
     // Generate organized file path structure
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 8);
-    const extension = 'jpg'; // Always convert to JPG for consistency
+    
+    // Preserve original format for PNG files to maintain transparency
+    const originalExtension = file.name.split('.').pop()?.toLowerCase();
+    const shouldPreservePNG = originalExtension === 'png' && file.type === 'image/png';
+    const extension = shouldPreservePNG ? 'png' : 'jpg';
     
     // Organized folder structure: restaurants/{restaurantId}/{category}/
     const restaurantFolder = restaurant.id;
@@ -68,7 +72,9 @@ export async function POST(req: NextRequest) {
       variant: variant,
       folder: folder,
       fileName: fileName,
-      fullPath: fullPath
+      fullPath: fullPath,
+      preservesPNG: shouldPreservePNG,
+      originalType: file.type
     });
 
     // Save file to public/uploads folder with resizing
@@ -91,52 +97,96 @@ export async function POST(req: NextRequest) {
       
       if (variant === 'banner' || category === 'banner') {
         // Banner image: resize to 1200x675 (16:9 aspect ratio) for web optimization
-        processedBuffer = await sharp(inputBuffer)
+        const sharpInstance = sharp(inputBuffer)
           .resize(1200, 675, {
             fit: 'cover',
             position: 'center'
-          })
-          .jpeg({ 
-            quality: 85,
-            progressive: true 
-          })
-          .toBuffer();
+          });
+        
+        if (shouldPreservePNG) {
+          processedBuffer = await sharpInstance
+            .png({ 
+              quality: 90,
+              compressionLevel: 6 
+            })
+            .toBuffer();
+        } else {
+          processedBuffer = await sharpInstance
+            .jpeg({ 
+              quality: 85,
+              progressive: true 
+            })
+            .toBuffer();
+        }
       } else if (variant === 'gallery' || category === 'gallery') {
         // Gallery image: resize to 1280x720 (16:9 aspect ratio) for gallery display
-        processedBuffer = await sharp(inputBuffer)
+        const sharpInstance = sharp(inputBuffer)
           .resize(1280, 720, {
             fit: 'cover',
             position: 'center'
-          })
-          .jpeg({ 
-            quality: 90,
-            progressive: true 
-          })
-          .toBuffer();
+          });
+        
+        if (shouldPreservePNG) {
+          processedBuffer = await sharpInstance
+            .png({ 
+              quality: 90,
+              compressionLevel: 6 
+            })
+            .toBuffer();
+        } else {
+          processedBuffer = await sharpInstance
+            .jpeg({ 
+              quality: 90,
+              progressive: true 
+            })
+            .toBuffer();
+        }
       } else if (variant === 'avatar' || category === 'profile' || category === 'menu') {
         // Avatar/Profile/Menu image: resize to 400x400 (square)
-        processedBuffer = await sharp(inputBuffer)
+        const sharpInstance = sharp(inputBuffer)
           .resize(400, 400, {
             fit: 'cover',
             position: 'center'
-          })
-          .jpeg({ 
-            quality: 85,
-            progressive: true 
-          })
-          .toBuffer();
+          });
+        
+        if (shouldPreservePNG) {
+          processedBuffer = await sharpInstance
+            .png({ 
+              quality: 90,
+              compressionLevel: 6 
+            })
+            .toBuffer();
+        } else {
+          processedBuffer = await sharpInstance
+            .jpeg({ 
+              quality: 85,
+              progressive: true 
+            })
+            .toBuffer();
+        }
       } else {
         // General: resize to max 800px width while maintaining aspect ratio
-        processedBuffer = await sharp(inputBuffer)
+        const sharpInstance = sharp(inputBuffer)
           .resize(800, 800, {
             fit: 'inside',
             withoutEnlargement: true
-          })
-          .jpeg({ 
-            quality: 85,
-            progressive: true 
-          })
-          .toBuffer();
+          });
+        
+        if (shouldPreservePNG) {
+          processedBuffer = await sharpInstance
+            .png({ 
+              quality: 90,
+              compressionLevel: 6 
+            })
+            .toBuffer();
+        } else {
+          processedBuffer = await sharpInstance
+            .jpeg({ 
+              quality: 85,
+              progressive: true 
+            })
+            .toBuffer();
+        }
       }
       
       // Write processed file to disk

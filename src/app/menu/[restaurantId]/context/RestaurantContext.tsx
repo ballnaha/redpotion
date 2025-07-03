@@ -25,6 +25,7 @@ interface Restaurant {
 interface MenuCategory {
   id: string;
   name: string;
+  imageUrl?: string;
   items: MenuItem[];
 }
 
@@ -121,6 +122,7 @@ interface ApiMenuItem {
   isAvailable: boolean;
   sortOrder: number;
   calories?: number;
+  tags?: string[];
 }
 
 // ฟังก์ชันแปลงข้อมูลจาก API เป็น Restaurant interface
@@ -142,31 +144,64 @@ const transformApiToRestaurant = (apiData: ApiRestaurant): Restaurant => {
         ? `${apiData.openTime} - ${apiData.closeTime}` 
         : '-',
     },
-    menu: (apiData.categories || [])
-      .filter(cat => cat.isActive)
-      .sort((a, b) => a.sortOrder - b.sortOrder)
-      .map(category => ({
-        id: category.id,
-        name: category.name,
-        items: (category.menuItems || [])
-          .filter(item => item.isAvailable)
-          .sort((a, b) => a.sortOrder - b.sortOrder)
-          .map(item => ({
-            id: item.id,
-            name: item.name,
-            description: item.description || '',
-            price: item.price,
-            originalPrice: item.originalPrice,
-            image: item.imageUrl || '',
-            category: category.id,
-            available: item.isAvailable,
-            cookingTime: 15,
-            isRecommended: false,
-            tags: [
-              // เอา isSpicy และ isVegetarian ออกก่อน เพราะยังไม่มีใน API
-            ]
-          }))
-      }))
+    menu: (() => {
+      // สร้าง categories ปกติ
+      const regularCategories = (apiData.categories || [])
+        .filter(cat => cat.isActive)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map(category => ({
+          id: category.id,
+          name: category.name,
+          imageUrl: category.imageUrl,
+          items: (category.menuItems || [])
+            .filter(item => item.isAvailable)
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+            .map(item => ({
+              id: item.id,
+              name: item.name,
+              description: item.description || '',
+              price: item.price,
+              originalPrice: item.originalPrice,
+              image: item.imageUrl || '',
+              category: category.id,
+              available: item.isAvailable,
+              cookingTime: 15,
+              isRecommended: item.tags?.includes('recommended') || false,
+              tags: item.tags || []
+            }))
+        }));
+
+      // รวบรวมเมนูทั้งหมด
+      const allMenuItems = regularCategories.flatMap(cat => cat.items);
+
+      // สร้าง virtual categories สำหรับ tags
+      const virtualCategories: MenuCategory[] = [];
+
+      // เมนูแนะนำ
+      const recommendedItems = allMenuItems.filter(item => item.tags.includes('recommended'));
+      if (recommendedItems.length > 0) {
+        virtualCategories.push({
+          id: 'virtual-recommended',
+          name: 'เมนูแนะนำ',
+          imageUrl: undefined,
+          items: recommendedItems
+        });
+      }
+
+      // เมนูขายดี
+      const bestsellerItems = allMenuItems.filter(item => item.tags.includes('bestseller'));
+      if (bestsellerItems.length > 0) {
+        virtualCategories.push({
+          id: 'virtual-bestseller',
+          name: 'สินค้าขายดี',
+          imageUrl: undefined,
+          items: bestsellerItems
+        });
+      }
+
+      // รวม virtual categories กับ regular categories
+      return [...virtualCategories, ...regularCategories];
+    })()
   };
 };
 

@@ -20,7 +20,11 @@ function LiffLandingContent() {
         // ถ้ามี restaurant ID ให้ redirect ไปยังร้านนั้น
         const targetUrl = `/menu/${restaurantId}?liff=true`;
         console.log('🚀 LIFF Landing: Redirecting to specific restaurant', targetUrl);
-        router.replace(targetUrl);
+        
+        // ใช้ delay เล็กน้อยเพื่อให้ LIFF app โหลดเสร็จก่อน
+        setTimeout(() => {
+          router.replace(targetUrl);
+        }, 500);
       } else {
         // ถ้าไม่มี restaurant ID ให้หาร้าน default จาก API
         try {

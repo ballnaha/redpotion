@@ -57,30 +57,39 @@ export async function GET(
   try {
     const { restaurantId } = await params;
 
+    // ดึงข้อมูล LIFF ID ของร้านอาหาร
     const restaurant = await prisma.restaurant.findUnique({
-      where: { id: restaurantId },
-      select: { 
-        id: true, 
-        name: true, 
+      where: {
+        id: restaurantId,
+        status: 'ACTIVE' // เฉพาะร้านที่เปิดใช้งาน
+      },
+      select: {
+        id: true,
+        name: true,
         liffId: true,
         status: true
       }
     });
 
     if (!restaurant) {
-      return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Restaurant not found or inactive' },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json({
-      restaurantId: restaurant.id,
-      restaurantName: restaurant.name,
+      id: restaurant.id,
+      name: restaurant.name,
       liffId: restaurant.liffId,
-      liffUrl: restaurant.liffId ? `https://liff.line.me/${restaurant.liffId}?restaurant=${restaurantId}` : null,
       status: restaurant.status
     });
 
   } catch (error) {
-    console.error('Error fetching LIFF info:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error fetching restaurant LIFF ID:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 } 

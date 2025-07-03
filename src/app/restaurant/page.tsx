@@ -10,11 +10,20 @@ import {
   Typography, 
   Button, 
   Alert,
-  Skeleton
+  Skeleton,
+  Chip,
+  Paper,
+  Grid
 } from '@mui/material'
 import { 
   Phone,
-  Email
+  Email,
+  Restaurant,
+  Settings,
+  MenuBook,
+  TrendingUp,
+  Category,
+  ShoppingCart
 } from '@mui/icons-material'
 import { useNotification } from '@/hooks/useGlobalNotification'
 
@@ -385,35 +394,190 @@ export default function RestaurantPage() {
 
   // แสดงหน้า dashboard ปกติสำหรับร้านที่ได้รับการอนุมัติแล้ว
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
-      <Typography variant="h4" sx={{ mb: 3, fontWeight: 600 }}>
-        🏪 Dashboard ร้าน {restaurant.name}
-      </Typography>
-      
-      <Alert severity="success" sx={{ mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          ✅ ร้านอาหารของคุณได้รับการอนุมัติแล้ว
-        </Typography>
-        <Typography variant="body1">
-          คุณสามารถเริ่มจัดการร้านอาหารของคุณได้แล้ว
-        </Typography>
-      </Alert>
+    <Box sx={{ 
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+      p: { xs: 2, md: 4 }
+    }}>
+      <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
+        {/* Header */}
+        <Box sx={{ mb: 4 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+            <Restaurant sx={{ fontSize: 32, color: 'primary.main' }} />
+            <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
+              {restaurant.name}
+            </Typography>
+            <Chip 
+              label={restaurant.status === 'ACTIVE' ? 'อนุมัติแล้ว' : 'อนุมัติแล้ว'} 
+              color="success"
+              size="small"
+              sx={{ ml: 'auto' }}
+            />
+          </Box>
+          <Typography variant="body1" color="text.secondary">
+            จัดการร้านอาหารของคุณได้ทุกอย่างในที่เดียว
+          </Typography>
+        </Box>
 
-      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-        <Button
-          variant="contained"
-          onClick={() => router.push('/restaurant/menu')}
-          sx={{ minWidth: 150 }}
+        {/* Stats Cards */}
+        <Box sx={{ 
+          display: 'grid', 
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+          gap: 2, 
+          mb: 4 
+        }}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: 2,
+              background: '#ffffff',
+              border: '1px solid #f0f0f0',
+              transition: 'all 0.2s ease',
+              '&:hover': { 
+                borderColor: '#667eea',
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.15)'
+              }
+            }}
+          >
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h3" sx={{ fontWeight: 600, color: '#667eea', mb: 0.5 }}>
+                {restaurant._count.categories}
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
+                หมวดหมู่
+              </Typography>
+            </Box>
+          </Paper>
+
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: 2,
+              background: '#ffffff',
+              border: '1px solid #f0f0f0',
+              transition: 'all 0.2s ease',
+              '&:hover': { 
+                borderColor: '#f5576c',
+                boxShadow: '0 4px 12px rgba(245, 87, 108, 0.15)'
+              }
+            }}
+          >
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h3" sx={{ fontWeight: 600, color: '#f5576c', mb: 0.5 }}>
+                {restaurant._count.menuItems}
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
+                เมนูอาหาร
+              </Typography>
+            </Box>
+          </Paper>
+
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: 2,
+              background: '#ffffff',
+              border: '1px solid #f0f0f0',
+              transition: 'all 0.2s ease',
+              '&:hover': { 
+                borderColor: '#00f2fe',
+                boxShadow: '0 4px 12px rgba(0, 242, 254, 0.15)'
+              }
+            }}
+          >
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h3" sx={{ fontWeight: 600, color: '#00d4aa', mb: 0.5 }}>
+                {restaurant._count.orders}
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
+                คำสั่งซื้อ
+              </Typography>
+            </Box>
+          </Paper>
+        </Box>
+
+        {/* Quick Actions */}
+        <Paper
+          elevation={0}
+          sx={{
+            p: 4,
+            borderRadius: 3,
+            background: 'rgba(255, 255, 255, 0.9)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)'
+          }}
         >
-          จัดการเมนู
-        </Button>
-        <Button
-          variant="outlined"
-          onClick={() => router.push('/restaurant/settings')}
-          sx={{ minWidth: 150 }}
-        >
-          ตั้งค่าร้าน
-        </Button>
+          <Typography variant="h6" sx={{ mb: 3, fontWeight: 600, color: 'text.primary' }}>
+            การจัดการร้าน
+          </Typography>
+          
+          <Box sx={{ 
+            display: 'grid', 
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+            gap: 2 
+          }}>
+            <Button
+              fullWidth
+              variant="contained"
+              size="large"
+              startIcon={<MenuBook />}
+              onClick={() => router.push('/restaurant/menu')}
+              sx={{
+                py: 2,
+                borderRadius: 2,
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
+                }
+              }}
+            >
+              จัดการเมนู
+            </Button>
+            
+            <Button
+              fullWidth
+              variant="outlined"
+              size="large"
+              startIcon={<Settings />}
+              onClick={() => router.push('/restaurant/settings')}
+              sx={{
+                py: 2,
+                borderRadius: 2,
+                borderColor: 'primary.main',
+                color: 'primary.main',
+                '&:hover': {
+                  borderColor: 'primary.dark',
+                  background: 'rgba(102, 126, 234, 0.04)'
+                }
+              }}
+            >
+              ตั้งค่าร้าน
+            </Button>
+            
+            <Button
+              fullWidth
+              variant="outlined"
+              size="large"
+              startIcon={<TrendingUp />}
+              onClick={() => router.push('/restaurant/gallery')}
+              sx={{
+                py: 2,
+                borderRadius: 2,
+                borderColor: 'secondary.main',
+                color: 'secondary.main',
+                '&:hover': {
+                  borderColor: 'secondary.dark',
+                  background: 'rgba(245, 87, 108, 0.04)'
+                }
+              }}
+            >
+              แกลเลอรี่
+            </Button>
+          </Box>
+        </Paper>
       </Box>
     </Box>
   )

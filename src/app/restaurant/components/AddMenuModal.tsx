@@ -19,9 +19,12 @@ import {
   Alert,
   CircularProgress,
   Chip,
-  useMediaQuery
+  useMediaQuery,
+  Stack,
+  ToggleButton,
+  ToggleButtonGroup
 } from '@mui/material';
-import { Add, Restaurant } from '@mui/icons-material';
+import { Add, Restaurant, Star, Whatshot, FiberNew, LocalFireDepartment } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import ImageUploadDropzone, { uploadImageFile } from './ImageUploadDropzone';
 
@@ -62,7 +65,8 @@ export default function AddMenuModal({
     price: '',
     categoryId: '',
     imageUrl: '',
-    calories: ''
+    calories: '',
+    tags: [] as string[]
   });
 
   useEffect(() => {
@@ -79,7 +83,8 @@ export default function AddMenuModal({
       price: '',
       categoryId: '',
       imageUrl: '',
-      calories: ''
+      calories: '',
+      tags: []
     });
     setNewCategoryName('');
     setShowNewCategory(false);
@@ -122,6 +127,23 @@ export default function AddMenuModal({
       setFormData(prev => ({ ...prev, categoryId: value }));
     }
   };
+
+  const handleTagToggle = (tag: string) => {
+    setFormData(prev => ({
+      ...prev,
+      tags: prev.tags.includes(tag) 
+        ? prev.tags.filter(t => t !== tag)
+        : [...prev.tags, tag]
+    }));
+  };
+
+  // Available tags with icons and labels
+  const availableTags = [
+    { value: 'recommended', label: 'เมนูแนะนำ', icon: <Star />, color: '#fbbf24' },
+    { value: 'bestseller', label: 'ขายดี', icon: <LocalFireDepartment />, color: '#f97316' },
+    { value: 'new', label: 'เมนูใหม่', icon: <FiberNew />, color: '#06b6d4' },
+    { value: 'spicy', label: 'เผ็ด', icon: <Whatshot />, color: '#dc2626' }
+  ];
 
   const createCategory = async (): Promise<string | null> => {
     if (!newCategoryName.trim()) return null;
@@ -202,7 +224,8 @@ export default function AddMenuModal({
         price: parseFloat(formData.price),
         categoryId,
         imageUrl: uploadedImageUrl?.trim() || null,
-        calories: formData.calories ? parseInt(formData.calories) : null
+        calories: formData.calories ? parseInt(formData.calories) : null,
+        tags: formData.tags
       };
 
       const response = await fetch('/api/restaurant/menu-items', {
@@ -408,6 +431,64 @@ export default function AddMenuModal({
                     required
                   />
                 )}
+              </Box>
+            )}
+          </Box>
+
+          {/* Tags */}
+          <Box>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+              ป้ายกำกับ
+            </Typography>
+            <Typography 
+              variant="body2" 
+              color="text.secondary" 
+              sx={{ mb: 2 }}
+            >
+              เลือกป้ายกำกับที่เหมาะสมกับเมนูนี้
+            </Typography>
+            
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              {availableTags.map((tag) => (
+                <Chip
+                  key={tag.value}
+                  icon={tag.icon}
+                  label={tag.label}
+                  onClick={() => handleTagToggle(tag.value)}
+                  variant={formData.tags.includes(tag.value) ? "filled" : "outlined"}
+                  sx={{
+                    mb: 1,
+                    backgroundColor: formData.tags.includes(tag.value) 
+                      ? `${tag.color}20` 
+                      : 'transparent',
+                    borderColor: tag.color,
+                    color: formData.tags.includes(tag.value) 
+                      ? tag.color 
+                      : 'text.secondary',
+                    '& .MuiChip-icon': {
+                      color: formData.tags.includes(tag.value) 
+                        ? tag.color 
+                        : 'text.secondary'
+                    },
+                    '&:hover': {
+                      backgroundColor: `${tag.color}15`,
+                      borderColor: tag.color,
+                      color: tag.color,
+                      '& .MuiChip-icon': {
+                        color: tag.color
+                      }
+                    },
+                    transition: 'all 0.2s ease'
+                  }}
+                />
+              ))}
+            </Stack>
+
+            {formData.tags.length > 0 && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="caption" color="text.secondary">
+                  ป้ายกำกับที่เลือก: {formData.tags.length} รายการ
+                </Typography>
               </Box>
             )}
           </Box>

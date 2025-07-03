@@ -117,6 +117,7 @@ model MenuItem {
   isAvailable   Boolean     @default(true)
   sortOrder     Int         @default(0)
   calories      Int?
+  tags          String[]    @default([])
   restaurantId  String
   categoryId    String
   createdAt     DateTime    @default(now())

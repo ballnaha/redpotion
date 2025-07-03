@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
+import { getAppConfig } from '@/lib/appConfig';
 import { 
   Box, 
   Typography, 
@@ -99,12 +100,66 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
   const [itemData, setItemData] = useState<MenuItemData | null>(null);
   const { cart, cartTotal, restaurant, loading: restaurantLoading, setCartItemQuantity } = useRestaurant();
 
+  // LINE session state
+  const [lineUser, setLineUser] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    image?: string;
+    lineUserId: string;
+  } | null>(null);
+  const [sessionCheckComplete, setSessionCheckComplete] = useState(false);
+
   // Handle hydration
   useEffect(() => {
     setMounted(true);
   }, []);
   
   const resolvedParams = use(params);
+
+  // ตรวจสอบ LINE session
+  useEffect(() => {
+    const checkLineSession = async () => {
+      try {
+        const config = getAppConfig();
+        
+        // ตรวจสอบว่ามาจาก LIFF หรือไม่
+        const urlParams = new URLSearchParams(window.location.search);
+        const isFromLiff = urlParams.get('liff') === 'true';
+        
+        if (config.skipAuthenticationCheck || isFromLiff) {
+          console.log('🔓 Menu Item: Authentication check skipped');
+          setSessionCheckComplete(true);
+          return;
+        }
+
+        const response = await fetch('/api/auth/line-session');
+        const data = await response.json();
+        
+        if (data.authenticated && data.user) {
+          console.log('✅ Menu Item: LINE session valid');
+          setLineUser(data.user);
+        } else {
+          console.log('⚠️ Menu Item: No LINE session found');
+          // redirect ไป menu หลัก
+          router.replace(`/menu/${resolvedParams.restaurantId}?return=item`);
+          return;
+        }
+      } catch (error) {
+        console.log('⚠️ Menu Item: Session check failed');
+        // redirect ไป menu หลัก
+        router.replace(`/menu/${resolvedParams.restaurantId}?return=item`);
+        return;
+      } finally {
+        setSessionCheckComplete(true);
+      }
+    };
+
+    if (mounted && resolvedParams.restaurantId) {
+      checkLineSession();
+    }
+  }, [mounted, resolvedParams.restaurantId, router]);
 
   // ดึงข้อมูล menu item จาก API เมื่อ restaurant context พร้อมแล้ว
   useEffect(() => {
@@ -127,11 +182,11 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
       }
     };
 
-    // รอให้ restaurant context โหลดเสร็จก่อน
-    if (!restaurantLoading && restaurant && resolvedParams.itemId) {
+    // รอให้ restaurant context โหลดเสร็จและ session check เสร็จก่อน
+    if (!restaurantLoading && restaurant && resolvedParams.itemId && sessionCheckComplete) {
       fetchMenuItem();
     }
-  }, [resolvedParams.itemId, restaurantLoading, restaurant]);
+  }, [resolvedParams.itemId, restaurantLoading, restaurant, sessionCheckComplete]);
 
   const handleAddOnToggle = (addOnId: string) => {
     setSelectedAddOns(prev => 

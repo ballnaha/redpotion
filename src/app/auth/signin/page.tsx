@@ -97,7 +97,7 @@ export default function SignInPage() {
       console.log('📋 NextAuth result:', result)
 
       if (result?.error) {
-        console.error('❌ NextAuth error:', result.error)
+        //console.error('❌ NextAuth error:', result.error)
         setError('อีเมลหรือรหัสผ่านไม่ถูกต้อง')
         setLoading(false)
         return

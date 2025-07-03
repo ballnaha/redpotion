@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import NoSSR from '../../components/NoSSR';
+import { getAppConfig } from '@/lib/appConfig';
 import { 
   Box, 
   Typography, 
@@ -113,6 +114,17 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
   const [discount, setDiscount] = useState(0);
   const [promoApplied, setPromoApplied] = useState('');
   
+  // LINE session state
+  const [lineUser, setLineUser] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    image?: string;
+    lineUserId: string;
+  } | null>(null);
+  const [sessionCheckComplete, setSessionCheckComplete] = useState(false);
+  
   // Drawer states
   const [addressDrawerOpen, setAddressDrawerOpen] = useState(false);
   const [paymentDrawerOpen, setPaymentDrawerOpen] = useState(false);
@@ -139,6 +151,49 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // ตรวจสอบ LINE session
+  useEffect(() => {
+    const checkLineSession = async () => {
+      try {
+        const config = getAppConfig();
+        
+        // ตรวจสอบว่ามาจาก LIFF หรือไม่
+        const urlParams = new URLSearchParams(window.location.search);
+        const isFromLiff = urlParams.get('liff') === 'true';
+        
+        if (config.skipAuthenticationCheck || isFromLiff) {
+          console.log('🔓 Cart: Authentication check skipped');
+          setSessionCheckComplete(true);
+          return;
+        }
+
+        const response = await fetch('/api/auth/line-session');
+        const data = await response.json();
+        
+        if (data.authenticated && data.user) {
+          console.log('✅ Cart: LINE session valid');
+          setLineUser(data.user);
+        } else {
+          console.log('⚠️ Cart: No LINE session found');
+          // redirect ไป menu แทนการบังคับ login
+          router.replace(`/menu/${restaurantId}?return=cart`);
+          return;
+        }
+      } catch (error) {
+        console.log('⚠️ Cart: Session check failed');
+        // redirect ไป menu แทนการบังคับ login
+        router.replace(`/menu/${restaurantId}?return=cart`);
+        return;
+      } finally {
+        setSessionCheckComplete(true);
+      }
+    };
+
+    if (mounted && restaurantId) {
+      checkLineSession();
+    }
+  }, [mounted, restaurantId, router]);
 
   // ดึงข้อมูลร้านอาหารและโหลดตะกร้าพร้อมกัน
   useEffect(() => {
@@ -177,10 +232,11 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
       }
     };
 
-    if (restaurantId && mounted) {
+    // รอให้ session check เสร็จก่อน
+    if (restaurantId && mounted && sessionCheckComplete) {
       loadData();
     }
-  }, [restaurantId, mounted]);
+  }, [restaurantId, mounted, sessionCheckComplete]);
 
   const updateItemQuantity = (itemId: string, newQuantity: number) => {
     if (newQuantity <= 0) {

@@ -42,6 +42,7 @@ export async function PUT(
       imageUrl,
       isAvailable,
       calories,
+      tags = [],
       categoryId,
       addons = []
     } = body;
@@ -84,7 +85,7 @@ export async function PUT(
       }
     }
 
-    // อัปเดต menu item ด้วย raw SQL เพื่อรองรับ originalPrice
+    // อัปเดต menu item ด้วย raw SQL เพื่อรองรับ originalPrice และ tags
     await prisma.$executeRaw`
       UPDATE "MenuItem" SET
         name = ${name.trim()},
@@ -94,6 +95,7 @@ export async function PUT(
         "imageUrl" = ${imageUrl || null},
         "isAvailable" = ${isAvailable ?? menuItem.isAvailable},
         calories = ${calories > 0 ? Number(calories) : null},
+        tags = ${tags}::text[],
         "categoryId" = ${categoryId},
         "updatedAt" = NOW()
       WHERE id = ${menuItemId}
@@ -130,15 +132,42 @@ export async function PUT(
       }
     }
 
-    // ดึงข้อมูลเมนูที่อัปเดตแล้วพร้อม category
-    const updatedMenuItem = await prisma.menuItem.findUnique({
-      where: { id: menuItemId },
-      include: {
-        category: true
+    // ดึงข้อมูลเมนูที่อัปเดตแล้วพร้อม category ด้วย raw query
+    const updatedMenuItemResult = await prisma.$queryRaw<Array<{
+      id: string;
+      name: string;
+      description: string | null;
+      price: number;
+      originalPrice: number | null;
+      imageUrl: string | null;
+      isAvailable: boolean;
+      calories: number | null;
+      tags: string[];
+      sortOrder: number;
+      categoryId: string;
+      createdAt: Date;
+      updatedAt: Date;
+      categoryName: string;
+    }>>`
+      SELECT 
+        m.id, m.name, m.description, m.price, m."originalPrice", m."imageUrl",
+        m."isAvailable", m.calories, m.tags, m."sortOrder", m."categoryId",
+        m."createdAt", m."updatedAt",
+        c.name as "categoryName"
+      FROM "MenuItem" m
+      JOIN "Category" c ON m."categoryId" = c.id
+      WHERE m.id = ${menuItemId}
+    `;
+
+    const updatedMenuItem = updatedMenuItemResult[0];
+
+    return NextResponse.json({
+      ...updatedMenuItem,
+      category: {
+        id: updatedMenuItem.categoryId,
+        name: updatedMenuItem.categoryName
       }
     });
-
-    return NextResponse.json(updatedMenuItem);
   } catch (error) {
     console.error('Error updating menu item:', error);
     return NextResponse.json(
@@ -220,46 +249,50 @@ export async function GET(
   try {
     const { menuItemId } = await params;
 
-    // ดึงข้อมูล menu item พร้อม category, restaurant และ add-ons
-    const menuItem = await prisma.menuItem.findUnique({
-      where: {
-        id: menuItemId,
-      },
-      include: {
-        category: {
-          select: {
-            id: true,
-            name: true,
-            isActive: true,
-            restaurant: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-              },
-            },
-          },
-        },
-        addons: {
-          where: {
-            isAvailable: true,
-          },
-          orderBy: {
-            sortOrder: 'asc',
-          },
-        },
-      },
-    });
+    // ดึงข้อมูล menu item ด้วย raw query เพื่อรองรับ tags field
+    const menuItemResult = await prisma.$queryRaw<Array<{
+      id: string;
+      name: string;
+      description: string | null;
+      price: number;
+      originalPrice: number | null;
+      imageUrl: string | null;
+      isAvailable: boolean;
+      calories: number | null;
+      tags: string[];
+      sortOrder: number;
+      categoryId: string;
+      createdAt: Date;
+      updatedAt: Date;
+      categoryName: string;
+      categoryIsActive: boolean;
+      restaurantId: string;
+      restaurantName: string;
+      restaurantStatus: string;
+    }>>`
+      SELECT 
+        m.id, m.name, m.description, m.price, m."originalPrice", m."imageUrl",
+        m."isAvailable", m.calories, m.tags, m."sortOrder", m."categoryId",
+        m."createdAt", m."updatedAt",
+        c.name as "categoryName", c."isActive" as "categoryIsActive",
+        r.id as "restaurantId", r.name as "restaurantName", r.status as "restaurantStatus"
+      FROM "MenuItem" m
+      JOIN "Category" c ON m."categoryId" = c.id
+      JOIN "Restaurant" r ON c."restaurantId" = r.id
+      WHERE m.id = ${menuItemId}
+    `;
 
-    if (!menuItem) {
+    if (menuItemResult.length === 0) {
       return NextResponse.json(
         { message: 'ไม่พบเมนูนี้' },
         { status: 404 }
       );
     }
 
+    const menuItem = menuItemResult[0];
+
     // ตรวจสอบว่าร้านอาหารได้รับการอนุมัติแล้ว
-    if (menuItem.category.restaurant.status !== 'ACTIVE') {
+    if (menuItem.restaurantStatus !== 'ACTIVE') {
       return NextResponse.json(
         { message: 'ร้านอาหารนี้ยังไม่พร้อมให้บริการ' },
         { status: 403 }
@@ -267,12 +300,30 @@ export async function GET(
     }
 
     // ตรวจสอบว่า category ยังใช้งานอยู่
-    if (!menuItem.category.isActive) {
+    if (!menuItem.categoryIsActive) {
       return NextResponse.json(
         { message: 'หมวดหมู่นี้ไม่พร้อมให้บริการ' },
         { status: 403 }
       );
     }
+
+    // ดึงข้อมูล addons
+    const addons = await prisma.addon.findMany({
+      where: {
+        menuItemId: menuItemId,
+        isAvailable: true,
+      },
+      orderBy: {
+        sortOrder: 'asc',
+      },
+      select: {
+        id: true,
+        name: true,
+        price: true,
+        isAvailable: true,
+        sortOrder: true,
+      },
+    });
 
     // จัดรูปแบบข้อมูลให้ตรงกับที่ front-end ต้องการ
     const formattedMenuItem = {
@@ -284,16 +335,17 @@ export async function GET(
       imageUrl: menuItem.imageUrl,
       isAvailable: menuItem.isAvailable,
       calories: menuItem.calories,
+      tags: menuItem.tags || [],
       sortOrder: menuItem.sortOrder,
       category: {
-        id: menuItem.category.id,
-        name: menuItem.category.name,
+        id: menuItem.categoryId,
+        name: menuItem.categoryName,
       },
       restaurant: {
-        id: menuItem.category.restaurant.id,
-        name: menuItem.category.restaurant.name,
+        id: menuItem.restaurantId,
+        name: menuItem.restaurantName,
       },
-      addons: menuItem.addons.map(addon => ({
+      addons: addons.map(addon => ({
         id: addon.id,
         name: addon.name,
         price: addon.price,

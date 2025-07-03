@@ -44,10 +44,21 @@ body {
     rgb(var(--background-start-rgb));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevent scroll bounce and pull-to-refresh */
+  overscroll-behavior: none;
+  -webkit-overscroll-behavior: none;
 }
 
 html {
   scroll-padding-top: 80px;
+  /* Additional LINE app specific fixes */
+  touch-action: pan-y;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
 a {
@@ -468,6 +479,47 @@ a {
   .text-balance {
     text-wrap: balance;
   }
+}
+
+/* Clean LINE App Layout */
+.line-app {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%);
+}
+
+.line-app-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+/* Prevent any bouncing in LINE app */
+body.line-app {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+
+/* Simple category swiper styles */
+.category-swiper {
+  overflow: visible;
+  padding: 0 16px;
+}
+
+.category-swiper .swiper-slide {
+  width: auto;
+  min-width: 80px;
+  max-width: 120px;
 }
 
  

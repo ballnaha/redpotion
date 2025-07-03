@@ -76,17 +76,36 @@ function LineSignInContent() {
           console.log('✅ LINE user already authenticated:', data.user.name)
           setLineUser(data.user)
           
-          // เพิ่ม delay เล็กน้อยเพื่อให้ user เห็น success state
-          setTimeout(() => {
+          // เพิ่ม delay และแสดง success state ก่อน redirect
+          setTimeout(async () => {
             // Redirect ตาม context
             if (restaurantId) {
-              console.log('🏪 Redirecting to restaurant menu:', restaurantId)
-              router.replace(`/menu/${restaurantId}`)
+              console.log('🏪 Already authenticated, redirecting to restaurant menu in LIFF:', restaurantId)
+              
+              // ดึงข้อมูล LIFF ID ของร้านอาหาร
+              try {
+                const restaurantResponse = await fetch(`/api/restaurant/${restaurantId}/liff`)
+                const restaurantData = await restaurantResponse.json()
+                
+                if (restaurantData.liffId) {
+                  // สร้าง LIFF URL สำหรับเมนูร้านอาหาร (ไม่ต้องใส่ /menu/ ใน path เพราะ LIFF จะไป root)
+                  const liffUrl = `https://liff.line.me/${restaurantData.liffId}?restaurant=${restaurantId}`
+                  console.log('🔗 Opening LIFF URL with restaurant LIFF ID:', liffUrl)
+                  window.location.href = liffUrl
+                } else {
+                  console.warn('⚠️ Restaurant LIFF ID not found, using default redirect')
+                  window.location.href = `/menu/${restaurantId}`
+                }
+              } catch (liffError) {
+                console.error('❌ Failed to get restaurant LIFF ID:', liffError)
+                // Fallback ไปหน้าเมนูปกติ
+                window.location.href = `/menu/${restaurantId}`
+              }
             } else {
               console.log('🏠 Redirecting to home')
-              router.replace('/')
+              window.location.href = '/'
             }
-          }, 1000);
+          }, 1500); // เพิ่ม delay เป็น 1.5 วินาที
           return
         }
       }
@@ -138,9 +157,9 @@ function LineSignInContent() {
         // Initialize LIFF แบบบังคับทุกครั้ง เพื่อให้แน่ใจ
         console.log('🔄 Initializing LIFF...')
         
-        const liffId = process.env.NODE_ENV === 'production' 
-          ? process.env.NEXT_PUBLIC_LIFF_ID_PROD 
-          : process.env.NEXT_PUBLIC_LIFF_ID_DEV || '2007609360-3Z0L8Ekg';
+        const liffId = process.env.NODE_ENV === 'development' 
+          ? process.env.NEXT_PUBLIC_LIFF_ID 
+          : process.env.NEXT_PUBLIC_LIFF_ID || '2007609360-3Z0L8Ekg';
 
         if (!liffId) {
           setError('LIFF ID ไม่ได้ตั้งค่า กรุณาติดต่อผู้ดูแลระบบ')
@@ -220,7 +239,8 @@ function LineSignInContent() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            accessToken: accessToken
+            accessToken: accessToken,
+            restaurantId: restaurantId // ส่ง restaurantId ไปด้วย
           })
         })
 
@@ -236,16 +256,46 @@ function LineSignInContent() {
             return
           }
 
-          // Redirect ตาม context
-          if (restaurantId) {
-            console.log('🏪 Redirecting to restaurant menu:', restaurantId)
-            router.replace(`/menu/${restaurantId}`)
-          } else if (data.user.role === 'RESTAURANT_OWNER') {
-            console.log('🏪 Restaurant owner redirecting to dashboard')
-            router.replace('/restaurant')
+          // ใช้ข้อมูลจาก API response เพื่อตัดสินใจ redirect
+          if (data.shouldRedirectToRestaurant && data.restaurantId) {
+            console.log('🏪 Redirecting to restaurant menu in LIFF:', data.restaurantId)
+            
+            // ดึงข้อมูล LIFF ID ของร้านอาหาร
+            try {
+              const restaurantResponse = await fetch(`/api/restaurant/${data.restaurantId}/liff`)
+              const restaurantData = await restaurantResponse.json()
+              
+              if (restaurantData.liffId) {
+                // สร้าง LIFF URL สำหรับเมนูร้านอาหาร
+                const liffUrl = `https://liff.line.me/${restaurantData.liffId}?restaurant=${data.restaurantId}`
+                console.log('🔗 Opening LIFF URL with restaurant LIFF ID:', liffUrl)
+                
+                // เปิด URL ใน LINE app
+                if (typeof window !== 'undefined' && window.liff) {
+                  try {
+                    window.liff.openWindow({
+                      url: liffUrl,
+                      external: false
+                    })
+                  } catch (openError) {
+                    console.warn('⚠️ LIFF openWindow failed, using direct redirect:', openError)
+                    window.location.href = liffUrl
+                  }
+                } else {
+                  window.location.href = liffUrl
+                }
+              } else {
+                console.warn('⚠️ Restaurant LIFF ID not found, using default redirect')
+                router.replace(data.redirectUrl)
+              }
+            } catch (liffError) {
+              console.error('❌ Failed to get restaurant LIFF ID:', liffError)
+              // Fallback ตาม API response
+              router.replace(data.redirectUrl)
+            }
           } else {
-            console.log('🏠 Default redirecting to home')
-            router.replace('/')
+            console.log('🔄 Redirecting according to API response:', data.redirectUrl)
+            router.replace(data.redirectUrl)
           }
         } else {
           console.error('❌ LINE login failed:', data.error)
