@@ -4,6 +4,7 @@ export interface AppConfig {
   enforceLineApp: boolean;
   allowDesktopAccess: boolean;
   enableBypassMode: boolean;
+  requireLineLogin: boolean;
   
   // Development features
   enableDebugLogs: boolean;
@@ -21,13 +22,14 @@ export interface AppConfig {
 
 // Default Production Configuration
 const PRODUCTION_CONFIG: AppConfig = {
-  enforceLineApp: true,
-  allowDesktopAccess: false,
+  enforceLineApp: false,
+  allowDesktopAccess: true,
   enableBypassMode: false,
+  requireLineLogin: true,
   enableDebugLogs: false,
   enableMockUser: false,
   skipAuthenticationCheck: false,
-  enableLiffStrictMode: true,
+  enableLiffStrictMode: false,
   liffSessionTimeout: 1000,
   showDebugInfo: false,
   enableDevTools: false,
@@ -38,8 +40,9 @@ const DEVELOPMENT_CONFIG: AppConfig = {
   enforceLineApp: false,
   allowDesktopAccess: true,
   enableBypassMode: true,
+  requireLineLogin: true,
   enableDebugLogs: true,
-  enableMockUser: true,
+  enableMockUser: false,
   skipAuthenticationCheck: false,
   enableLiffStrictMode: false,
   liffSessionTimeout: 3000,
@@ -80,6 +83,10 @@ export const getAppConfig = (): AppConfig => {
     envOverrides.enableDebugLogs = process.env.NEXT_PUBLIC_DEBUG_MODE === 'true';
   }
   
+  if (process.env.NEXT_PUBLIC_REQUIRE_LINE_LOGIN !== undefined) {
+    envOverrides.requireLineLogin = process.env.NEXT_PUBLIC_REQUIRE_LINE_LOGIN === 'true';
+  }
+  
   // Merge configurations
   return {
     ...baseConfig,
@@ -117,6 +124,7 @@ export const appUtils = {
   shouldEnableBypass: () => getAppConfig().enableBypassMode,
   shouldShowDebug: () => getAppConfig().enableDebugLogs,
   shouldUseMockUser: () => getAppConfig().enableMockUser,
+  shouldRequireLineLogin: () => getAppConfig().requireLineLogin,
   isStrictMode: () => getAppConfig().enableLiffStrictMode,
   getSessionTimeout: () => getAppConfig().liffSessionTimeout,
 }; 

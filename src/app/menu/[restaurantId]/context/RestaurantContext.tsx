@@ -10,6 +10,7 @@ interface Restaurant {
   description: string;
   logo: string;
   banner: string;
+  imageUrl?: string;
   theme: {
     primaryColor: string;
     secondaryColor: string;
@@ -127,12 +128,20 @@ interface ApiMenuItem {
 
 // ฟังก์ชันแปลงข้อมูลจาก API เป็น Restaurant interface
 const transformApiToRestaurant = (apiData: ApiRestaurant): Restaurant => {
+  console.log('🔄 Transforming API data to Restaurant:', {
+    id: apiData.id,
+    name: apiData.name,
+    imageUrl: apiData.imageUrl,
+    hasImageUrl: !!apiData.imageUrl
+  });
+
   return {
     id: apiData.id,
     name: apiData.name,
     description: apiData.description || '',
     logo: apiData.imageUrl || '/images/favicon.png',
     banner: apiData.imageUrl || '/images/default_restaurant1.jpg',
+    imageUrl: apiData.imageUrl,
     theme: {
       primaryColor: '#e53e3e',
       secondaryColor: '#fc8181',
@@ -196,6 +205,17 @@ const transformApiToRestaurant = (apiData: ApiRestaurant): Restaurant => {
           name: 'สินค้าขายดี',
           imageUrl: undefined,
           items: bestsellerItems
+        });
+      }
+
+      // เมนูใหม่
+      const newItems = allMenuItems.filter(item => item.tags.includes('new'));
+      if (newItems.length > 0) {
+        virtualCategories.push({
+          id: 'virtual-new',
+          name: 'เมนูใหม่',
+          imageUrl: undefined,
+          items: newItems
         });
       }
 
@@ -303,229 +323,49 @@ export function RestaurantProvider({
     if (!mounted) return;
 
     const loadRestaurant = async () => {
+      if (!isValidId(restaurantId)) {
+        console.error('❌ Invalid restaurant ID format:', restaurantId);
+        setError('รหัสร้านอาหารไม่ถูกต้อง');
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
         
-        // ตรวจสอบรูปแบบ ID ก่อน
-        if (!isValidId(restaurantId)) {
-          console.warn('🚨 รูปแบบ Restaurant ID ไม่ถูกต้อง:', restaurantId);
-          
-          // แสดงข้อความแจ้งเตือนสั้นๆ ก่อน redirect
-          if (typeof window !== 'undefined') {
-            // สร้าง toast notification แบบง่าย
-            const notification = document.createElement('div');
-            notification.style.cssText = `
-              position: fixed;
-              top: 20px;
-              left: 50%;
-              transform: translateX(-50%);
-              background: rgba(239, 68, 68, 0.95);
-              color: white;
-              padding: 12px 24px;
-              border-radius: 8px;
-              font-family: inherit;
-              font-size: 14px;
-              z-index: 10000;
-              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-              backdrop-filter: blur(10px);
-              animation: slideInDown 0.3s ease-out;
-            `;
-            notification.textContent = 'ลิงก์ไม่ถูกต้อง กำลังนำคุณกลับไปหน้าหลัก...';
-            
-            // เพิ่ม CSS animation
-            const style = document.createElement('style');
-            style.textContent = `
-              @keyframes slideInDown {
-                from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
-                to { opacity: 1; transform: translateX(-50%) translateY(0); }
-              }
-            `;
-            document.head.appendChild(style);
-            document.body.appendChild(notification);
-            
-            // ลบ notification หลัง 2 วินาที
-            setTimeout(() => {
-              if (notification.parentNode) {
-                notification.remove();
-              }
-              if (style.parentNode) {
-                style.remove();
-              }
-            }, 2000);
-          }
-          
-          // Redirect หลังจาก delay เล็กน้อย
-          setTimeout(() => {
-            router.replace('/');
-          }, 1500);
+        console.log('🔍 Loading restaurant data for ID:', restaurantId);
+        const response = await fetch(`/api/restaurant/${restaurantId}`);
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('❌ API response not ok:', response.status, errorData);
+          setError(errorData.message || `Error: ${response.status}`);
+          setLoading(false);
           return;
         }
 
-        // เรียก API เพื่อดึงข้อมูลร้านจาก database
-        try {
-          const response = await fetch(`/api/restaurant/${restaurantId}`);
-          if (response.ok) {
-            const apiData = await response.json();
-            
-            // ใช้ function transformApiToRestaurant เพื่อแปลงข้อมูล
-            const restaurant = transformApiToRestaurant(apiData);
-            setRestaurant(restaurant);
-            return;
-          } else if (response.status === 404) {
-            console.warn('🚨 ไม่พบร้านอาหารที่มี ID:', restaurantId);
-            
-            // แสดงข้อความแจ้งเตือนก่อน redirect
-            if (typeof window !== 'undefined') {
-              const notification = document.createElement('div');
-              notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: rgba(251, 191, 36, 0.95);
-                color: white;
-                padding: 12px 24px;
-                border-radius: 8px;
-                font-family: inherit;
-                font-size: 14px;
-                z-index: 10000;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-                backdrop-filter: blur(10px);
-                animation: slideInDown 0.3s ease-out;
-              `;
-              notification.textContent = 'ไม่พบร้านอาหารที่ต้องการ กำลังนำคุณกลับไปหน้าหลัก...';
-              
-              document.body.appendChild(notification);
-              
-              // ลบ notification หลัง 2 วินาที
-              setTimeout(() => {
-                if (notification.parentNode) {
-                  notification.remove();
-                }
-              }, 2000);
-            }
-            
-            // Redirect หลังจาก delay เล็กน้อย
-            setTimeout(() => {
-              router.replace('/');
-            }, 1500);
-            return;
-          } else if (response.status === 202) {
-            // ร้านมีสถานะ PENDING
-            const errorData = await response.json();
-            console.log('🟡 ร้านอาหารรอการอนุมัติ:', errorData);
-            
-            // แสดงข้อความแจ้งเตือนสำหรับ PENDING status
-            if (typeof window !== 'undefined') {
-              const notification = document.createElement('div');
-              notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: rgba(33, 150, 243, 0.95);
-                color: white;
-                padding: 12px 24px;
-                border-radius: 8px;
-                font-family: inherit;
-                font-size: 14px;
-                z-index: 10000;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-                backdrop-filter: blur(10px);
-                animation: slideInDown 0.3s ease-out;
-                text-align: center;
-                max-width: 350px;
-                line-height: 1.4;
-              `;
-              notification.innerHTML = `
-                <div style="font-weight: 600; margin-bottom: 4px;">🎉 ${errorData.restaurantName || 'ร้านอาหาร'}</div>
-                <div style="font-size: 13px;">กำลังรอการอนุมัติจาก admin</div>
-              `;
-              
-              document.body.appendChild(notification);
-              
-              // ลบ notification หลัง 4 วินาที
-              setTimeout(() => {
-                if (notification.parentNode) {
-                  notification.remove();
-                }
-              }, 4000);
-            }
-            
-            // Redirect หลังจาก delay เล็กน้อย
-            setTimeout(() => {
-              router.replace('/');
-            }, 3000);
-            return;
-          } else if (response.status === 403) {
-            // ร้านมีสถานะอื่นๆ (REJECTED, SUSPENDED, CLOSED)
-            const errorData = await response.json();
-            console.log('🔴 ร้านอาหารไม่สามารถเข้าถึงได้:', errorData);
-            
-            // แสดงข้อความแจ้งเตือนตามสถานะ
-            if (typeof window !== 'undefined') {
-              const notification = document.createElement('div');
-              notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: rgba(239, 68, 68, 0.95);
-                color: white;
-                padding: 12px 24px;
-                border-radius: 8px;
-                font-family: inherit;
-                font-size: 14px;
-                z-index: 10000;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-                backdrop-filter: blur(10px);
-                animation: slideInDown 0.3s ease-out;
-                text-align: center;
-                max-width: 350px;
-                line-height: 1.4;
-              `;
-              notification.innerHTML = `
-                <div style="font-weight: 600; margin-bottom: 4px;">⚠️ ${errorData.restaurantName || 'ร้านอาหาร'}</div>
-                <div style="font-size: 13px;">${errorData.message}</div>
-              `;
-              
-              document.body.appendChild(notification);
-              
-              // ลบ notification หลัง 4 วินาที
-              setTimeout(() => {
-                if (notification.parentNode) {
-                  notification.remove();
-                }
-              }, 4000);
-            }
-            
-            // Redirect หลังจาก delay เล็กน้อย
-            setTimeout(() => {
-              router.replace('/');
-            }, 3000);
-            return;
-          } else {
-            throw new Error(`เกิดข้อผิดพลาดในการดึงข้อมูลร้าน: ${response.status}`);
-          }
-        } catch (apiError) {
-          console.error('API Error:', apiError);
-          // หากเป็น network error หรือ error อื่นๆ ที่ไม่ใช่ 404
-          if (apiError instanceof TypeError && apiError.message.includes('fetch')) {
-            throw new Error('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต');
-          } else {
-            throw new Error(
-              apiError instanceof Error 
-                ? apiError.message 
-                : 'ไม่สามารถเชื่อมต่อกับฐานข้อมูลได้'
-            );
-          }
+        const data = await response.json();
+        console.log('✅ Raw API response:', data);
+        console.log('🖼️ API imageUrl:', data.imageUrl);
+        
+        if (!data || !data.id) {
+          console.error('❌ Invalid restaurant data:', data);
+          setError('ข้อมูลร้านอาหารไม่ถูกต้อง');
+          setLoading(false);
+          return;
         }
+
+        const transformedData = transformApiToRestaurant(data);
+        console.log('✅ Transformed restaurant data:', transformedData);
+        console.log('🖼️ Final banner URL:', transformedData.banner);
+        
+        setRestaurant(transformedData);
+        setLoading(false);
       } catch (err) {
         // จัดการ error อื่นๆ ที่ไม่ใช่ 404 หรือ invalid ID
         setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
         console.error('🚨 RestaurantProvider Error:', err);
-      } finally {
         setLoading(false);
       }
     };

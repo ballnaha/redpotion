@@ -10,6 +10,10 @@ NEXT_PUBLIC_ENFORCE_LINE_APP=true        # บังคับให้เข้�
 NEXT_PUBLIC_ALLOW_DESKTOP=false          # อนุญาตให้เข้าจาก desktop browser
 NEXT_PUBLIC_ENABLE_BYPASS=false          # เปิดใช้งาน bypass mode (?bypass=true)
 NEXT_PUBLIC_DEBUG_MODE=false             # แสดง debug logs
+
+# เปิด/ปิดการบังคับใช้ LINE application (true/false)
+# false = สามารถเข้าจาก browser ได้
+NEXT_PUBLIC_REQUIRE_LINE_LOGIN=true
 ```
 
 ## 🚀 โหมดการใช้งาน
@@ -46,6 +50,7 @@ NEXT_PUBLIC_DEBUG_MODE=true
 | `NEXT_PUBLIC_ALLOW_DESKTOP` | `false` | `true` | อนุญาตให้เข้าจาก desktop browser |
 | `NEXT_PUBLIC_ENABLE_BYPASS` | `false` | `true` | เปิดใช้ bypass mode สำหรับทดสอบ |
 | `NEXT_PUBLIC_DEBUG_MODE` | `false` | `true` | แสดง debug logs ใน console |
+| `NEXT_PUBLIC_REQUIRE_LINE_LOGIN` | `true` | `true` | บังคับให้ login ด้วย LINE (แต่ไม่บังคับใช้ LINE app) |
 
 ## 🛠️ การใช้งาน
 
@@ -187,4 +192,67 @@ NEXT_PUBLIC_ENFORCE_LINE_APP=true
 NEXT_PUBLIC_ALLOW_DESKTOP=false
 NEXT_PUBLIC_ENABLE_BYPASS=false
 NEXT_PUBLIC_DEBUG_MODE=false
-``` 
+```
+
+## LINE Login และ Application Access Configuration
+
+### Environment Variables
+
+เพิ่มตัวแปรเหล่านี้ในไฟล์ `.env.local` เพื่อควบคุมพฤติกรรมของแอป:
+
+```bash
+# เปิด/ปิดการบังคับใช้ LINE application (true/false)
+# false = สามารถเข้าจาก browser ได้
+NEXT_PUBLIC_ENFORCE_LINE_APP=false
+
+# เปิด/ปิดการเข้าถึงจาก desktop browser (true/false)
+NEXT_PUBLIC_ALLOW_DESKTOP=true
+
+# เปิด/ปิดการบังคับ LINE login (true/false)
+# true = ต้อง login ด้วย LINE เท่านั้น
+NEXT_PUBLIC_REQUIRE_LINE_LOGIN=true
+
+# เปิด/ปิด bypass mode สำหรับ development (true/false)
+NEXT_PUBLIC_ENABLE_BYPASS=false
+
+# เปิด/ปิด debug mode (true/false)
+NEXT_PUBLIC_DEBUG_MODE=true
+```
+
+### การตั้งค่าแนะนำ
+
+#### สำหรับ Production:
+```bash
+NEXT_PUBLIC_ENFORCE_LINE_APP=false
+NEXT_PUBLIC_ALLOW_DESKTOP=true
+NEXT_PUBLIC_REQUIRE_LINE_LOGIN=true
+NEXT_PUBLIC_ENABLE_BYPASS=false
+NEXT_PUBLIC_DEBUG_MODE=false
+```
+
+#### สำหรับ Development:
+```bash
+NEXT_PUBLIC_ENFORCE_LINE_APP=false
+NEXT_PUBLIC_ALLOW_DESKTOP=true
+NEXT_PUBLIC_REQUIRE_LINE_LOGIN=true
+NEXT_PUBLIC_ENABLE_BYPASS=true
+NEXT_PUBLIC_DEBUG_MODE=true
+```
+
+#### สำหรับทดสอบโดยไม่ต้อง LINE login:
+```bash
+NEXT_PUBLIC_ENFORCE_LINE_APP=false
+NEXT_PUBLIC_ALLOW_DESKTOP=true
+NEXT_PUBLIC_REQUIRE_LINE_LOGIN=false
+NEXT_PUBLIC_ENABLE_BYPASS=true
+NEXT_PUBLIC_DEBUG_MODE=true
+```
+
+### พฤติกรรมแต่ละการตั้งค่า
+
+- **ENFORCE_LINE_APP=false**: ผู้ใช้สามารถเข้าจาก browser บน desktop ได้
+- **ALLOW_DESKTOP=true**: อนุญาตให้เข้าจาก desktop browser
+- **REQUIRE_LINE_LOGIN=true**: บังคับให้ login ด้วย LINE (แต่ไม่บังคับใช้ LINE app)
+- **REQUIRE_LINE_LOGIN=false**: ไม่บังคับ LINE login สามารถใช้งานได้ทันที
+- **ENABLE_BYPASS=true**: เปิดโหมด bypass สำหรับ development
+- **DEBUG_MODE=true**: แสดง console logs เพื่อการ debug 
