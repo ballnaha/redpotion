@@ -26,7 +26,6 @@ import {
   Alert
 } from '@mui/material';
 import { 
-  ArrowBack, 
   Add, 
   Remove,
   Delete,
@@ -39,7 +38,8 @@ import {
   AccountBalanceWallet,
   Payment,
   LocalShipping,
-  Close
+  Close,
+  ArrowBack
 } from '@mui/icons-material';
 
 interface CartItem {
@@ -321,14 +321,40 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
   };
 
   // Loading state - รวมการโหลดร้านอาหารและตะกร้า
+  // if (loading) {
+  //   return (
+  //     <Container maxWidth="sm" sx={{ py: 8, textAlign: 'center' }}>
+  //       <CircularProgress size={40} sx={{ color: '#10B981' }} />
+  //       <Typography sx={{ mt: 2, color: '#6B7280' }}>
+  //         กำลังโหลดข้อมูล...
+  //       </Typography>
+  //     </Container>
+  //   );
+  // }
+
   if (loading) {
     return (
-      <Container maxWidth="sm" sx={{ py: 8, textAlign: 'center' }}>
-        <CircularProgress size={40} sx={{ color: '#10B981' }} />
-        <Typography sx={{ mt: 2, color: '#6B7280' }}>
-          กำลังโหลดข้อมูล...
-        </Typography>
-      </Container>
+      <Box
+        sx={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          zIndex: 9999
+        }}
+      >
+        <Box sx={{ textAlign: 'center' }}>
+          <CircularProgress size={40} sx={{ mb: 2, color: '#10B981' }} />
+          <Typography variant="body2" color="text.secondary">
+            กำลังโหลดข้อมูล...
+          </Typography>
+        </Box>
+      </Box>
     );
   }
 
@@ -437,48 +463,56 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
     <Box sx={{ 
       minHeight: '100vh', 
       background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', 
-      pb: 10,
+      pb: 16,
+      position: 'relative',
       '@keyframes checkPulse': {
         '0%': { transform: 'scale(0)', opacity: 0 },
         '50%': { transform: 'scale(1.2)', opacity: 0.8 },
         '100%': { transform: 'scale(1)', opacity: 1 }
+      },
+      '@keyframes float': {
+        '0%': { transform: 'translateY(0px)' },
+        '50%': { transform: 'translateY(-10px)' },
+        '100%': { transform: 'translateY(0px)' }
       }
     }}>
-      {/* Header */}
+
+      {/* Floating Home Button */}
       <Box
+        onClick={() => router.push(`/menu/${restaurantId}`)}
         sx={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 100,
-          background: 'rgba(255, 255, 255, 0.8)',
+          position: 'fixed',
+          top: 20,
+          right: 20,
+          width: 56,
+          height: 56,
+          borderRadius: '50%',
+          background: 'rgba(255, 255, 255, 0.15)',
           backdropFilter: 'blur(20px)',
-          borderBottom: '1px solid rgba(0, 0, 0, 0.06)'
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          zIndex: 1000,
+          animation: 'float 3s ease-in-out infinite',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          '&:hover': {
+            transform: 'scale(1.1) translateY(-2px)',
+            background: 'rgba(255, 255, 255, 0.25)',
+            boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)',
+          },
+          '&:active': {
+            transform: 'scale(0.95)',
+          }
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', py: 2.5, px: 2 }}>
-          <IconButton 
-            onClick={() => router.back()}
-            sx={{ 
-              mr: 1.5,
-              width: 40,
-              height: 40,
-              backgroundColor: 'rgba(255, 255, 255, 0.9)',
-              borderRadius: '12px',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-              '&:hover': { 
-                backgroundColor: 'rgba(255, 255, 255, 1)',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
-              }
-            }}
-          >
-            <ArrowBack sx={{ fontSize: 20, color: '#374151' }} />
-          </IconButton>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600, color: '#111827', fontSize: { xs: '1.2rem', sm: '1.1rem' } }}>
-              ตะกร้าสินค้า
-            </Typography>
-          </Box>
-        </Box>
+        <Home sx={{ 
+          color: '#10B981', 
+          fontSize: 24,
+          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+        }} />
       </Box>
 
       <Box sx={{ py: 3, px: 2 }}>
@@ -1359,6 +1393,127 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
           </Box>
         </Box>
       </Drawer>
+
+      {/* Fixed Footer - Order Button */}
+      {cartItems.length > 0 && (
+        <Box
+          sx={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 -8px 32px rgba(0, 0, 0, 0.12)',
+            p: 2,
+            zIndex: 1000,
+          }}
+        >
+          <Box sx={{ maxWidth: '500px', mx: 'auto' }}>
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={() => {
+                // Handle order placement
+                console.log('🛒 Placing order...', {
+                  items: cartItems,
+                  total: getTotal(),
+                  address: selectedAddress,
+                  payment: selectedPayment
+                });
+                // TODO: Implement order placement logic
+                alert('สั่งซื้อเรียบร้อย! (Demo)');
+              }}
+              sx={{
+                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                borderRadius: '16px',
+                py: 2,
+                fontSize: '1.1rem',
+                fontWeight: 600,
+                boxShadow: '0 4px 16px rgba(16, 185, 129, 0.3)',
+                position: 'relative',
+                overflow: 'hidden',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                  boxShadow: '0 6px 20px rgba(16, 185, 129, 0.4)',
+                  transform: 'translateY(-1px)'
+                },
+                '&:active': {
+                  transform: 'translateY(0)'
+                },
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: '-100%',
+                  width: '100%',
+                  height: '100%',
+                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+                  transition: 'left 0.5s ease-in-out'
+                },
+                '&:hover::before': {
+                  left: '100%'
+                }
+              }}
+            >
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between',
+                width: '100%',
+                position: 'relative',
+                zIndex: 1
+              }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <LocalShipping sx={{ fontSize: 24 }} />
+                  <Typography sx={{ fontSize: '1.1rem', fontWeight: 600 }}>
+                    สั่งซื้อ ({getTotalItems()} รายการ)
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography sx={{ fontSize: '1.2rem', fontWeight: 700 }}>
+                    ฿{getTotal().toLocaleString()}
+                  </Typography>
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: 'rgba(255, 255, 255, 0.8)',
+                      animation: 'pulse 2s infinite'
+                    }}
+                  />
+                </Box>
+              </Box>
+            </Button>
+
+            {/* Order Summary */}
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              mt: 1,
+              px: 1
+            }}>
+              <Typography variant="caption" sx={{ color: '#6B7280', fontSize: '0.75rem' }}>
+                จัดส่งโดย: {selectedAddress.label}
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#6B7280', fontSize: '0.75rem' }}>
+                ชำระด้วย: {selectedPayment.label}
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+      )}
+
+      <style jsx global>{`
+        @keyframes pulse {
+          0% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(1.2); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+      `}</style>
     </Box>
   );
 } 

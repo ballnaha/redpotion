@@ -340,7 +340,16 @@ export function RestaurantProvider({
         if (!response.ok) {
           const errorData = await response.json();
           console.error('❌ API response not ok:', response.status, errorData);
-          setError(errorData.message || `Error: ${response.status}`);
+          console.error('🔍 Request URL:', `/api/restaurant/${restaurantId}`);
+          console.error('🔍 RestaurantId being used:', restaurantId);
+          
+          // แสดงข้อความแตกต่างกันตาม status code
+          let userMessage = errorData.message || `Error: ${response.status}`;
+          if (response.status === 404) {
+            userMessage = `ไม่พบร้านอาหารนี้`;
+          }
+          
+          setError(userMessage);
           setLoading(false);
           return;
         }

@@ -54,8 +54,11 @@ export async function POST(req: NextRequest) {
       where: { lineUserId: lineProfile.userId }
     })
 
+    let isNewUser = false;
+
     if (!user) {
       console.log('👤 Creating new LINE user')
+      isNewUser = true;
       user = await prisma.user.create({
         data: {
           lineUserId: lineProfile.userId,
@@ -118,7 +121,7 @@ export async function POST(req: NextRequest) {
     } else if (restaurantId) {
       console.log('🏪 RestaurantId provided:', restaurantId)
       shouldRedirectToRestaurant = true
-      finalRedirectUrl = `/menu/${restaurantId}`
+      finalRedirectUrl = `/menu/${restaurantId}?from=line-signin`
     } else if (user.role === 'RESTAURANT_OWNER') {
       console.log('👨‍🍳 Restaurant owner login')
       finalRedirectUrl = '/restaurant'
@@ -129,6 +132,7 @@ export async function POST(req: NextRequest) {
 
     const response = NextResponse.json({
       success: true,
+      isNewUser,
       user: {
         id: user.id,
         name: user.name,

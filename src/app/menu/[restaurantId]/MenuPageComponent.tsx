@@ -40,7 +40,12 @@ import {
   LocationOn,
   Phone,
   Notifications,
-  MyLocation
+  MyLocation,
+  LocalOffer,
+  Whatshot,
+  Nature,
+  Cake,
+  LocalBar
 } from '@mui/icons-material';
 
 // Global styles สำหรับ liquid glass effect
@@ -77,6 +82,14 @@ const globalStyles = `
     }
   }
 
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
 
   
   .scale-on-hover {
@@ -204,6 +217,18 @@ const CategoryIcon = React.memo(function CategoryIcon({
       return <TrendingUp {...iconProps} />;
     case 'LocalDining':
       return <LocalDining {...iconProps} />;
+    case 'Favorite':
+      return <Favorite {...iconProps} />;
+    case 'LocalOffer':
+      return <LocalOffer {...iconProps} />;
+    case 'Whatshot':
+      return <Whatshot {...iconProps} />;
+    case 'Eco':
+      return <Nature {...iconProps} />;
+    case 'Cake':
+      return <Cake {...iconProps} />;
+    case 'LocalBar':
+      return <LocalBar {...iconProps} />;
     default:
       return <Category {...iconProps} />;
   }
@@ -224,6 +249,7 @@ export default function MenuPageComponent() {
   const [isClient, setIsClient] = useState(false);
   const [galleryImages, setGalleryImages] = useState<any[]>([]);
   const [currentGalleryIndex, setCurrentGalleryIndex] = useState(0);
+  const [galleryLoading, setGalleryLoading] = useState(true);
 
   // Client-side hydration check
   useEffect(() => {
@@ -289,6 +315,7 @@ export default function MenuPageComponent() {
     
     const fetchGalleryImages = async () => {
       try {
+        setGalleryLoading(true);
         const response = await fetch(`/api/restaurant/${restaurant.id}/gallery`);
         if (response.ok) {
           const images = await response.json();
@@ -297,6 +324,8 @@ export default function MenuPageComponent() {
         }
       } catch (error) {
         console.error('❌ Error fetching gallery images:', error);
+      } finally {
+        setGalleryLoading(false);
       }
     };
 
@@ -418,31 +447,96 @@ export default function MenuPageComponent() {
       }))
       .filter(category => category.items.length > 0 && !category.id.startsWith('virtual-') && category.name.trim() !== 'ขายดี');
 
-    // Virtual categories
+    // Virtual categories จาก tags - แสดงก่อน regular categories
     const allItems = regularCategories.flatMap(cat => cat.items);
     const virtualCategories: MenuCategory[] = [];
 
-    // Only add virtual-recommended if no regular category with name 'แนะนำ' or 'เมนูแนะนำ'
-    const hasRegularRecommended = regularCategories.some(cat => cat.name.trim() === 'แนะนำ' || cat.name.trim() === 'เมนูแนะนำ');
-    if (!hasRegularRecommended && allItems.some(item => item.tags?.includes('recommended'))) {
-      virtualCategories.push({
-        id: 'virtual-recommended',
-        name: 'แนะนำ',
+    // รวบรวม tags ที่มีอยู่จริงในฐานข้อมูล
+    const existingTags = new Set<string>();
+    allItems.forEach(item => {
+      if (item.tags && Array.isArray(item.tags)) {
+        item.tags.forEach(tag => existingTags.add(tag));
+      }
+    });
+
+    console.log('🏷️ Tags ที่พบในฐานข้อมูล:', Array.from(existingTags).sort());
+
+    // กำหนด virtual categories เฉพาะ tags ที่มีอยู่จริง
+    const tagCategoryMap: Record<string, { name: string; icon: string; excludeIfRegular: string[] }> = {
+      'recommended': { 
+        name: 'แนะนำ', 
         icon: 'Star',
-        items: allItems.filter(item => item.tags?.includes('recommended'))
-      });
-    }
-
-    // Only add virtual-bestseller (ขายดี) ifไม่มี regular category ชื่อ 'ขายดี'
-    if (allItems.some(item => item.tags?.includes('bestseller'))) {
-      virtualCategories.push({
-        id: 'virtual-bestseller',
-        name: 'ขายดี',
+        excludeIfRegular: ['แนะนำ', 'เมนูแนะนำ', 'แนะนำพิเศษ']
+      },
+      'bestseller': { 
+        name: 'ขายดี', 
         icon: 'TrendingUp',
-        items: allItems.filter(item => item.tags?.includes('bestseller'))
-      });
-    }
+        excludeIfRegular: ['ขายดี', 'เมนูขายดี', 'ยอดนิยม']
+      },
+      'new': { 
+        name: 'เมนูใหม่', 
+        icon: 'Favorite',
+        excludeIfRegular: ['เมนูใหม่', 'ใหม่', 'รายการใหม่']
+      },
+      'promotion': { 
+        name: 'โปรโมชั่น', 
+        icon: 'LocalOffer',
+        excludeIfRegular: ['โปรโมชั่น', 'ส่วนลด', 'ราคาพิเศษ']
+      },
 
+    };
+
+    // สร้าง virtual categories เฉพาะ tags ที่มีอยู่จริง
+    const priorityOrder = ['recommended', 'bestseller', 'new', 'promotion'];
+    
+    priorityOrder.forEach(tag => {
+      if (existingTags.has(tag) && tagCategoryMap[tag]) {
+        const { name, icon, excludeIfRegular } = tagCategoryMap[tag];
+        
+        // ตรวจสอบว่ามี regular category ที่ซ้ำกันหรือไม่
+        const hasRegularCategory = regularCategories.some(cat => 
+          excludeIfRegular.some(excludeName => 
+            cat.name.trim().toLowerCase() === excludeName.toLowerCase()
+          )
+        );
+        
+        // ถ้าไม่มี regular category ที่ซ้ำกัน
+        if (!hasRegularCategory) {
+          const itemsWithTag = allItems.filter(item => item.tags?.includes(tag));
+          if (itemsWithTag.length > 0) {
+            console.log(`🏷️ Creating virtual category: ${name} (${tag}) with ${itemsWithTag.length} items`);
+            virtualCategories.push({
+              id: `virtual-${tag}`,
+              name: name,
+              icon: icon,
+              items: itemsWithTag
+            });
+          }
+        }
+      }
+    });
+
+    // เพิ่ม virtual categories สำหรับ tags อื่นๆ ที่ไม่อยู่ใน predefined list
+    Array.from(existingTags).forEach(tag => {
+      if (!priorityOrder.includes(tag)) {
+        const itemsWithTag = allItems.filter(item => item.tags?.includes(tag));
+        if (itemsWithTag.length > 0) {
+          console.log(`🏷️ Creating virtual category for custom tag: ${tag} with ${itemsWithTag.length} items`);
+          virtualCategories.push({
+            id: `virtual-${tag}`,
+            name: tag.charAt(0).toUpperCase() + tag.slice(1), // Capitalize first letter
+            icon: 'Category',
+            items: itemsWithTag
+          });
+        }
+      }
+    });
+
+    console.log('📋 Virtual categories created:', virtualCategories.length);
+    console.log('📋 Regular categories:', regularCategories.length);
+    console.log('📋 Total categories:', virtualCategories.length + regularCategories.length);
+
+    // ส่งคืน virtual categories ก่อน แล้วตามด้วย regular categories
     return [...virtualCategories, ...regularCategories];
   }, [restaurant?.menu]);
 
@@ -557,12 +651,68 @@ export default function MenuPageComponent() {
     setTouchStart(null);
   }, [touchStart, isTransitioning, handleNextImage, handlePrevImage]);
 
+  // Show error if there's an error
+  if (error) {
+    return (
+      <Box sx={{ 
+        minHeight: '100vh', 
+        background: '#ffffff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        p: 2
+      }}>
+        <Paper
+          className="liquid-glass"
+          sx={{
+            p: 4,
+            borderRadius: 2,
+            textAlign: 'center',
+            maxWidth: 500,
+            width: '100%',
+            border: '1px solid #fecaca'
+          }}
+        >
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h4" sx={{ color: '#dc2626', mb: 2 }}>
+              ❌
+            </Typography>
+            <Typography variant="h6" sx={{ color: '#dc2626', fontWeight: 600, mb: 1 }}>
+              เกิดข้อผิดพลาด
+            </Typography>
+            <Typography variant="body1" sx={{ color: '#991b1b', mb: 2, whiteSpace: 'pre-line' }}>
+              {error}
+            </Typography>
+          </Box>
+          
+          <Stack spacing={2} direction="row" justifyContent="center">
+            <IconButton
+              onClick={() => window.location.reload()}
+              sx={{
+                bgcolor: '#10B981',
+                color: 'white',
+                '&:hover': {
+                  bgcolor: '#059669'
+                }
+              }}
+            >
+              <KeyboardArrowRight />
+            </IconButton>
+            <Typography variant="body2" sx={{ color: '#047857', alignSelf: 'center' }}>
+              คลิกเพื่อรีเฟรชหน้า
+            </Typography>
+          </Stack>
+        </Paper>
+      </Box>
+    );
+  }
+
   // Show loading if not ready
   if (!restaurant || !sessionCheckComplete) {
     return (
       <Box sx={{ 
         minHeight: '100vh', 
-        background: 'linear-gradient(135deg, #f0fdfa 0%, #ecfdf5 50%, #f0f9ff 100%)',
+        background: '#ffffff',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center'
@@ -592,7 +742,7 @@ export default function MenuPageComponent() {
       return (
     <Box sx={{
           minHeight: '100vh',
-      background: 'linear-gradient(135deg, #f0fdfa 0%, #ecfdf5 50%, #f0f9ff 100%)',
+      background: '#ffffff',
           position: 'relative',
           display: 'flex',
           flexDirection: 'column',
@@ -863,11 +1013,23 @@ export default function MenuPageComponent() {
         </Box>
 
         {/* Professional Gallery Section */}
-        {galleryImages.length > 0 && (
+        {(galleryLoading || galleryImages.length > 0) && (
           <Box className="fade-in" sx={{ px: 0, mb: 3, mt: 2 }}>
             {/* Gallery Container */}
             <Box sx={{ position: 'relative', overflow: 'hidden' }}>
-              {galleryImages.length === 1 ? (
+              {galleryLoading && galleryImages.length === 0 ? (
+                <Skeleton 
+                  variant="rectangular" 
+                  height={200} 
+                  sx={{ 
+                    borderRadius: 0, 
+                    width: '100%',
+                    background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
+                    backgroundSize: '200% 100%',
+                    animation: 'shimmer 1.5s infinite'
+                  }} 
+                />
+              ) : galleryImages.length === 1 ? (
                 // Single Image - Professional Display
                 <Box
                   sx={{
@@ -1165,14 +1327,14 @@ export default function MenuPageComponent() {
                           height: '20px',
                               borderRadius: 2,
                               '& .MuiChip-label': { px: 1 }
-                        }}
-                      />
-                    )}
+                            }}
+                          />
+                        )}
                         {item.tags.includes('bestseller') && (
-                      <Chip
+                          <Chip
                             label="ขายดี"
-                        size="small"
-                        sx={{
+                            size="small"
+                            sx={{
                               background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
                           color: 'white',
                           fontSize: '0.7rem',
@@ -1180,9 +1342,39 @@ export default function MenuPageComponent() {
                           height: '20px',
                               borderRadius: 2,
                               '& .MuiChip-label': { px: 1 }
-                        }}
-                      />
-                    )}
+                            }}
+                          />
+                        )}
+                        {item.tags.includes('new') && (
+                          <Chip
+                            label="ใหม่"
+                            size="small"
+                            sx={{
+                              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                              color: 'white',
+                              fontSize: '0.7rem',
+                              fontWeight: 600,
+                              height: '20px',
+                              borderRadius: 2,
+                              '& .MuiChip-label': { px: 1 }
+                            }}
+                          />
+                        )}
+                        {item.tags.includes('promotion') && (
+                          <Chip
+                            label="โปรโมชั่น"
+                            size="small"
+                            sx={{
+                              background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                              color: 'white',
+                              fontSize: '0.7rem',
+                              fontWeight: 600,
+                              height: '20px',
+                              borderRadius: 2,
+                              '& .MuiChip-label': { px: 1 }
+                            }}
+                          />
+                        )}
                   </Box>
                     )}
 

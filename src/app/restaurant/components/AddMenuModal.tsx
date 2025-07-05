@@ -24,7 +24,7 @@ import {
   ToggleButton,
   ToggleButtonGroup
 } from '@mui/material';
-import { Add, Restaurant, Star, Whatshot, FiberNew, LocalFireDepartment } from '@mui/icons-material';
+import { Add, Restaurant, Star, Whatshot, FiberNew, LocalFireDepartment, LocalOffer } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import ImageUploadDropzone, { uploadImageFile } from './ImageUploadDropzone';
 
@@ -142,7 +142,7 @@ export default function AddMenuModal({
     { value: 'recommended', label: 'เมนูแนะนำ', icon: <Star />, color: '#fbbf24' },
     { value: 'bestseller', label: 'ขายดี', icon: <LocalFireDepartment />, color: '#f97316' },
     { value: 'new', label: 'เมนูใหม่', icon: <FiberNew />, color: '#06b6d4' },
-    { value: 'spicy', label: 'เผ็ด', icon: <Whatshot />, color: '#dc2626' }
+    { value: 'promotion', label: 'โปรโมชั่น', icon: <LocalOffer />, color: '#dc2626' }
   ];
 
   const createCategory = async (): Promise<string | null> => {

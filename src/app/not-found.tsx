@@ -54,7 +54,7 @@ export default function NotFound() {
           background: 'rgba(255, 255, 255, 0.25)',
           backdropFilter: 'blur(20px) saturate(180%)',
           border: '1px solid rgba(255, 255, 255, 0.18)',
-          borderRadius: 4,
+          borderRadius: 1,
           boxShadow: '0 8px 32px rgba(31, 38, 135, 0.15)',
           p: 5,
           textAlign: 'center',
@@ -87,10 +87,10 @@ export default function NotFound() {
             backgroundClip: 'text',
             lineHeight: 1,
             mb: 2,
-            textShadow: '0 4px 8px rgba(16, 185, 129, 0.3)',
+            textShadow: '0 4px 8px rgba(16, 185, 129, 0.2)',
             animation: 'pulseGlow 2s ease-in-out infinite',
             '@media (max-width: 600px)': {
-              fontSize: '4rem'
+              fontSize: '4rem',
             }
           }}
         >
@@ -135,22 +135,6 @@ export default function NotFound() {
           }}
         >
           ไม่พบหน้าที่ต้องการ
-        </Typography>
-
-        {/* Error Message */}
-        <Typography 
-          sx={{ 
-            color: 'rgba(0, 0, 0, 0.7)',
-            mb: 4,
-            lineHeight: 1.6,
-            fontSize: '1.1rem',
-            '@media (max-width: 600px)': {
-              fontSize: '1rem'
-            }
-          }}
-        >
-          ขออภัย เราไม่พบหน้าที่คุณกำลังมองหา<br />
-          หน้านี้อาจถูกย้าย ลบ หรือไม่เคยมีอยู่จริง
         </Typography>
 
         {/* Action Buttons */}
@@ -209,17 +193,6 @@ export default function NotFound() {
           </Button>
         </Box>
 
-        {/* Help Text */}
-        <Typography 
-          sx={{ 
-            color: 'rgba(0, 0, 0, 0.5)',
-            fontSize: '0.9rem',
-            mt: 4,
-            fontStyle: 'italic'
-          }}
-        >
-          หากคุณคิดว่านี่เป็นข้อผิดพลาด กรุณาติดต่อฝ่ายสนับสนุน
-        </Typography>
       </Card>
     </Box>
   );

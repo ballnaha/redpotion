@@ -264,14 +264,30 @@ export default function ItemPage({ params }: { params: Promise<{ restaurantId: s
   };
 
   // Loading state - แสดงเมื่อ restaurant context กำลังโหลดหรือยังไม่มีข้อมูล item
+
   if (restaurantLoading || (!itemData && !error)) {
     return (
-      <Container maxWidth="sm" sx={{ py: 8, textAlign: 'center' }}>
-        <CircularProgress size={40} sx={{ color: '#10B981' }} />
-        <Typography sx={{ mt: 2, color: '#6B7280' }}>
-          กำลังโหลดข้อมูลเมนู...
-        </Typography>
-      </Container>
+      <Box
+        sx={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          zIndex: 9999
+        }}
+      >
+        <Box sx={{ textAlign: 'center' }}>
+          <CircularProgress size={40} sx={{ mb: 2, color: '#10B981' }} />
+          <Typography variant="body2" color="text.secondary">
+            กำลังโหลดข้อมูล...
+          </Typography>
+        </Box>
+      </Box>
     );
   }
 

@@ -34,19 +34,20 @@ model Session {
 }
 
 model User {
-  id            String      @id @default(cuid())
+  id            String          @id @default(cuid())
   name          String?
-  email         String?     @unique
+  email         String?         @unique
   emailVerified DateTime?
   image         String?
   password      String?
-  lineUserId    String?     @unique
-  role          UserRole    @default(USER)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  lineUserId    String?         @unique
+  role          UserRole        @default(USER)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
   accounts      Account[]
   restaurant    Restaurant?
   sessions      Session[]
+  profile       CustomerProfile?
 }
 
 model VerificationToken {
@@ -221,6 +222,38 @@ model Gallery {
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 }
 
+model CustomerProfile {
+  id                String            @id @default(cuid())
+  userId            String            @unique
+  firstName         String?           // ชื่อจริง
+  lastName          String?           // นามสกุลจริง
+  phone             String?
+  riderNote         String?           // ระบุถึง rider
+  selectedAddressType AddressType?    // เลือกใช้ที่อยู่บ้านหรือที่ทำงาน
+  currentLatitude   Float?            // ตำแหน่งปัจจุบัน lat
+  currentLongitude  Float?            // ตำแหน่งปัจจุบัน lng
+  currentAddress    String?           // ที่อยู่ปัจจุบัน
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  addresses         DeliveryAddress[]
+}
+
+model DeliveryAddress {
+  id                String          @id @default(cuid())
+  label             String          // บ้าน, ที่ทำงาน
+  address           String
+  latitude          Float?          // พิกัดของที่อยู่นี้
+  longitude         Float?          // พิกัดของที่อยู่นี้
+  locationAddress   String?         // ที่อยู่จาก location
+  isDefault         Boolean         @default(false)
+  type              AddressType     @default(HOME)
+  customerProfileId String
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  customerProfile   CustomerProfile @relation(fields: [customerProfileId], references: [id], onDelete: Cascade)
+}
+
 enum UserRole {
   USER
   RESTAURANT_OWNER
@@ -246,4 +279,9 @@ enum OrderStatus {
 
 enum DocumentType {
   OTHER
+}
+
+enum AddressType {
+  HOME
+  WORK
 }

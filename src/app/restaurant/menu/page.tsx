@@ -543,7 +543,8 @@ export default function MenuManagementPage() {
   const availableTags = [
     { value: 'recommended', label: 'เมนูแนะนำ', icon: <Star />, color: '#fbbf24' },
     { value: 'bestseller', label: 'ขายดี', icon: <LocalFireDepartment />, color: '#f97316' },
-    { value: 'new', label: 'เมนูใหม่', icon: <FiberNew />, color: '#06b6d4' }
+    { value: 'new', label: 'เมนูใหม่', icon: <FiberNew />, color: '#06b6d4' } ,
+    { value: 'promotion', label: 'โปรโมชั่น', icon: <LocalOffer />, color: '#dc2626' }
     
   ];
 

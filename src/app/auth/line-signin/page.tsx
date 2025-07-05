@@ -31,6 +31,8 @@ function LineSignInContent() {
   const [error, setError] = useState('')
   const [checkingSession, setCheckingSession] = useState(true)
   const [lineUser, setLineUser] = useState<LineUser | null>(null)
+  const [loadingMessage, setLoadingMessage] = useState('ตรวจสอบสถานะการเข้าสู่ระบบ...')
+  const [autoLoginAttempted, setAutoLoginAttempted] = useState(false)
 
   const restaurantId = searchParams.get('restaurant')
   const isRequired = searchParams.get('required') === 'true'
@@ -66,6 +68,49 @@ function LineSignInContent() {
     checkLineSession()
   }, [])
 
+  // Auto login effect สำหรับ LIFF environment
+  useEffect(() => {
+    const attemptAutoLogin = async () => {
+      if (autoLoginAttempted || checkingSession) return;
+      
+      // รอให้ LIFF SDK โหลดก่อน
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      if (typeof window !== 'undefined' && (window as any).liff && !lineUser) {
+        try {
+          setLoadingMessage('ตรวจสอบ LIFF environment...');
+          
+          const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '2007609360-3Z0L8Ekg';
+          
+          // ลองเรียก init
+          try {
+            await (window as any).liff.init({ liffId });
+          } catch (initError) {
+            if (!(initError instanceof Error && initError.message.includes('already initialized'))) {
+              throw initError;
+            }
+          }
+          
+          if ((window as any).liff.isLoggedIn()) {
+            setLoadingMessage('พบ LINE session, กำลังเข้าสู่ระบบ...');
+            setAutoLoginAttempted(true);
+            await handleLineSignIn();
+          } else {
+            setLoadingMessage('กำลังเตรียม LINE login...');
+            setAutoLoginAttempted(true);
+          }
+        } catch (error) {
+          console.log('⚠️ Auto login failed:', error);
+          setAutoLoginAttempted(true);
+        }
+      } else {
+        setAutoLoginAttempted(true);
+      }
+    };
+
+    attemptAutoLogin();
+  }, [checkingSession, lineUser, autoLoginAttempted]);
+
   const checkLineSession = async () => {
     try {
       console.log('🔍 Checking LINE session in line-signin page');
@@ -80,27 +125,8 @@ function LineSignInContent() {
           setTimeout(async () => {
             // Redirect ตาม context
             if (restaurantId) {
-              console.log('🏪 Already authenticated, redirecting to restaurant menu in LIFF:', restaurantId)
-              
-              // ดึงข้อมูล LIFF ID ของร้านอาหาร
-              try {
-                const restaurantResponse = await fetch(`/api/restaurant/${restaurantId}/liff`)
-                const restaurantData = await restaurantResponse.json()
-                
-                if (restaurantData.liffId) {
-                  // สร้าง LIFF URL สำหรับเมนูร้านอาหาร (ไม่ต้องใส่ /menu/ ใน path เพราะ LIFF จะไป root)
-                  const liffUrl = `https://liff.line.me/${restaurantData.liffId}?restaurant=${restaurantId}`
-                  console.log('🔗 Opening LIFF URL with restaurant LIFF ID:', liffUrl)
-                  window.location.href = liffUrl
-                } else {
-                  console.warn('⚠️ Restaurant LIFF ID not found, using default redirect')
-                  window.location.href = `/menu/${restaurantId}`
-                }
-              } catch (liffError) {
-                console.error('❌ Failed to get restaurant LIFF ID:', liffError)
-                // Fallback ไปหน้าเมนูปกติ
-                window.location.href = `/menu/${restaurantId}`
-              }
+              console.log('🏪 Already authenticated, redirecting to restaurant menu:', restaurantId)
+              window.location.href = `/menu/${restaurantId}?from=line-signin`
             } else {
               console.log('🏠 Redirecting to home')
               window.location.href = '/'
@@ -258,44 +284,11 @@ function LineSignInContent() {
 
           // ใช้ข้อมูลจาก API response เพื่อตัดสินใจ redirect
           if (data.shouldRedirectToRestaurant && data.restaurantId) {
-            console.log('🏪 Redirecting to restaurant menu in LIFF:', data.restaurantId)
-            
-            // ดึงข้อมูล LIFF ID ของร้านอาหาร
-            try {
-              const restaurantResponse = await fetch(`/api/restaurant/${data.restaurantId}/liff`)
-              const restaurantData = await restaurantResponse.json()
-              
-              if (restaurantData.liffId) {
-                // สร้าง LIFF URL สำหรับเมนูร้านอาหาร
-                const liffUrl = `https://liff.line.me/${restaurantData.liffId}?restaurant=${data.restaurantId}`
-                console.log('🔗 Opening LIFF URL with restaurant LIFF ID:', liffUrl)
-                
-                // เปิด URL ใน LINE app
-                if (typeof window !== 'undefined' && window.liff) {
-                  try {
-                    window.liff.openWindow({
-                      url: liffUrl,
-                      external: false
-                    })
-                  } catch (openError) {
-                    console.warn('⚠️ LIFF openWindow failed, using direct redirect:', openError)
-                    window.location.href = liffUrl
-                  }
-                } else {
-                  window.location.href = liffUrl
-                }
-              } else {
-                console.warn('⚠️ Restaurant LIFF ID not found, using default redirect')
-                router.replace(data.redirectUrl)
-              }
-            } catch (liffError) {
-              console.error('❌ Failed to get restaurant LIFF ID:', liffError)
-              // Fallback ตาม API response
-              router.replace(data.redirectUrl)
-            }
+            console.log('🏪 Redirecting to restaurant menu:', data.restaurantId)
+            window.location.href = `/menu/${data.restaurantId}?from=line-signin`
           } else {
             console.log('🔄 Redirecting according to API response:', data.redirectUrl)
-            router.replace(data.redirectUrl)
+            window.location.href = data.redirectUrl
           }
         } else {
           console.error('❌ LINE login failed:', data.error)
@@ -341,8 +334,11 @@ function LineSignInContent() {
               </Box>
               
               <CircularProgress sx={{ mb: 2, color: '#06C755' }} />
-              <Typography variant="body2" color="text.secondary">
-                กำลังตรวจสอบสถานะการเข้าสู่ระบบ...
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                {loadingMessage}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                กรุณารอสักครู่...
               </Typography>
             </CardContent>
           </Card>
