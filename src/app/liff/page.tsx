@@ -19,8 +19,17 @@ function LiffLandingContent() {
       try {
         setLoadingMessage('กำลังโหลด LINE SDK...');
         
-        // โหลด LIFF SDK
+        // โหลด LIFF SDK ด้วย timeout
+        const loadTimeout = setTimeout(() => {
+          if (!liffReady) {
+            console.error('❌ LIFF SDK load timeout');
+            setError('connection_timeout');
+            setIsLoading(false);
+          }
+        }, 15000); // 15 วินาที timeout
+        
         await loadLiffSdk();
+        clearTimeout(loadTimeout);
         
         setLoadingMessage('เชื่อมต่อกับ LINE...');
         
@@ -28,49 +37,71 @@ function LiffLandingContent() {
         const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '2007609360-3Z0L8Ekg';
         
         if ((window as any).liff) {
-          try {
-            await (window as any).liff.init({ liffId });
-            console.log('✅ LIFF initialized successfully');
-            setLiffReady(true);
-            
-            // ตรวจสอบสถานะการล็อกอิน
-            if (!(window as any).liff.isLoggedIn()) {
-              setLoadingMessage('กำลังเข้าสู่ระบบ LINE...');
-              console.log('🔐 Auto login to LINE...');
-              
-              // Auto login โดยไม่ต้องให้ user กด
-              (window as any).liff.login();
-              return;
-            } else {
-              setLoadingMessage('ตรวจสอบสิทธิ์การเข้าใช้...');
-              console.log('✅ Already logged in to LINE');
-              
-              // ดำเนินการ authentication กับ backend
-              await handleLineAuthentication();
-            }
-          } catch (initError) {
-            console.error('❌ LIFF initialization failed:', initError);
-            if (initError instanceof Error && (
-                initError.message.includes('already initialized') || 
-                initError.message.includes('LIFF has already been initialized')
-              )) {
-              console.log('✅ LIFF already initialized');
+          let initAttempts = 0;
+          const maxInitAttempts = 3;
+          
+          while (initAttempts < maxInitAttempts) {
+            try {
+              await (window as any).liff.init({ liffId });
+              console.log('✅ LIFF initialized successfully');
               setLiffReady(true);
+              break;
+            } catch (initError) {
+              initAttempts++;
+              console.error(`❌ LIFF initialization attempt ${initAttempts} failed:`, initError);
               
-              if ((window as any).liff.isLoggedIn()) {
-                await handleLineAuthentication();
-              } else {
-                setLoadingMessage('กำลังเข้าสู่ระบบ LINE...');
-                (window as any).liff.login();
+              if (initError instanceof Error && (
+                  initError.message.includes('already initialized') || 
+                  initError.message.includes('LIFF has already been initialized')
+                )) {
+                console.log('✅ LIFF already initialized');
+                setLiffReady(true);
+                break;
               }
-            } else {
-              throw initError;
+              
+              if (initAttempts >= maxInitAttempts) {
+                throw new Error(`LIFF initialization failed after ${maxInitAttempts} attempts`);
+              }
+              
+              // รอก่อนลองใหม่
+              await new Promise(resolve => setTimeout(resolve, 1000));
             }
+          }
+          
+          // ตรวจสอบสถานะการล็อกอิน
+          if (!(window as any).liff.isLoggedIn()) {
+            setLoadingMessage('กำลังเข้าสู่ระบบ LINE...');
+            console.log('🔐 Auto login to LINE...');
+            
+            // Auto login โดยไม่ต้องให้ user กด
+            (window as any).liff.login();
+            return;
+          } else {
+            setLoadingMessage('ตรวจสอบสิทธิ์การเข้าใช้...');
+            console.log('✅ Already logged in to LINE');
+            
+            // ดำเนินการ authentication กับ backend
+            await handleLineAuthentication();
           }
         }
       } catch (error) {
         console.error('❌ LIFF initialization error:', error);
-        setError('connection_error');
+        
+        // จัดการ error แต่ละประเภท
+        if (error instanceof Error) {
+          if (error.message.includes('timeout')) {
+            setError('connection_timeout');
+          } else if (error.message.includes('initialization failed')) {
+            setError('init_failed');
+          } else if (error.message.includes('SDK')) {
+            setError('sdk_error');
+          } else {
+            setError('connection_error');
+          }
+        } else {
+          setError('connection_error');
+        }
+        
         setIsLoading(false);
       }
     };
@@ -363,142 +394,149 @@ function LiffLandingContent() {
     );
   }
 
-  // แสดง error state ตามสถานการณ์
+  // Error State
   if (error) {
+    const getErrorInfo = (errorType: string) => {
+      switch (errorType) {
+        case 'connection_timeout':
+          return {
+            title: 'การเชื่อมต่อหมดเวลา',
+            message: 'ไม่สามารถเชื่อมต่อกับ LINE ได้ภายในเวลาที่กำหนด',
+            suggestion: 'กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่อีกครั้ง'
+          };
+        case 'init_failed':
+          return {
+            title: 'การเริ่มต้นระบบล้มเหลว',
+            message: 'ไม่สามารถเริ่มต้นระบบ LINE ได้',
+            suggestion: 'กรุณาปิดแอปและเปิดใหม่ หรือลองใหม่อีกครั้ง'
+          };
+        case 'sdk_error':
+          return {
+            title: 'ปัญหาการโหลดระบบ',
+            message: 'ไม่สามารถโหลด LINE SDK ได้',
+            suggestion: 'กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่'
+          };
+        case 'auth_error':
+          return {
+            title: 'การยืนยันตัวตนล้มเหลว',
+            message: 'ไม่สามารถยืนยันตัวตนกับระบบได้',
+            suggestion: 'กรุณาลองออกจากระบบและเข้าใหม่อีกครั้ง'
+          };
+        case 'no_restaurant':
+          return {
+            title: 'ไม่พบข้อมูลร้านอาหาร',
+            message: 'ไม่สามารถหาข้อมูลร้านอาหารได้',
+            suggestion: 'กรุณาติดต่อเจ้าของร้านหรือลองใหม่อีกครั้ง'
+          };
+        default:
+          return {
+            title: 'เกิดข้อผิดพลาด',
+            message: 'ไม่สามารถเชื่อมต่อกับระบบได้',
+            suggestion: 'กรุณาลองใหม่อีกครั้ง หรือติดต่อเจ้าหน้าที่'
+          };
+      }
+    };
+
+    const errorInfo = getErrorInfo(error);
+
     return (
       <Box sx={{ 
         minHeight: '100vh', 
-        background: 'linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%)',
+        background: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        p: 3,
-        position: 'relative',
-        overflow: 'hidden'
+        p: 3
       }}>
-        {/* Background decoration */}
-        <Box
-          sx={{
-            position: 'absolute',
-            top: -50,
-            right: -50,
-            width: 200,
-            height: 200,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 152, 0, 0.05) 100%)',
-            filter: 'blur(40px)',
-            animation: 'liquidFloat 6s ease-in-out infinite'
-          }}
-        />
-
         <Card
           sx={{
             maxWidth: 500,
             width: '100%',
-            background: 'rgba(255, 255, 255, 0.25)',
+            background: 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(20px) saturate(180%)',
             border: '1px solid rgba(255, 255, 255, 0.18)',
             borderRadius: 4,
             boxShadow: '0 8px 32px rgba(31, 38, 135, 0.15)',
-            p: 4,
+            p: 5,
             textAlign: 'center',
-            position: 'relative',
-            overflow: 'hidden'
           }}
         >
-          {error === 'pending' && (
-            <Alert 
-              severity="info" 
-              sx={{ 
-                mb: 3, 
-                background: 'rgba(33, 150, 243, 0.1)',
-                border: '1px solid rgba(33, 150, 243, 0.2)',
-                '& .MuiAlert-icon': { color: '#2196f3' }
+          <Box sx={{ mb: 3 }}>
+            <Box
+              sx={{
+                width: 80,
+                height: 80,
+                borderRadius: '50%',
+                background: 'linear-gradient(45deg, #ff6b6b, #ee5a24)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto',
+                mb: 2
               }}
             >
-              <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
-                🎉 ขอบคุณที่สมัครร่วมกับเรา!
-              </Typography>
-              <Typography variant="body1" sx={{ mb: 2 }}>
-                ร้านอาหารของคุณอยู่ในระหว่างการตรวจสอบ<br/>
-                <strong>กำลังรอการอนุมัติจาก admin</strong>
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                📋 ระยะเวลาดำเนินการ: ภายใน 1-2 วันทำการ<br/>
-                📧 เราจะแจ้งผลผ่านอีเมลเมื่อการตรวจสอบเสร็จสิ้น<br/>
-                🔍 กำลังตรวจสอบ: เอกสาร, ข้อมูลร้าน, และความถูกต้องของข้อมูล
-              </Typography>
-            </Alert>
-          )}
-
-          {error === 'no_restaurant' && (
-            <Alert 
-              severity="warning" 
-              sx={{ 
-                mb: 3,
-                background: 'rgba(255, 152, 0, 0.1)',
-                border: '1px solid rgba(255, 152, 0, 0.2)',
-                '& .MuiAlert-icon': { color: '#ff9800' }
-              }}
-            >
-              <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
-                🏪 ยังไม่มีร้านอาหารในระบบ
-              </Typography>
-              <Typography variant="body1">
-                ขณะนี้ยังไม่มีร้านอาหารที่เปิดให้บริการ<br/>
-                กรุณาลองใหม่อีกครั้งในภายหลัง
-              </Typography>
-            </Alert>
-          )}
-
-          {error === 'connection_error' && (
-            <Alert 
-              severity="error" 
-              sx={{ 
-                mb: 3,
-                background: 'rgba(244, 67, 54, 0.1)',
-                border: '1px solid rgba(244, 67, 54, 0.2)',
-                '& .MuiAlert-icon': { color: '#f44336' }
-              }}
-            >
-              <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
-                ⚠️ เกิดข้อผิดพลาด
-              </Typography>
-              <Typography variant="body1">
-                ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้<br/>
-                กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต
-              </Typography>
-            </Alert>
-          )}
-
-          <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'center' }}>
-            <Button 
-              variant="contained" 
+              <Typography variant="h3" sx={{ color: 'white' }}>⚠️</Typography>
+            </Box>
+          </Box>
+          
+          <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', color: '#2c3e50' }}>
+            {errorInfo.title}
+          </Typography>
+          
+          <Typography variant="body1" sx={{ mb: 2, color: '#34495e' }}>
+            {errorInfo.message}
+          </Typography>
+          
+          <Typography variant="body2" sx={{ mb: 4, color: '#7f8c8d' }}>
+            {errorInfo.suggestion}
+          </Typography>
+          
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+            <Button
+              variant="contained"
               onClick={() => window.location.reload()}
-              sx={{ 
-                background: 'linear-gradient(135deg, #06C755 0%, #05B04A 100%)',
-                boxShadow: '0 4px 16px rgba(6, 199, 85, 0.3)',
+              sx={{
+                background: 'linear-gradient(45deg, #667eea 30%, #764ba2 90%)',
+                color: 'white',
+                px: 4,
+                py: 1.5,
+                borderRadius: 3,
+                textTransform: 'none',
+                fontWeight: 'bold',
                 '&:hover': {
-                  background: 'linear-gradient(135deg, #05B04A 0%, #049A3F 100%)',
+                  background: 'linear-gradient(45deg, #5a6fd8 30%, #6a4190 90%)',
                 }
               }}
             >
-              ลองใหม่อีกครั้ง
+              🔄 ลองใหม่
             </Button>
-            <Button 
-              variant="outlined" 
-              onClick={() => router.push('/')}
-              sx={{ 
-                borderColor: 'rgba(6, 199, 85, 0.5)',
-                color: '#06C755',
-                '&:hover': {
-                  borderColor: '#06C755',
-                  background: 'rgba(6, 199, 85, 0.1)'
-                }
-              }}
-            >
-              ไปหน้าแรก
-            </Button>
+            
+            {/* ปุ่มกลับไปหน้าหลัก สำหรับบาง error */}
+            {(error === 'no_restaurant' || error === 'auth_error') && (
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  // ลองไปหน้าหลัก
+                  window.location.href = '/';
+                }}
+                sx={{
+                  borderColor: '#667eea',
+                  color: '#667eea',
+                  px: 4,
+                  py: 1.5,
+                  borderRadius: 3,
+                  textTransform: 'none',
+                  fontWeight: 'bold',
+                  '&:hover': {
+                    borderColor: '#5a6fd8',
+                    color: '#5a6fd8',
+                    backgroundColor: 'rgba(102, 126, 234, 0.04)'
+                  }
+                }}
+              >
+                🏠 หน้าหลัก
+              </Button>
+            )}
           </Box>
         </Card>
       </Box>

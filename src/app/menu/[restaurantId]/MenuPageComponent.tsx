@@ -345,6 +345,7 @@ export default function MenuPageComponent() {
         const urlParams = new URLSearchParams(window.location.search);
         const isFromLiff = urlParams.get('liff') === 'true';
         const isFromLineSignin = urlParams.get('from') === 'line-signin';
+        const hasRedirectedFlag = urlParams.get('redirected') === 'true';
         
         // ป้องกัน redirect loop โดยตรวจสอบว่ามาจาก line-signin หรือไม่
         if (isFromLineSignin) {
@@ -364,32 +365,25 @@ export default function MenuPageComponent() {
           return;
         }
 
-        // เรียก API เพื่อตรวจสอบ session
-        const response = await fetch('/api/auth/line-session', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          cache: 'no-cache' // บังคับไม่ใช้ cache
-        });
+        // ใช้ session utility function
+        const { checkLineSession: checkSession } = await import('@/lib/sessionUtils');
+        const sessionResult = await checkSession();
         
-        const data = await response.json();
-        
-        if (data.authenticated && data.user) {
-          console.log('✅ LINE session valid - User:', data.user.name || data.user.displayName);
+        if (sessionResult.authenticated && sessionResult.user) {
+          console.log('✅ LINE session valid - User:', sessionResult.user.name);
           
           // ตรวจสอบว่าเป็น real LINE user หรือไม่
-          const isRealUser = data.user.lineUserId && data.user.lineUserId !== 'demo';
+          const isRealUser = sessionResult.user.lineUserId && sessionResult.user.lineUserId !== 'demo';
           
           if (isRealUser) {
             // อัพเดท user state
-            setLineUser(data.user);
+            setLineUser(sessionResult.user);
             setLineSessionChecked(true);
             setSessionCheckComplete(true);
             
             // บันทึกข้อมูล real user ลง localStorage
             try {
-              localStorage.setItem('line_user_data', JSON.stringify(data.user));
+              localStorage.setItem('line_user_data', JSON.stringify(sessionResult.user));
               console.log('💾 Updated localStorage with real LINE user');
             } catch (error) {
               console.error('❌ Error saving user to localStorage:', error);
@@ -404,30 +398,74 @@ export default function MenuPageComponent() {
           // ลบข้อมูลเก่าใน localStorage
           localStorage.removeItem('line_user_data');
           
-          // เพิ่มการป้องกัน redirect loop
-          const currentUrl = window.location.href;
-          if (currentUrl.includes('redirected=true')) {
+          // ป้องกัน redirect loop โดยตรวจสอบ flag
+          if (hasRedirectedFlag) {
             console.log('⚠️ Already redirected once, preventing redirect loop');
             setSessionCheckComplete(true);
             return;
           }
           
+          // เพิ่มการตรวจสอบจำนวนครั้งของการ redirect
+          const redirectCount = parseInt(sessionStorage.getItem('menu_redirect_count') || '0');
+          if (redirectCount >= 3) {
+            console.log('⚠️ Too many redirects, stopping to prevent loop');
+            setSessionCheckComplete(true);
+            sessionStorage.removeItem('menu_redirect_count');
+            return;
+          }
+          
+          // บันทึกจำนวนครั้งของการ redirect
+          sessionStorage.setItem('menu_redirect_count', (redirectCount + 1).toString());
+          
           // Redirect to LINE login
           const callbackUrl = encodeURIComponent(window.location.pathname + '?redirected=true');
-          window.location.href = `/auth/line-signin?callbackUrl=${callbackUrl}`;
+          console.log('🔄 Redirecting to LINE signin with callback:', callbackUrl);
+          
+          // ใช้ setTimeout เพื่อให้ state update เสร็จก่อน
+          setTimeout(() => {
+            window.location.href = `/auth/line-signin?callbackUrl=${callbackUrl}&restaurant=${restaurant?.id}`;
+          }, 100);
           return;
         }
       } catch (error) {
-        console.error('❌ Menu: Session check failed:', error);
+        console.error('❌ Session check failed:', error);
+        
+        // ในกรณีที่ error ให้ผ่านไปได้ แต่แจ้งเตือน
+        console.log('⚠️ Session check error, allowing access but user may need to login manually');
         setSessionCheckComplete(true);
       }
     };
 
-    // ตรวจสอบ session เสมอเมื่อมีข้อมูลร้านอาหารและยังไม่ได้ตรวจสอบ
-    if (restaurant && !sessionCheckComplete) {
-      checkLineSession();
-    }
-  }, [restaurant, sessionCheckComplete, isClient]);
+    checkLineSession();
+  }, [isClient, restaurant?.id]);
+
+  // เพิ่ม listener สำหรับ session expired event
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      console.log('🔔 Session expired event received');
+      localStorage.removeItem('line_user_data');
+      setLineUser(null);
+      setLineSessionChecked(false);
+      
+      // Redirect ไป login page
+      const callbackUrl = encodeURIComponent(window.location.pathname);
+      window.location.href = `/auth/line-signin?callbackUrl=${callbackUrl}&restaurant=${restaurant?.id}&reason=expired`;
+    };
+
+    window.addEventListener('lineSessionExpired', handleSessionExpired);
+    
+    return () => {
+      window.removeEventListener('lineSessionExpired', handleSessionExpired);
+    };
+  }, [restaurant?.id]);
+
+  // เพิ่ม cleanup สำหรับ redirect counter เมื่อ component unmount
+  useEffect(() => {
+    return () => {
+      // ล้าง redirect counter เมื่อออกจากหน้า
+      sessionStorage.removeItem('menu_redirect_count');
+    };
+  }, []);
 
   // Categories with virtual categories
   const categories: MenuCategory[] = useMemo(() => {
@@ -1200,7 +1238,7 @@ export default function MenuPageComponent() {
         )}
 
         {/* Categories */}
-        <Box className="fade-in" sx={{ px: 1, mb: 3 }}>
+        <Box className="fade-in" sx={{ px: 1, mb: 3, mt: 2 }}>
       <Box 
             className="custom-scroll"
                   sx={{ 

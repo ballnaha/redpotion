@@ -155,22 +155,27 @@ function LineSignInContent() {
     try {
       console.log('📱 Starting LINE login via LIFF...')
       
-      // รอให้ LIFF SDK โหลดเสร็จ
+      // ฟังก์ชันรอให้ LIFF SDK โหลดเสร็จ - ปรับปรุงให้เสถียรขึ้น
       const waitForLiff = () => {
         return new Promise<void>((resolve, reject) => {
           if (typeof window !== 'undefined' && window.liff) {
+            console.log('✅ LIFF SDK already available')
             resolve();
             return;
           }
 
           let attempts = 0;
-          const maxAttempts = 50; // รอสูงสุด 5 วินาที
+          const maxAttempts = 100; // เพิ่มเป็น 10 วินาที
           const checkInterval = setInterval(() => {
             attempts++;
+            console.log(`🔄 Checking LIFF SDK... attempt ${attempts}/${maxAttempts}`)
+            
             if (typeof window !== 'undefined' && window.liff) {
+              console.log('✅ LIFF SDK loaded successfully')
               clearInterval(checkInterval);
               resolve();
             } else if (attempts >= maxAttempts) {
+              console.error('❌ LIFF SDK timeout after', maxAttempts * 100, 'ms')
               clearInterval(checkInterval);
               reject(new Error('LIFF SDK not loaded within timeout'));
             }
@@ -180,56 +185,68 @@ function LineSignInContent() {
 
       await waitForLiff();
       
-      // Debug: แสดงข้อมูล LIFF object
-      console.log('🔍 LIFF object available methods:', window.liff ? Object.getOwnPropertyNames(window.liff) : 'No LIFF');
-      
       // ตรวจสอบว่าอยู่ใน LIFF environment หรือไม่
       if (typeof window !== 'undefined' && window.liff) {
-        // Initialize LIFF แบบบังคับทุกครั้ง เพื่อให้แน่ใจ
         console.log('🔄 Initializing LIFF...')
         
-        const liffId = process.env.NODE_ENV === 'development' 
-          ? process.env.NEXT_PUBLIC_LIFF_ID 
-          : process.env.NEXT_PUBLIC_LIFF_ID || '2007609360-3Z0L8Ekg';
+        const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '2007609360-3Z0L8Ekg';
 
         if (!liffId) {
-          setError('LIFF ID ไม่ได้ตั้งค่า กรุณาติดต่อผู้ดูแลระบบ')
-          setLoading(false)
-          return
+          throw new Error('LIFF ID ไม่ได้ตั้งค่า กรุณาติดต่อผู้ดูแลระบบ')
         }
 
-        try {
-          // ลองเรียก init โดยไม่สนใจว่า initialize แล้วหรือยัง
-          await window.liff.init({ liffId })
-          console.log('✅ LIFF initialized successfully')
-          
-          // รอเล็กน้อยให้ LIFF ready
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-        } catch (initError) {
-          console.error('❌ LIFF initialization failed:', initError)
-          // ถ้า error เป็น already initialized ให้ผ่านไป
-          if (initError instanceof Error && (
-              initError.message.includes('already initialized') || 
-              initError.message.includes('LIFF has already been initialized')
-            )) {
-            console.log('✅ LIFF already initialized, continuing...')
-          } else {
-            setError(`ไม่สามารถเชื่อมต่อกับ LINE ได้: ${initError instanceof Error ? initError.message : 'Unknown error'}`)
-            setLoading(false)
-            return
+        // ฟังก์ชัน initialize LIFF ที่ปรับปรุงแล้ว
+        const initializeLiff = async () => {
+          try {
+            await window.liff.init({ liffId })
+            console.log('✅ LIFF initialized successfully')
+            return true
+          } catch (initError) {
+            console.log('⚠️ LIFF init error:', initError)
+            
+            // ตรวจสอบว่าเป็น already initialized error หรือไม่
+            if (initError instanceof Error && (
+                initError.message.includes('already initialized') || 
+                initError.message.includes('LIFF has already been initialized')
+              )) {
+              console.log('✅ LIFF already initialized, continuing...')
+              return true
+            }
+            
+            // ถ้าเป็น error อื่นๆ ให้ลองใหม่
+            throw initError
           }
         }
 
-        // ตรวจสอบสถานะ login ด้วย try-catch
+        // ลองเรียก init พร้อม retry mechanism
+        let initSuccess = false
+        for (let i = 0; i < 3; i++) {
+          try {
+            await initializeLiff()
+            initSuccess = true
+            break
+          } catch (initError) {
+            console.log(`❌ LIFF init attempt ${i + 1} failed:`, initError)
+            if (i === 2) throw initError // ถ้าครั้งสุดท้ายแล้วให้ throw error
+            await new Promise(resolve => setTimeout(resolve, 1000)) // รอ 1 วินาทีก่อนลองใหม่
+          }
+        }
+
+        if (!initSuccess) {
+          throw new Error('ไม่สามารถเชื่อมต่อกับ LINE ได้')
+        }
+
+        // รอให้ LIFF ready
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // ตรวจสอบสถานะ login
         let isLoggedIn = false;
         try {
           isLoggedIn = window.liff.isLoggedIn();
+          console.log('🔍 LINE login status:', isLoggedIn)
         } catch (loginCheckError) {
           console.error('❌ Error checking login status:', loginCheckError);
-          setError('ไม่สามารถตรวจสอบสถานะการเข้าสู่ระบบได้')
-          setLoading(false)
-          return
+          throw new Error('ไม่สามารถตรวจสอบสถานะการเข้าสู่ระบบได้')
         }
 
         if (!isLoggedIn) {
@@ -238,8 +255,7 @@ function LineSignInContent() {
             window.liff.login()
           } catch (loginError) {
             console.error('❌ Error during LINE login:', loginError);
-            setError('ไม่สามารถเข้าสู่ระบบ LINE ได้')
-            setLoading(false)
+            throw new Error('ไม่สามารถเข้าสู่ระบบ LINE ได้')
           }
           return
         }
@@ -248,20 +264,17 @@ function LineSignInContent() {
         let accessToken;
         try {
           accessToken = window.liff.getAccessToken()
+          console.log('🎯 Access token obtained:', accessToken ? 'YES' : 'NO')
         } catch (tokenError) {
           console.error('❌ Error getting access token:', tokenError);
-          setError('ไม่สามารถดึงข้อมูลการยืนยันตัวตนได้')
-          setLoading(false)
-          return
+          throw new Error('ไม่สามารถดึงข้อมูลการยืนยันตัวตนได้')
         }
 
         if (!accessToken) {
-          setError('ไม่สามารถดึงข้อมูลการยืนยันตัวตนจาก LINE ได้')
-          setLoading(false)
-          return
+          throw new Error('ไม่สามารถดึงข้อมูลการยืนยันตัวตนจาก LINE ได้')
         }
 
-        console.log('🎯 Access token obtained, sending to backend...')
+        console.log('🎯 Sending access token to backend...')
 
         // ส่งไปยัง backend
         const response = await fetch('/api/auth/line-login', {
@@ -275,9 +288,15 @@ function LineSignInContent() {
           })
         })
 
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('❌ Backend response error:', response.status, errorText)
+          throw new Error(`เซิร์ฟเวอร์ตอบกลับข้อผิดพลาด: ${response.status}`)
+        }
+
         const data = await response.json()
 
-        if (response.ok && data.success) {
+        if (data.success) {
           console.log('✅ LINE login successful:', data.user.name)
           
           // ถ้าเป็น user ใหม่ ให้ redirect ไป role selection
@@ -297,25 +316,33 @@ function LineSignInContent() {
           }
         } else {
           console.error('❌ LINE login failed:', data.error)
-          setError(data.error || 'การเข้าสู่ระบบด้วย LINE ล้มเหลว')
+          throw new Error(data.error || 'การเข้าสู่ระบบด้วย LINE ล้มเหลว')
         }
       } else {
         // ถ้าไม่อยู่ใน LINE environment
-        console.log('⚠️ Not in LINE environment, showing manual instructions')
-        setError('กรุณาเปิดลิงก์นี้ในแอป LINE')
+        console.log('⚠️ Not in LINE environment')
+        throw new Error('กรุณาเปิดลิงก์นี้ในแอป LINE')
       }
 
     } catch (error) {
       console.error('❌ LINE signin error:', error)
+      let errorMessage = 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ'
+      
       if (error instanceof Error) {
         if (error.message.includes('LIFF SDK not loaded')) {
-          setError('ไม่สามารถโหลด LINE SDK ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต')
+          errorMessage = 'ไม่สามารถโหลด LINE SDK ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต'
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'การเชื่อมต่อหมดเวลา กรุณาลองใหม่อีกครั้ง'
+        } else if (error.message.includes('LIFF ID')) {
+          errorMessage = error.message
+        } else if (error.message.includes('เซิร์ฟเวอร์')) {
+          errorMessage = error.message
         } else {
-          setError(`เกิดข้อผิดพลาด: ${error.message}`)
+          errorMessage = `เกิดข้อผิดพลาด: ${error.message}`
         }
-      } else {
-        setError('เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ')
       }
+      
+      setError(errorMessage)
     }
 
     setLoading(false)

@@ -150,9 +150,13 @@ export async function POST(req: NextRequest) {
     response.cookies.set('line-session-token', sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // สำหรับ LIFF iframe
       maxAge: 30 * 24 * 60 * 60, // 30 days
-      path: '/'
+      path: '/',
+      // เพิ่ม domain สำหรับ production
+      ...(process.env.NODE_ENV === 'production' && process.env.NEXTAUTH_URL && {
+        domain: new URL(process.env.NEXTAUTH_URL).hostname
+      })
     })
 
     return response
