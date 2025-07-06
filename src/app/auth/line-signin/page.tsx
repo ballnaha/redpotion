@@ -120,7 +120,6 @@ function LineSignInContent() {
         if (data.authenticated && data.user) {
           console.log('✅ LINE user already authenticated:', data.user.name)
           setLineUser(data.user)
-          
           // เพิ่ม delay และแสดง success state ก่อน redirect
           setTimeout(async () => {
             // Redirect ตาม context
@@ -134,12 +133,18 @@ function LineSignInContent() {
           }, 1500); // เพิ่ม delay เป็น 1.5 วินาที
           return
         }
+      } else if (response.status === 401) {
+        // ถ้า session backend ไม่มี (401) ให้เช็ค LIFF login
+        if (typeof window !== 'undefined' && (window as any).liff && (window as any).liff.isLoggedIn && (window as any).liff.isLoggedIn()) {
+          console.log('🔄 No backend session but LIFF is logged in, auto re-login backend...');
+          await handleLineSignIn();
+          return;
+        }
       }
       console.log('ℹ️ No existing LINE session, staying on signin page');
     } catch (error) {
       console.log('ℹ️ No existing LINE session (error):', error)
     }
-    
     setCheckingSession(false)
   }
 
