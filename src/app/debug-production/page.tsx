@@ -71,12 +71,12 @@ export default function ProductionDebugPage() {
     try {
       const response = await fetch('/api/debug/production-status');
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw `HTTP ${response.status}: ${response.statusText}`;
       }
       const data = await response.json();
       setStatus(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? (err as Error).message : String(err));
     } finally {
       setLoading(false);
     }
