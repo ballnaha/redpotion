@@ -16,12 +16,33 @@ interface LineSessionData {
 
 export async function GET(req: NextRequest) {
   try {
-    const sessionToken = req.cookies.get('line-session-token')?.value
+    // Enhanced debugging สำหรับ production
+    const cookies = req.cookies.getAll();
+    const hasLineSessionCookie = cookies.some(cookie => cookie.name === 'line-session-token');
+    const sessionToken = req.cookies.get('line-session-token')?.value;
+    
+    console.log('🔍 Session check details:', {
+      hasCookies: cookies.length > 0,
+      hasLineSessionCookie,
+      hasSessionTokenValue: !!sessionToken,
+      cookieNames: cookies.map(c => c.name),
+      userAgent: req.headers.get('user-agent')?.slice(0, 100) + '...',
+      origin: req.headers.get('origin'),
+      referer: req.headers.get('referer')
+    });
 
     if (!sessionToken) {
-      console.log('❌ No session token found')
+      console.log('❌ No session token found - cookies available:', cookies.map(c => c.name));
       return NextResponse.json(
-        { authenticated: false, error: 'No session token' },
+        { 
+          authenticated: false, 
+          error: 'No session token',
+          debug: {
+            cookieCount: cookies.length,
+            cookieNames: cookies.map(c => c.name),
+            hasLineSessionCookie
+          }
+        },
         { status: 401 }
       )
     }

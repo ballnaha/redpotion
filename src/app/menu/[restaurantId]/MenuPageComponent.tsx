@@ -330,7 +330,7 @@ export default function MenuPageComponent() {
     fetchGalleryImages();
   }, [restaurant?.id]);
 
-  // ตรวจสอบ LINE session - เข้มงวดขึ้น
+  // ตรวจสอบ LINE session - เข้มงวดขึ้น และมี production debugging
   useEffect(() => {
     if (!isClient) return;
     
@@ -338,6 +338,23 @@ export default function MenuPageComponent() {
       try {
         console.log('🔍 Checking LINE session (mandatory check)');
         const config = getAppConfig();
+        
+        // Production diagnostics - เฉพาะใน production
+        if (config.enableDebugLogs && typeof window !== 'undefined') {
+          try {
+            const { collectProductionDiagnostics, generateProductionReport } = await import('@/lib/productionDebug');
+            const diagnostics = await collectProductionDiagnostics();
+            console.log('🔧 Production Diagnostics:', diagnostics);
+            
+            // แสดง detailed report ถ้าเจอปัญหา
+            if (!diagnostics.networking.canReachApi || !diagnostics.session.jwtValid) {
+              const report = generateProductionReport(diagnostics);
+              console.warn('⚠️ Production Issues Detected:\n' + report);
+            }
+          } catch (debugError) {
+            console.warn('⚠️ Production debug failed:', debugError);
+          }
+        }
         
         // ตรวจสอบว่ามาจาก LIFF หรือไม่
         const urlParams = new URLSearchParams(window.location.search);

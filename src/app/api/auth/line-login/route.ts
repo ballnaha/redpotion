@@ -147,17 +147,45 @@ export async function POST(req: NextRequest) {
     })
 
     // ตั้งค่า cookie สำหรับ session
-    response.cookies.set('line-session-token', sessionToken, {
+    const cookieOptions: any = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // สำหรับ LIFF iframe
       maxAge: 30 * 24 * 60 * 60, // 30 days
-      path: '/',
-      // เพิ่ม domain สำหรับ production
-      ...(process.env.NODE_ENV === 'production' && process.env.NEXTAUTH_URL && {
-        domain: new URL(process.env.NEXTAUTH_URL).hostname
-      })
-    })
+      path: '/'
+    };
+
+    // เพิ่ม domain สำหรับ production - ต้องระวัง subdomain
+    if (process.env.NODE_ENV === 'production' && process.env.NEXTAUTH_URL) {
+      try {
+        const urlObj = new URL(process.env.NEXTAUTH_URL);
+        const hostname = urlObj.hostname;
+        
+        // ถ้าเป็น subdomain ให้ใช้ root domain
+        const domainParts = hostname.split('.');
+        if (domainParts.length > 2) {
+          // เช่น red.theredpotion.com -> .theredpotion.com
+          cookieOptions.domain = '.' + domainParts.slice(-2).join('.');
+          console.log('🍪 Setting cookie domain to:', cookieOptions.domain);
+        } else {
+          // เช่น localhost หรือ theredpotion.com
+          cookieOptions.domain = hostname;
+          console.log('🍪 Setting cookie domain to:', cookieOptions.domain);
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to parse NEXTAUTH_URL for cookie domain:', error);
+      }
+    }
+
+    console.log('🍪 Cookie options:', {
+      ...cookieOptions,
+      // ไม่ log token
+      secure: cookieOptions.secure,
+      sameSite: cookieOptions.sameSite,
+      domain: cookieOptions.domain
+    });
+
+    response.cookies.set('line-session-token', sessionToken, cookieOptions)
 
     return response
 
