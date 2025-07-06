@@ -80,7 +80,14 @@ function LineSignInContent() {
         try {
           setLoadingMessage('ตรวจสอบ LIFF environment...');
           
-          const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '2007609360-3Z0L8Ekg';
+          const { getValidatedLiffId } = await import('@/lib/liffUtils');
+          const { liffId, error: liffError } = getValidatedLiffId();
+          
+          if (!liffId) {
+            console.error('❌ Invalid LIFF configuration:', liffError);
+            setAutoLoginAttempted(true);
+            return;
+          }
           
           // ลองเรียก init
           try {
@@ -189,10 +196,12 @@ function LineSignInContent() {
       if (typeof window !== 'undefined' && window.liff) {
         console.log('🔄 Initializing LIFF...')
         
-        const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '2007609360-3Z0L8Ekg';
+        const { getValidatedLiffId } = await import('@/lib/liffUtils');
+        const { liffId, error: liffError } = getValidatedLiffId();
 
         if (!liffId) {
-          throw new Error('LIFF ID ไม่ได้ตั้งค่า กรุณาติดต่อผู้ดูแลระบบ')
+          console.error('❌ Invalid LIFF configuration:', liffError);
+          throw new Error(liffError || 'LIFF ID ไม่ได้ตั้งค่า กรุณาติดต่อผู้ดูแลระบบ');
         }
 
         // ฟังก์ชัน initialize LIFF ที่ปรับปรุงแล้ว
@@ -211,6 +220,20 @@ function LineSignInContent() {
               )) {
               console.log('✅ LIFF already initialized, continuing...')
               return true
+            }
+            
+            // ตรวจสอบ error types อื่นๆ
+            if (initError instanceof Error) {
+              if (initError.message.includes('invalid liff id') || 
+                  initError.message.includes('Invalid LIFF ID')) {
+                throw new Error(`LIFF ID ไม่ถูกต้อง: ${liffId}. กรุณาตรวจสอบการตั้งค่าใน LINE Developers Console`);
+              }
+              
+              if (initError.message.includes('timeout') || 
+                  initError.message.includes('network') ||
+                  initError.message.includes('failed to fetch')) {
+                throw new Error('ไม่สามารถเชื่อมต่อกับ LINE servers ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต');
+              }
             }
             
             // ถ้าเป็น error อื่นๆ ให้ลองใหม่

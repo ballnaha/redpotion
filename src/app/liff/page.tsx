@@ -19,6 +19,31 @@ function LiffLandingContent() {
       try {
         setLoadingMessage('กำลังโหลด LINE SDK...');
         
+        // ตรวจสอบ LIFF session ที่เก็บไว้ก่อน
+        const { restoreLiffSession } = await import('@/lib/sessionUtils');
+        const sessionRestore = await restoreLiffSession();
+        
+        if (sessionRestore.success && sessionRestore.sessionData) {
+          console.log('✅ LIFF session restored from storage');
+          setLoadingMessage('กู้คืน session สำเร็จ กำลังเข้าสู่เมนู...');
+          
+          const restaurantId = searchParams.get('restaurant') || sessionRestore.sessionData.restaurantId;
+          
+          if (restaurantId) {
+            setTimeout(() => {
+              window.location.href = `/menu/${restaurantId}?from=liff-restore`;
+            }, 1000);
+          } else {
+            setTimeout(() => {
+              window.location.href = '/';
+            }, 1000);
+          }
+          return;
+        }
+        
+        // ถ้าไม่มี session หรือ session หมดอายุ ให้ทำ LIFF login ปกติ
+        console.log('🔄 No valid session found, proceeding with LIFF login...');
+        
         // โหลด LIFF SDK ด้วย timeout
         const loadTimeout = setTimeout(() => {
           if (!liffReady) {
@@ -34,7 +59,15 @@ function LiffLandingContent() {
         setLoadingMessage('เชื่อมต่อกับ LINE...');
         
         // Initialize LIFF
-        const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '2007609360-3Z0L8Ekg';
+        const { getValidatedLiffId } = await import('@/lib/liffUtils');
+        const { liffId, error: liffError } = getValidatedLiffId();
+        
+        if (!liffId) {
+          console.error('❌ Invalid LIFF configuration:', liffError);
+          setError('invalid_config');
+          setIsLoading(false);
+          return;
+        }
         
         if ((window as any).liff) {
           let initAttempts = 0;
@@ -50,21 +83,44 @@ function LiffLandingContent() {
               initAttempts++;
               console.error(`❌ LIFF initialization attempt ${initAttempts} failed:`, initError);
               
-              if (initError instanceof Error && (
-                  initError.message.includes('already initialized') || 
-                  initError.message.includes('LIFF has already been initialized')
-                )) {
-                console.log('✅ LIFF already initialized');
-                setLiffReady(true);
-                break;
+              if (initError instanceof Error) {
+                // Already initialized
+                if (initError.message.includes('already initialized') || 
+                    initError.message.includes('LIFF has already been initialized')) {
+                  console.log('✅ LIFF already initialized');
+                  setLiffReady(true);
+                  break;
+                }
+                
+                // Invalid LIFF ID
+                if (initError.message.includes('invalid liff id') || 
+                    initError.message.includes('Invalid LIFF ID')) {
+                  setError('invalid_liff_id');
+                  setIsLoading(false);
+                  return;
+                }
+                
+                // Network errors
+                if (initError.message.includes('timeout') || 
+                    initError.message.includes('network') ||
+                    initError.message.includes('failed to fetch')) {
+                  if (initAttempts >= maxInitAttempts) {
+                    setError('network_error');
+                    setIsLoading(false);
+                    return;
+                  }
+                }
               }
               
               if (initAttempts >= maxInitAttempts) {
-                throw new Error(`LIFF initialization failed after ${maxInitAttempts} attempts`);
+                console.error('❌ All LIFF initialization attempts failed');
+                setError('liff_init_failed');
+                setIsLoading(false);
+                return;
               }
               
-              // รอก่อนลองใหม่
-              await new Promise(resolve => setTimeout(resolve, 1000));
+              // รอก่อนลองใหม่ (progressive backoff)
+              await new Promise(resolve => setTimeout(resolve, initAttempts * 1000));
             }
           }
           
@@ -134,6 +190,15 @@ function LiffLandingContent() {
 
       if (response.ok && data.success) {
         console.log('✅ LINE authentication successful:', data.user.name);
+        
+        // บันทึก LIFF session เพื่อป้องกันการหลุดเมื่อ refresh
+        try {
+          const { saveLiffSession } = await import('@/lib/sessionUtils');
+          const userProfile = (window as any).liff.getProfile ? await (window as any).liff.getProfile() : data.user;
+          saveLiffSession(accessToken, userProfile, restaurantId || undefined);
+        } catch (sessionError) {
+          console.warn('⚠️ Failed to save LIFF session:', sessionError);
+        }
         
         if (data.isNewUser) {
           setLoadingMessage('ผู้ใช้ใหม่! กำลังตั้งค่าบัญชี...');
@@ -428,6 +493,30 @@ function LiffLandingContent() {
             message: 'ไม่สามารถหาข้อมูลร้านอาหารได้',
             suggestion: 'กรุณาติดต่อเจ้าของร้านหรือลองใหม่อีกครั้ง'
           };
+        case 'invalid_config':
+          return {
+            title: 'การตั้งค่า LIFF ไม่ถูกต้อง',
+            message: 'ไม่สามารถตั้งค่า LIFF ได้',
+            suggestion: 'กรุณาติดต่อเจ้าหน้าที่'
+          };
+        case 'invalid_liff_id':
+          return {
+            title: 'ID LIFF ไม่ถูกต้อง',
+            message: 'ไม่สามารถตรวจสอบ ID LIFF',
+            suggestion: 'กรุณาติดต่อเจ้าหน้าที่'
+          };
+        case 'network_error':
+          return {
+            title: 'ข้อผิดพลาดเครือข่าย',
+            message: 'ไม่สามารถเชื่อมต่อกับระบบได้',
+            suggestion: 'กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่อีกครั้ง'
+          };
+        case 'liff_init_failed':
+          return {
+            title: 'การเริ่มต้น LIFF ล้มเหลว',
+            message: 'ไม่สามารถเริ่มต้น LIFF ได้',
+            suggestion: 'กรุณาลองใหม่อีกครั้ง'
+          };
         default:
           return {
             title: 'เกิดข้อผิดพลาด',
@@ -480,15 +569,15 @@ function LiffLandingContent() {
           </Box>
           
           <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', color: '#2c3e50' }}>
-            {errorInfo.title}
+            {errorInfo?.title || 'เกิดข้อผิดพลาด'}
           </Typography>
           
           <Typography variant="body1" sx={{ mb: 2, color: '#34495e' }}>
-            {errorInfo.message}
+            {errorInfo?.message || 'ไม่สามารถเชื่อมต่อได้'}
           </Typography>
           
           <Typography variant="body2" sx={{ mb: 4, color: '#7f8c8d' }}>
-            {errorInfo.suggestion}
+            {errorInfo?.suggestion || 'กรุณาลองใหม่อีกครั้ง'}
           </Typography>
           
           <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>

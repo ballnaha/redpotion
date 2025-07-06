@@ -31,6 +31,7 @@ import {
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useNotification } from '../../../contexts/NotificationContext';
+import { createLiffUrl, createQRCodeUrl, createShareUrl } from '@/lib/liffUtils';
 
 interface RestaurantData {
   id: string;
@@ -291,6 +292,87 @@ export default function LiffSetupPage() {
           >
             {saving ? 'กำลังบันทึก...' : 'บันทึก'}
           </Button>
+
+          {/* LIFF URL Information */}
+          {restaurant?.id && liffId && (
+            <Card sx={{ 
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              mb: 3
+            }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: '#065f46' }}>
+                  📱 LIFF URL Information
+                </Typography>
+                
+                <Typography variant="body2" sx={{ mb: 2, color: '#047857' }}>
+                  ใช้ URL นี้สำหรับแชร์ร้านอาหารของคุณใน LINE:
+                </Typography>
+
+                <TextField
+                  fullWidth
+                  label="LIFF URL สำหรับลูกค้า"
+                  value={createLiffUrl(restaurant.id)}
+                  InputProps={{
+                    readOnly: true,
+                    endAdornment: (
+                      <Button
+                        size="small"
+                        onClick={() => {
+                          navigator.clipboard.writeText(createLiffUrl(restaurant.id));
+                          showSuccess('คัดลอก URL แล้ว!');
+                        }}
+                      >
+                        คัดลอก
+                      </Button>
+                    )
+                  }}
+                  sx={{ mb: 2 }}
+                />
+
+                <Typography variant="body2" sx={{ mb: 2, color: '#047857' }}>
+                  <strong>⚠️ สำคัญ:</strong> ใน LINE Developers Console ให้ตั้งค่า Endpoint URL เป็น:
+                </Typography>
+
+                <TextField
+                  fullWidth
+                  label="Endpoint URL (สำหรับ LINE Developers Console)"
+                  value={`${process.env.NEXTAUTH_URL || 'https://red1.theredpotion.com'}/liff`}
+                  InputProps={{
+                    readOnly: true,
+                    endAdornment: (
+                      <Button
+                        size="small"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${process.env.NEXTAUTH_URL || 'https://red1.theredpotion.com'}/liff`);
+                          showSuccess('คัดลอก Endpoint URL แล้ว!');
+                        }}
+                      >
+                        คัดลอก
+                      </Button>
+                    )
+                  }}
+                  sx={{ mb: 2 }}
+                />
+
+                <Typography variant="caption" sx={{ color: '#059669', display: 'block', mb: 2 }}>
+                  💡 ไม่ต้องใส่ ?restaurant=xxx ใน Endpoint URL - ระบบจะจัดการ parameter นี้ให้อัตโนมัติ
+                </Typography>
+
+                {/* QR Code */}
+                <Box sx={{ textAlign: 'center', mt: 2 }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1, color: '#065f46' }}>
+                    QR Code สำหรับลูกค้า:
+                  </Typography>
+                  <img 
+                    src={createQRCodeUrl(restaurant.id)} 
+                    alt="LIFF QR Code"
+                    style={{ maxWidth: '200px', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                  />
+                </Box>
+              </CardContent>
+            </Card>
+          )}
 
           {liffId && (
             <>

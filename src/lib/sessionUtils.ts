@@ -160,39 +160,80 @@ export const waitForLiff = (timeoutMs: number = 10000): Promise<void> => {
 };
 
 /**
- * Initialize LIFF SDK ด้วย retry mechanism
+ * Initialize LIFF SDK ด้วย retry mechanism และ validation
  */
-export const initializeLiff = async (liffId: string, maxRetries: number = 3): Promise<boolean> => {
+export const initializeLiff = async (maxRetries: number = 3): Promise<{ success: boolean; error?: string; liffId?: string }> => {
+  // Import validation function
+  const { getValidatedLiffId } = await import('./liffUtils');
+  const { liffId, error: validationError } = getValidatedLiffId();
+  
   if (!liffId) {
-    throw new Error('LIFF ID is required');
+    return { 
+      success: false, 
+      error: validationError || 'No valid LIFF ID available' 
+    };
   }
+
+  if (!isLiffReady()) {
+    return { 
+      success: false, 
+      error: 'LIFF SDK not available. Please check if the LIFF script is loaded correctly.' 
+    };
+  }
+
+  console.log('🔄 Initializing LIFF with ID:', liffId);
 
   for (let i = 0; i < maxRetries; i++) {
     try {
       await window.liff.init({ liffId });
       console.log('✅ LIFF initialized successfully');
-      return true;
+      return { success: true, liffId };
     } catch (error) {
       console.log(`⚠️ LIFF init attempt ${i + 1} failed:`, error);
       
-      if (error instanceof Error && (
-          error.message.includes('already initialized') || 
-          error.message.includes('LIFF has already been initialized')
-        )) {
-        console.log('✅ LIFF already initialized');
-        return true;
+      if (error instanceof Error) {
+        // Already initialized error
+        if (error.message.includes('already initialized') || 
+            error.message.includes('LIFF has already been initialized')) {
+          console.log('✅ LIFF already initialized');
+          return { success: true, liffId };
+        }
+
+        // Invalid LIFF ID error
+        if (error.message.includes('invalid liff id') || 
+            error.message.includes('Invalid LIFF ID')) {
+          return { 
+            success: false, 
+            error: `Invalid LIFF ID: ${liffId}. Please check your LIFF configuration in LINE Developers Console.` 
+          };
+        }
+
+        // Network or timeout errors
+        if (error.message.includes('timeout') || 
+            error.message.includes('network') ||
+            error.message.includes('failed to fetch')) {
+          if (i === maxRetries - 1) {
+            return { 
+              success: false, 
+              error: `Network error: Unable to connect to LINE servers. Please check your internet connection.` 
+            };
+          }
+        }
       }
       
       if (i === maxRetries - 1) {
-        throw error;
+        return { 
+          success: false, 
+          error: error instanceof Error ? error.message : 'Unknown LIFF initialization error' 
+        };
       }
       
-      // รอก่อนลองใหม่
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // รอก่อนลองใหม่ (progressive backoff)
+      await new Promise(resolve => setTimeout(resolve, (i + 1) * 1000));
     }
   }
   
-  return false;
+  return { success: false, error: 'Failed to initialize LIFF after all retry attempts' };
 };
 
 /**
@@ -216,8 +257,13 @@ export const handleLineAuth = async (restaurantId?: string): Promise<{
     await waitForLiff();
 
     // Initialize LIFF
-    const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '2007609360-3Z0L8Ekg';
-    await initializeLiff(liffId);
+    const initResult = await initializeLiff();
+    if (!initResult.success) {
+      return {
+        success: false,
+        error: initResult.error || 'Failed to initialize LIFF'
+      };
+    }
 
     // ตรวจสอบสถานะ login
     if (!window.liff.isLoggedIn()) {
@@ -304,4 +350,130 @@ export const createSessionChecker = (intervalMs: number = 5 * 60 * 1000) => {
   };
 
   return { start, stop };
+};
+
+/**
+ * LIFF Session Persistence Utilities
+ */
+
+interface LiffSessionData {
+  accessToken: string;
+  userProfile: any;
+  restaurantId?: string;
+  timestamp: number;
+  expiresAt: number;
+}
+
+const LIFF_SESSION_KEY = 'liff_session_data';
+const LIFF_SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
+/**
+ * บันทึก LIFF session ลง localStorage
+ */
+export const saveLiffSession = (accessToken: string, userProfile: any, restaurantId?: string): void => {
+  try {
+    const sessionData: LiffSessionData = {
+      accessToken,
+      userProfile,
+      restaurantId,
+      timestamp: Date.now(),
+      expiresAt: Date.now() + LIFF_SESSION_DURATION
+    };
+    
+    localStorage.setItem(LIFF_SESSION_KEY, JSON.stringify(sessionData));
+    console.log('💾 LIFF session saved to localStorage');
+  } catch (error) {
+    console.error('❌ Failed to save LIFF session:', error);
+  }
+};
+
+/**
+ * โหลด LIFF session จาก localStorage
+ */
+export const loadLiffSession = (): LiffSessionData | null => {
+  try {
+    const stored = localStorage.getItem(LIFF_SESSION_KEY);
+    if (!stored) return null;
+    
+    const sessionData: LiffSessionData = JSON.parse(stored);
+    
+    // ตรวจสอบว่า session หมดอายุหรือไม่
+    if (Date.now() > sessionData.expiresAt) {
+      console.log('⏰ LIFF session expired, removing...');
+      localStorage.removeItem(LIFF_SESSION_KEY);
+      return null;
+    }
+    
+    console.log('📋 LIFF session loaded from localStorage');
+    return sessionData;
+  } catch (error) {
+    console.error('❌ Failed to load LIFF session:', error);
+    localStorage.removeItem(LIFF_SESSION_KEY);
+    return null;
+  }
+};
+
+/**
+ * ลบ LIFF session จาก localStorage
+ */
+export const clearLiffSession = (): void => {
+  try {
+    localStorage.removeItem(LIFF_SESSION_KEY);
+    console.log('🗑️ LIFF session cleared');
+  } catch (error) {
+    console.error('❌ Failed to clear LIFF session:', error);
+  }
+};
+
+/**
+ * ตรวจสอบและ restore LIFF session หลัง refresh
+ */
+export const restoreLiffSession = async (): Promise<{
+  success: boolean;
+  sessionData?: LiffSessionData;
+  needsReAuth?: boolean;
+}> => {
+  try {
+    // โหลด session จาก localStorage
+    const sessionData = loadLiffSession();
+    if (!sessionData) {
+      return { success: false, needsReAuth: true };
+    }
+    
+    console.log('🔄 Attempting to restore LIFF session...');
+    
+    // ตรวจสอบ session กับ backend
+    const response = await fetch('/api/auth/line-session');
+    const backendSession = await response.json();
+    
+    if (response.ok && backendSession.authenticated) {
+      console.log('✅ LIFF session restored successfully');
+      return { success: true, sessionData };
+    } else {
+      console.log('❌ Backend session invalid, need re-authentication');
+      clearLiffSession();
+      return { success: false, needsReAuth: true };
+    }
+  } catch (error) {
+    console.error('❌ Failed to restore LIFF session:', error);
+    clearLiffSession();
+    return { success: false, needsReAuth: true };
+  }
+};
+
+/**
+ * อัพเดท LIFF session timestamp
+ */
+export const refreshLiffSessionTimestamp = (): void => {
+  try {
+    const sessionData = loadLiffSession();
+    if (sessionData) {
+      sessionData.timestamp = Date.now();
+      sessionData.expiresAt = Date.now() + LIFF_SESSION_DURATION;
+      localStorage.setItem(LIFF_SESSION_KEY, JSON.stringify(sessionData));
+      console.log('🔄 LIFF session timestamp refreshed');
+    }
+  } catch (error) {
+    console.error('❌ Failed to refresh LIFF session timestamp:', error);
+  }
 }; 

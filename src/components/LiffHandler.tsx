@@ -109,7 +109,15 @@ function LiffHandlerContent() {
         }
 
         // Initialize LIFF
-        const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '2007609360-3Z0L8Ekg';
+        const { getValidatedLiffId } = await import('@/lib/liffUtils');
+        const { liffId, error: liffError } = getValidatedLiffId();
+        
+        if (!liffId) {
+          console.error('❌ Invalid LIFF configuration:', liffError);
+          setError('invalid_config');
+          setLoading(false);
+          return;
+        }
         
         if (!window.liff) {
           console.error('❌ LIFF SDK not available');
@@ -119,8 +127,22 @@ function LiffHandlerContent() {
         }
 
         console.log('🚀 Initializing LIFF...');
-        await window.liff.init({ liffId });
-        console.log('✅ LIFF initialized');
+        try {
+          await window.liff.init({ liffId });
+          console.log('✅ LIFF initialized');
+        } catch (initError) {
+          console.error('❌ LIFF initialization failed:', initError);
+          if (initError instanceof Error && (
+              initError.message.includes('already initialized') || 
+              initError.message.includes('LIFF has already been initialized')
+            )) {
+            console.log('✅ LIFF already initialized, continuing...');
+          } else {
+            setError('liff_init_failed');
+            setLoading(false);
+            return;
+          }
+        }
 
         // ตรวจสอบสถานะการ login
         if (!window.liff.isLoggedIn()) {

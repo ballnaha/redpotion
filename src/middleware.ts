@@ -101,6 +101,7 @@ export default withAuth(
         if (req.nextUrl.pathname === '/' ||
             req.nextUrl.pathname.startsWith('/menu') ||
             req.nextUrl.pathname.startsWith('/restaurant/') || // เฉพาะ public restaurant pages
+            req.nextUrl.pathname.startsWith('/profile') ||
             req.nextUrl.pathname.startsWith('/cart')) {
           return true
         }
