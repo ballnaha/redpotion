@@ -20,53 +20,52 @@ export interface AppConfig {
   enableDevTools: boolean;
 }
 
-// Default Production Configuration
-const PRODUCTION_CONFIG: AppConfig = {
-  enforceLineApp: false,
-  allowDesktopAccess: true,
-  enableBypassMode: false,
-  requireLineLogin: true,
-  enableDebugLogs: false,
-  enableMockUser: false,
-  skipAuthenticationCheck: false,
-  enableLiffStrictMode: false,
-  liffSessionTimeout: 1000,
-  showDebugInfo: false,
-  enableDevTools: false,
-};
-
-// Default Development Configuration
-const DEVELOPMENT_CONFIG: AppConfig = {
-  enforceLineApp: false,
-  allowDesktopAccess: true,
-  enableBypassMode: true,
-  requireLineLogin: true,
-  enableDebugLogs: true,
-  enableMockUser: false,
-  skipAuthenticationCheck: false,
-  enableLiffStrictMode: false,
-  liffSessionTimeout: 3000,
-  showDebugInfo: true,
-  enableDevTools: true,
-};
-
-// Custom Configuration Override
-const CUSTOM_CONFIG: Partial<AppConfig> = {
-  // คุณสามารถ override ค่าต่างๆ ได้ที่นี่
-  // ตอนนี้ปล่อยว่างไว้ ใช้ default config
+// กำหนดค่าตาม NODE_ENV เท่านั้น
+const getConfigByEnvironment = (): AppConfig => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  if (isProduction) {
+    // Production Configuration
+    return {
+      enforceLineApp: false,
+      allowDesktopAccess: true,
+      enableBypassMode: false,
+      requireLineLogin: true,
+      enableDebugLogs: false,
+      enableMockUser: false,
+      skipAuthenticationCheck: false,
+      enableLiffStrictMode: false,
+      liffSessionTimeout: 1000,
+      showDebugInfo: false,
+      enableDevTools: false,
+    };
+  } else {
+    // Development Configuration
+    return {
+      enforceLineApp: false,
+      allowDesktopAccess: true,
+      enableBypassMode: true,
+      requireLineLogin: true,
+      enableDebugLogs: true,
+      enableMockUser: false,
+      skipAuthenticationCheck: false,
+      enableLiffStrictMode: false,
+      liffSessionTimeout: 3000,
+      showDebugInfo: true,
+      enableDevTools: true,
+    };
+  }
 };
 
 /**
- * Get current app configuration based on environment
+ * Get current app configuration based on NODE_ENV only
  */
 export const getAppConfig = (): AppConfig => {
-  const isProduction = process.env.NODE_ENV === 'production';
-  const baseConfig = isProduction ? PRODUCTION_CONFIG : DEVELOPMENT_CONFIG;
+  const baseConfig = getConfigByEnvironment();
   
-  // Check for environment variable overrides
+  // อนุญาตให้ override ด้วย environment variables (ถ้าจำเป็น)
   const envOverrides: Partial<AppConfig> = {};
   
-  // Allow environment variable overrides
   if (process.env.NEXT_PUBLIC_ENFORCE_LINE_APP !== undefined) {
     envOverrides.enforceLineApp = process.env.NEXT_PUBLIC_ENFORCE_LINE_APP === 'true';
   }
@@ -87,32 +86,32 @@ export const getAppConfig = (): AppConfig => {
     envOverrides.requireLineLogin = process.env.NEXT_PUBLIC_REQUIRE_LINE_LOGIN === 'true';
   }
   
-  // Merge configurations
+  // รวมการตั้งค่า
   return {
     ...baseConfig,
-    ...CUSTOM_CONFIG,
     ...envOverrides,
   };
 };
 
 /**
- * Force Production Mode (for testing production behavior in development)
+ * Get current environment mode
  */
-export const getProductionConfig = (): AppConfig => {
-  return {
-    ...PRODUCTION_CONFIG,
-    ...CUSTOM_CONFIG,
-  };
+export const getEnvironmentMode = (): 'production' | 'development' => {
+  return process.env.NODE_ENV === 'production' ? 'production' : 'development';
 };
 
 /**
- * Force Development Mode (for testing development behavior)
+ * Check if current environment is production
  */
-export const getDevelopmentConfig = (): AppConfig => {
-  return {
-    ...DEVELOPMENT_CONFIG,
-    ...CUSTOM_CONFIG,
-  };
+export const isProduction = (): boolean => {
+  return process.env.NODE_ENV === 'production';
+};
+
+/**
+ * Check if current environment is development
+ */
+export const isDevelopment = (): boolean => {
+  return process.env.NODE_ENV !== 'production';
 };
 
 /**

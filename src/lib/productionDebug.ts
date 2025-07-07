@@ -3,12 +3,16 @@
  * ตรวจสอบปัญหาที่เกิดขึ้นใน production environment
  */
 
+import { getAppConfig, getEnvironmentMode, isProduction, isDevelopment } from './appConfig';
+
 export interface ProductionDiagnostics {
   environment: {
     nodeEnv: string;
+    mode: 'production' | 'development';
     nextAuthUrl?: string;
     hasLiffId: boolean;
     hasLineCredentials: boolean;
+    appConfig: ReturnType<typeof getAppConfig>;
   };
   cookies: {
     httpOnly: boolean;
@@ -40,18 +44,22 @@ export interface ProductionDiagnostics {
  * รวบรวมข้อมูล diagnostics สำหรับ production
  */
 export const collectProductionDiagnostics = async (): Promise<ProductionDiagnostics> => {
+  const appConfig = getAppConfig();
+  
   const diagnostics: ProductionDiagnostics = {
     environment: {
       nodeEnv: process.env.NODE_ENV || 'unknown',
+      mode: getEnvironmentMode(),
       nextAuthUrl: process.env.NEXTAUTH_URL,
       hasLiffId: !!process.env.NEXT_PUBLIC_LIFF_ID,
-      hasLineCredentials: !!process.env.LINE_CLIENT_ID && !!process.env.LINE_CLIENT_SECRET
+      hasLineCredentials: !!process.env.LINE_CLIENT_ID && !!process.env.LINE_CLIENT_SECRET,
+      appConfig
     },
     cookies: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      domain: process.env.NODE_ENV === 'production' && process.env.NEXTAUTH_URL 
+      secure: isProduction(),
+      sameSite: isProduction() ? 'none' : 'lax',
+      domain: isProduction() && process.env.NEXTAUTH_URL 
         ? new URL(process.env.NEXTAUTH_URL).hostname 
         : undefined,
       path: '/'
@@ -100,29 +108,19 @@ export const collectProductionDiagnostics = async (): Promise<ProductionDiagnost
 
   // ตรวจสอบ API connectivity
   try {
-    const response = await fetch('/api/auth/line-session', {
-      method: 'GET',
-      credentials: 'include'
-    });
-    
-    diagnostics.networking.canReachApi = response.status !== 500;
-    diagnostics.session.canAccessCookies = true;
-    
-    if (response.ok) {
-      const data = await response.json();
-      diagnostics.session.jwtValid = data.authenticated;
-      diagnostics.session.userExists = !!data.user;
-    } else if (response.status === 401) {
-      diagnostics.session.cookieExists = false;
-    }
+    const response = await fetch('/api/health');
+    diagnostics.networking.canReachApi = response.ok;
   } catch (error) {
-    console.error('❌ API connectivity test failed:', error);
-    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+    diagnostics.networking.canReachApi = false;
+    if (error instanceof TypeError && error.message.includes('CORS')) {
       diagnostics.networking.corsIssues = true;
     }
-    if (error instanceof Error && error.message.includes('SSL')) {
-      diagnostics.networking.sslIssues = true;
-    }
+  }
+
+  // ตรวจสอบ cookies
+  if (typeof document !== 'undefined') {
+    diagnostics.session.canAccessCookies = true;
+    diagnostics.session.cookieExists = document.cookie.includes('line-session-token');
   }
 
   return diagnostics;
@@ -137,8 +135,8 @@ export const generateProductionReport = (diagnostics: ProductionDiagnostics): st
   const info: string[] = [];
 
   // Environment issues
-  if (diagnostics.environment.nodeEnv !== 'production') {
-    warnings.push(`NODE_ENV is "${diagnostics.environment.nodeEnv}" instead of "production"`);
+  if (diagnostics.environment.nodeEnv !== 'production' && diagnostics.environment.nodeEnv !== 'development') {
+    warnings.push(`NODE_ENV is "${diagnostics.environment.nodeEnv}" (should be "production" or "development")`);
   }
 
   if (!diagnostics.environment.nextAuthUrl) {
@@ -154,7 +152,7 @@ export const generateProductionReport = (diagnostics: ProductionDiagnostics): st
   }
 
   // Cookie issues
-  if (diagnostics.environment.nodeEnv === 'production') {
+  if (isProduction()) {
     if (!diagnostics.cookies.secure) {
       issues.push('Cookies should be secure in production');
     }
@@ -185,60 +183,45 @@ export const generateProductionReport = (diagnostics: ProductionDiagnostics): st
 
   // LIFF issues
   if (!diagnostics.liff.sdkAvailable) {
-    warnings.push('LIFF SDK not available (normal for desktop browsers)');
-  } else {
-    if (!diagnostics.liff.initialized) {
-      issues.push('LIFF SDK available but not initialized');
-    } else {
-      info.push('LIFF SDK properly initialized');
-      
-      if (diagnostics.liff.loggedIn) {
-        info.push('User is logged in to LIFF');
-        if (diagnostics.liff.hasAccessToken) {
-          info.push('LIFF access token available');
-        } else {
-          warnings.push('LIFF logged in but no access token');
-        }
-      } else {
-        info.push('User not logged in to LIFF');
-      }
-    }
+    warnings.push('LIFF SDK not loaded');
+  } else if (!diagnostics.liff.initialized) {
+    issues.push('LIFF SDK not initialized');
   }
 
-  // Session validation
-  if (diagnostics.session.jwtValid && diagnostics.session.userExists) {
-    info.push('Valid session with user data found');
-  } else if (diagnostics.session.canAccessCookies && !diagnostics.session.cookieExists) {
-    warnings.push('No session cookie found - user needs to log in');
-  } else if (diagnostics.session.cookieExists && !diagnostics.session.jwtValid) {
-    issues.push('Session cookie exists but JWT is invalid');
-  }
+  // Configuration info
+  info.push(`Environment: ${diagnostics.environment.mode}`);
+  info.push(`Debug mode: ${diagnostics.environment.appConfig.enableDebugLogs ? 'enabled' : 'disabled'}`);
+  info.push(`Bypass mode: ${diagnostics.environment.appConfig.enableBypassMode ? 'enabled' : 'disabled'}`);
 
   let report = '🔍 Production Diagnostics Report\n\n';
   
+  if (info.length > 0) {
+    report += '📋 Information:\n';
+    info.forEach(item => report += `  ℹ️ ${item}\n`);
+    report += '\n';
+  }
+
   if (issues.length > 0) {
-    report += '❌ CRITICAL ISSUES:\n';
+    report += '❌ Issues Found:\n';
     issues.forEach(issue => report += `  • ${issue}\n`);
     report += '\n';
   }
 
   if (warnings.length > 0) {
-    report += '⚠️ WARNINGS:\n';
+    report += '⚠️ Warnings:\n';
     warnings.forEach(warning => report += `  • ${warning}\n`);
     report += '\n';
   }
 
-  if (info.length > 0) {
-    report += '✅ STATUS INFO:\n';
-    info.forEach(item => report += `  • ${item}\n`);
-    report += '\n';
+  if (issues.length === 0 && warnings.length === 0) {
+    report += '✅ No issues found! System appears to be working correctly.\n\n';
   }
 
-  // Recommendations
-  report += '💡 RECOMMENDATIONS:\n';
+  // แนะนำการแก้ไข
+  report += '🛠️ Suggested Fixes:\n';
   
   if (issues.includes('NEXTAUTH_URL is not configured')) {
-    report += '  • Set NEXTAUTH_URL to your production domain (e.g., https://red.theredpotion.com)\n';
+    report += '  • Set NEXTAUTH_URL environment variable\n';
   }
   
   if (issues.includes('NEXT_PUBLIC_LIFF_ID is not configured')) {
@@ -270,89 +253,34 @@ export const generateProductionReport = (diagnostics: ProductionDiagnostics): st
 };
 
 /**
- * Auto-fix common production issues
+ * เริ่มต้นการ monitor production
  */
-export const attemptAutoFix = async (): Promise<{ fixed: string[]; failed: string[] }> => {
-  const fixed: string[] = [];
-  const failed: string[] = [];
-
-  try {
-    // ลอง refresh session token
-    const response = await fetch('/api/auth/line-session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'refresh' })
-    });
-
-    if (response.ok) {
-      fixed.push('Refreshed session token');
-    } else {
-      failed.push('Failed to refresh session token');
-    }
-  } catch (error) {
-    failed.push('Network error during token refresh');
+export const startProductionMonitoring = (intervalMs: number = 60000) => {
+  if (isDevelopment()) {
+    console.log('🔍 Production monitoring disabled in development mode');
+    return;
   }
-
-  // ลอง re-initialize LIFF
-  if (window.liff) {
-    try {
-      const { initializeLiff } = await import('./sessionUtils');
-      const result = await initializeLiff();
-      
-      if (result.success) {
-        fixed.push('Re-initialized LIFF SDK');
-      } else {
-        failed.push(`LIFF re-initialization failed: ${result.error}`);
-      }
-    } catch (error) {
-      failed.push('Error during LIFF re-initialization');
-    }
-  }
-
-  return { fixed, failed };
-};
-
-/**
- * Continuous monitoring สำหรับ production
- */
-export const startProductionMonitoring = (intervalMs: number = 30000) => {
-  let intervalId: NodeJS.Timeout;
 
   const monitor = async () => {
-    const diagnostics = await collectProductionDiagnostics();
-    
-    // ตรวจสอบปัญหาที่ร้ายแรง
-    const hasCriticalIssues = (
-      !diagnostics.networking.canReachApi ||
-      diagnostics.networking.corsIssues ||
-      (diagnostics.session.cookieExists && !diagnostics.session.jwtValid)
-    );
-
-    if (hasCriticalIssues) {
-      console.error('🚨 Critical production issues detected!');
-      console.log(generateProductionReport(diagnostics));
+    try {
+      const diagnostics = await collectProductionDiagnostics();
+      const report = generateProductionReport(diagnostics);
       
-      // ลอง auto-fix
-      const { fixed, failed } = await attemptAutoFix();
-      if (fixed.length > 0) {
-        console.log('✅ Auto-fixed:', fixed);
+      if (diagnostics.environment.appConfig.enableDebugLogs) {
+        console.log('📊 Production Monitor Report:');
+        console.log(report);
       }
-      if (failed.length > 0) {
-        console.error('❌ Auto-fix failed:', failed);
-      }
+    } catch (error) {
+      console.error('❌ Production monitoring failed:', error);
     }
   };
 
-  if (typeof window !== 'undefined') {
-    intervalId = setInterval(monitor, intervalMs);
-    
-    // รัน monitor ครั้งแรกทันที
-    monitor();
-  }
-
-  return () => {
-    if (intervalId) {
-      clearInterval(intervalId);
-    }
-  };
+  // เริ่มต้น monitor
+  monitor();
+  
+  // ตั้งค่า interval
+  const intervalId = setInterval(monitor, intervalMs);
+  
+  // Return cleanup function
+  return () => clearInterval(intervalId);
 }; 

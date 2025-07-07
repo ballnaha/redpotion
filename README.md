@@ -1,4 +1,139 @@
-# Red Potion - Food Delivery Platform
+# Red Potion Restaurant Platform
+
+## 🚀 การตั้งค่าและการใช้งาน
+
+### โหมดการทำงาน
+
+ระบบใช้ `NODE_ENV` เป็นตัวกำหนดโหมดการทำงาน:
+
+#### Development Mode
+```bash
+NODE_ENV=development npm run dev
+```
+
+#### Production Mode
+```bash
+NODE_ENV=production npm run build
+NODE_ENV=production npm run start
+```
+
+### Scripts ที่สำคัญ
+
+```bash
+# Development
+npm run dev          # รันในโหมด development
+npm run dev:prod     # รันในโหมด production บน dev server
+
+# Build & Start
+npm run build        # Build application
+npm run build:dev    # Build ในโหมด development
+npm run build:prod   # Build ในโหมด production
+npm run start        # Start ในโหมด production
+npm run start:dev    # Start ในโหมด development
+
+# Database
+npm run db:generate  # Generate Prisma client
+npm run db:push      # Push schema changes
+npm run db:migrate   # Run migrations
+npm run db:studio    # Open Prisma Studio
+```
+
+### Environment Variables
+
+สร้างไฟล์ `.env.local` สำหรับ development:
+
+```bash
+# Database
+DATABASE_URL="your-database-url"
+
+# NextAuth
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="your-secret-key"
+
+# LINE
+LINE_CLIENT_ID="your-line-client-id"
+LINE_CLIENT_SECRET="your-line-client-secret"
+NEXT_PUBLIC_LIFF_ID="your-liff-id"
+```
+
+### การตั้งค่าอัตโนมัติ
+
+ระบบจะตั้งค่าอัตโนมัติตาม `NODE_ENV`:
+
+| Feature | Development | Production |
+|---------|-------------|------------|
+| Debug Logs | ✅ | ❌ |
+| Bypass Mode | ✅ | ❌ |
+| Dev Tools | ✅ | ❌ |
+| Debug Info | ✅ | ❌ |
+| LINE Login | ✅ | ✅ |
+| Desktop Access | ✅ | ✅ |
+
+## 🔧 การพัฒนา
+
+### 1. Clone และ Setup
+```bash
+git clone <repository-url>
+cd redpotion
+npm install
+```
+
+### 2. Database Setup
+```bash
+npm run db:generate
+npm run db:push
+```
+
+### 3. Run Development
+```bash
+npm run dev
+```
+
+### 4. ทดสอบ Production Mode
+```bash
+npm run dev:prod
+```
+
+## 📦 Deployment
+
+### Production Build
+```bash
+npm run build:prod
+npm run start
+```
+
+### Environment Variables สำหรับ Production
+```bash
+NODE_ENV=production
+NEXTAUTH_URL="https://your-domain.com"
+NEXTAUTH_SECRET="your-production-secret"
+DATABASE_URL="your-production-database-url"
+LINE_CLIENT_ID="your-line-client-id"
+LINE_CLIENT_SECRET="your-line-client-secret"
+NEXT_PUBLIC_LIFF_ID="your-liff-id"
+```
+
+## 🔍 Debug และ Monitoring
+
+### Debug Pages
+- `/debug-production` - Production status
+- `/debug-line` - LINE integration debug
+- `/api/debug/production-status` - API status check
+
+### Logs
+ใน development mode จะมี debug logs อัตโนมัติ:
+```javascript
+// ดูการตั้งค่าปัจจุบัน
+import { getAppConfig, getEnvironmentMode } from '@/lib/appConfig';
+console.log('Config:', getAppConfig());
+console.log('Mode:', getEnvironmentMode());
+```
+
+## 📚 เอกสารเพิ่มเติม
+
+- [CONFIG.md](CONFIG.md) - รายละเอียดการตั้งค่า
+- [AUTHENTICATION_SYSTEM_SUMMARY.md](AUTHENTICATION_SYSTEM_SUMMARY.md) - ระบบ authentication
+- [PRODUCTION_TROUBLESHOOTING.md](PRODUCTION_TROUBLESHOOTING.md) - การแก้ปัญหา production
 
 ## สำคัญ: LIFF Configuration Troubleshooting
 

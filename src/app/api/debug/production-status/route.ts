@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getAppConfig, getEnvironmentMode, isProduction, isDevelopment } from '@/lib/appConfig'
 import jwt from 'jsonwebtoken'
 
 export async function GET(request: NextRequest) {
   try {
     // Production status endpoint - available only when debug is enabled
-    const isDebugEnabled = process.env.NEXT_PUBLIC_DEBUG_MODE === 'true';
+    const appConfig = getAppConfig();
+    const isDebugEnabled = appConfig.enableDebugLogs;
     
-    if (!isDebugEnabled && process.env.NODE_ENV === 'production') {
+    if (!isDebugEnabled && isProduction()) {
       return NextResponse.json(
         { error: 'Production status endpoint is disabled' },
         { status: 403 }
@@ -16,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     const status: any = {
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV,
+      environment: getEnvironmentMode(),
       server: {
         nodejs: process.version,
         platform: process.platform,
@@ -26,7 +28,8 @@ export async function GET(request: NextRequest) {
       database: {},
       authentication: {},
       cookies: {},
-      networking: {}
+      networking: {},
+      appConfig: appConfig
     };
 
     // Environment Configuration
@@ -38,72 +41,63 @@ export async function GET(request: NextRequest) {
       lineClientId: process.env.LINE_CLIENT_ID ? 'set' : 'missing',
       lineClientSecret: process.env.LINE_CLIENT_SECRET ? 'set' : 'missing',
       liffId: process.env.NEXT_PUBLIC_LIFF_ID ? 'set' : 'missing',
-      databaseUrl: process.env.DATABASE_URL ? 'set' : 'missing',
-      enforceLineApp: process.env.NEXT_PUBLIC_ENFORCE_LINE_APP || 'not set',
-      allowDesktop: process.env.NEXT_PUBLIC_ALLOW_DESKTOP || 'not set',
-      requireLineLogin: process.env.NEXT_PUBLIC_REQUIRE_LINE_LOGIN || 'not set',
-      enableBypass: process.env.NEXT_PUBLIC_ENABLE_BYPASS || 'not set',
-      debugMode: process.env.NEXT_PUBLIC_DEBUG_MODE || 'not set'
+      databaseUrl: process.env.DATABASE_URL ? 'set' : 'missing'
     };
 
-    // Database Status
+    // Database Test
     try {
+      await prisma.$connect();
       const userCount = await prisma.user.count();
       const restaurantCount = await prisma.restaurant.count();
-      const activeRestaurants = await prisma.restaurant.count({
-        where: { status: 'ACTIVE' }
-      });
-
+      
       status.database = {
         connected: true,
         userCount,
         restaurantCount,
-        activeRestaurants,
-        lastChecked: new Date().toISOString()
+        lastCheck: new Date().toISOString()
       };
-    } catch (dbError) {
+    } catch (error) {
       status.database = {
         connected: false,
-        error: dbError instanceof Error ? dbError.message : 'Unknown database error'
+        error: error instanceof Error ? error.message : 'Unknown error',
+        lastCheck: new Date().toISOString()
       };
     }
 
-    // Authentication Status
-    const cookies = request.cookies.getAll();
+    // Authentication Test
     const sessionCookie = request.cookies.get('line-session-token');
-
-    status.authentication = {
-      hasCookies: cookies.length > 0,
-      cookieCount: cookies.length,
-      cookieNames: cookies.map(c => c.name),
-      hasSessionCookie: !!sessionCookie,
-      sessionCookieLength: sessionCookie?.value?.length || 0
-    };
-
-    // JWT Validation (ถ้ามี session cookie)
-    if (sessionCookie?.value && process.env.NEXTAUTH_SECRET) {
+    
+    if (sessionCookie) {
       try {
-        const decoded = jwt.verify(sessionCookie.value, process.env.NEXTAUTH_SECRET);
-        status.authentication.jwtValid = true;
-        status.authentication.jwtPayload = {
+        const decoded = jwt.verify(sessionCookie.value, process.env.NEXTAUTH_SECRET!);
+        status.authentication = {
+          hasSessionCookie: true,
+          jwtValid: true,
           userId: (decoded as any).userId,
-          role: (decoded as any).role,
-          exp: (decoded as any).exp,
-          iat: (decoded as any).iat
+          expiresAt: new Date((decoded as any).exp * 1000).toISOString()
         };
-      } catch (jwtError) {
-        status.authentication.jwtValid = false;
-        status.authentication.jwtError = jwtError instanceof Error ? jwtError.message : 'JWT validation failed';
+      } catch (error) {
+        status.authentication = {
+          hasSessionCookie: true,
+          jwtValid: false,
+          error: error instanceof Error ? error.message : 'JWT verification failed'
+        };
       }
+    } else {
+      status.authentication = {
+        hasSessionCookie: false,
+        jwtValid: false,
+        message: 'No session cookie found'
+      };
     }
 
     // Cookie Configuration Analysis
     status.cookies = {
       expectedSettings: {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        domain: process.env.NODE_ENV === 'production' && process.env.NEXTAUTH_URL 
+        secure: isProduction(),
+        sameSite: isProduction() ? 'none' : 'lax',
+        domain: isProduction() && process.env.NEXTAUTH_URL 
           ? (() => {
               try {
                 const urlObj = new URL(process.env.NEXTAUTH_URL!);
@@ -144,8 +138,8 @@ export async function GET(request: NextRequest) {
     const issues: string[] = [];
     const warnings: string[] = [];
 
-    if (status.configuration.nodeEnv !== 'production') {
-      warnings.push(`NODE_ENV is "${status.configuration.nodeEnv}" instead of "production"`);
+    if (status.configuration.nodeEnv !== 'production' && status.configuration.nodeEnv !== 'development') {
+      warnings.push(`NODE_ENV is "${status.configuration.nodeEnv}" (should be "production" or "development")`);
     }
 
     if (status.configuration.nextAuthUrl === 'missing') {
