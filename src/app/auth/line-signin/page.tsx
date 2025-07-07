@@ -156,13 +156,28 @@ function LineSignInContent() {
           // แสดงภาพและชื่อผู้ใช้ก่อน redirect
           setShowProfileAnimation(true);
           
-          // Redirect ทันทีเพื่อลด loading time
-          if (restaurantId) {
-            console.log('🏪 Already authenticated, redirecting to restaurant menu:', restaurantId)
-            window.location.href = `/menu/${restaurantId}?from=line-signin`
+          // ตรวจสอบว่ามาจาก LINE environment หรือไม่
+          const isFromLine = typeof window !== 'undefined' && 
+            (window.location.href.includes('liff.line.me') || 
+             window.location.href.includes('line.me') ||
+             (window as any).liff);
+          
+          if (isFromLine) {
+            // ถ้ามาจาก LINE ให้ไปหน้า liff
+            console.log('📱 Already authenticated, coming from LINE, redirecting to LIFF page...')
+            const liffUrl = restaurantId 
+              ? `/liff?restaurant=${restaurantId}` 
+              : '/liff';
+            window.location.href = liffUrl;
           } else {
-            console.log('🏠 Redirecting to home')
-            window.location.href = '/'
+            // Redirect ทันทีเพื่อลด loading time (web browser)
+            if (restaurantId) {
+              console.log('🏪 Already authenticated, redirecting to restaurant menu:', restaurantId)
+              window.location.href = `/menu/${restaurantId}?from=line-signin`
+            } else {
+              console.log('🏠 Redirecting to home')
+              window.location.href = '/'
+            }
           }
           return
         }
@@ -389,13 +404,28 @@ function LineSignInContent() {
           
           // หน่วงเวลาให้เห็นข้อความสำเร็จ
           setTimeout(() => {
-            // ใช้ข้อมูลจาก API response เพื่อตัดสินใจ redirect
-            if (data.shouldRedirectToRestaurant && data.restaurantId) {
-              console.log('🏪 Redirecting to restaurant menu:', data.restaurantId)
-              window.location.href = `/menu/${data.restaurantId}?from=line-signin`
+            // ตรวจสอบว่ามาจาก LINE environment หรือไม่
+            const isFromLine = typeof window !== 'undefined' && 
+              (window.location.href.includes('liff.line.me') || 
+               window.location.href.includes('line.me') ||
+               (window as any).liff);
+            
+            if (isFromLine) {
+              // ถ้ามาจาก LINE ให้ไปหน้า liff
+              console.log('📱 Coming from LINE, redirecting to LIFF page...')
+              const liffUrl = data.shouldRedirectToRestaurant && data.restaurantId 
+                ? `/liff?restaurant=${data.restaurantId}` 
+                : '/liff';
+              window.location.href = liffUrl;
             } else {
-              console.log('🔄 Redirecting according to API response:', data.redirectUrl)
-              window.location.href = data.redirectUrl
+              // ถ้ามาจาก web browser ให้ไปตาม response ปกติ
+              if (data.shouldRedirectToRestaurant && data.restaurantId) {
+                console.log('🏪 Redirecting to restaurant menu:', data.restaurantId)
+                window.location.href = `/menu/${data.restaurantId}?from=line-signin`
+              } else {
+                console.log('🔄 Redirecting according to API response:', data.redirectUrl)
+                window.location.href = data.redirectUrl
+              }
             }
           }, 1500);
         } else {
@@ -442,14 +472,14 @@ function LineSignInContent() {
           alignItems: 'center', 
           justifyContent: 'center',
           py: 4,
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+          background: '#ffffff'
         }}>
           <Fade in={true} timeout={800}>
             <Card sx={{ 
               borderRadius: 4, 
-              boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-              background: 'rgba(255,255,255,0.95)',
-              backdropFilter: 'blur(10px)'
+              boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
+              background: '#ffffff',
+              border: '1px solid rgba(0,0,0,0.06)'
             }}>
               <CardContent sx={{ p: 4, textAlign: 'center' }}>
                 <Box sx={{ mb: 3 }}>
@@ -510,14 +540,14 @@ function LineSignInContent() {
           alignItems: 'center', 
           justifyContent: 'center',
           py: 4,
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+          background: '#ffffff'
         }}>
           <Fade in={true} timeout={800}>
             <Card sx={{ 
               borderRadius: 4, 
-              boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-              background: 'rgba(255,255,255,0.95)',
-              backdropFilter: 'blur(10px)'
+              boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
+              background: '#ffffff',
+              border: '1px solid rgba(0,0,0,0.06)'
             }}>
               <CardContent sx={{ p: 4, textAlign: 'center' }}>
                 <Box sx={{ mb: 3 }}>
@@ -605,14 +635,14 @@ function LineSignInContent() {
         alignItems: 'center', 
         justifyContent: 'center',
         py: 4,
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+        background: '#ffffff'
       }}>
         <Fade in={true} timeout={800}>
           <Card sx={{ 
             borderRadius: 4, 
-            boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-            background: 'rgba(255,255,255,0.95)',
-            backdropFilter: 'blur(10px)'
+            boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
+            background: '#ffffff',
+            border: '1px solid rgba(0,0,0,0.06)'
           }}>
             <CardContent sx={{ p: 4, textAlign: 'center' }}>
               {/* Logo */}
@@ -717,9 +747,15 @@ function LineSignInLoading() {
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'center',
-        py: 4 
+        py: 4,
+        background: '#ffffff'
       }}>
-        <Card>
+        <Card sx={{ 
+          borderRadius: 4, 
+          boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
+          background: '#ffffff',
+          border: '1px solid rgba(0,0,0,0.06)'
+        }}>
           <CardContent sx={{ p: 4, textAlign: 'center' }}>
             <Box sx={{ mb: 3 }}>
               <Image src="/images/logo_trim.png" alt="logo" width={150} height={100} />
