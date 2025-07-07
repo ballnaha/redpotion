@@ -156,17 +156,14 @@ function LineSignInContent() {
           // แสดงภาพและชื่อผู้ใช้ก่อน redirect
           setShowProfileAnimation(true);
           
-          // เพิ่ม delay และแสดง success state ก่อน redirect
-          setTimeout(async () => {
-            // Redirect ตาม context
-            if (restaurantId) {
-              console.log('🏪 Already authenticated, redirecting to restaurant menu:', restaurantId)
-              window.location.href = `/menu/${restaurantId}?from=line-signin`
-            } else {
-              console.log('🏠 Redirecting to home')
-              window.location.href = '/'
-            }
-          }, 2500); // เพิ่ม delay เป็น 2.5 วินาที เพื่อให้เห็นภาพ
+          // Redirect ทันทีเพื่อลด loading time
+          if (restaurantId) {
+            console.log('🏪 Already authenticated, redirecting to restaurant menu:', restaurantId)
+            window.location.href = `/menu/${restaurantId}?from=line-signin`
+          } else {
+            console.log('🏠 Redirecting to home')
+            window.location.href = '/'
+          }
           return
         }
       } else if (response.status === 401) {

@@ -139,32 +139,7 @@ export default function NotFound() {
 
         {/* Action Buttons */}
         <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Button
-            variant="contained"
-            onClick={() => router.push('/')}
-            startIcon={<Home />}
-            sx={{
-              background: 'linear-gradient(135deg, #10B981 0%, #34D399 100%)',
-              color: 'white',
-              fontWeight: 600,
-              px: 3,
-              py: 1.5,
-              borderRadius: 3,
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              boxShadow: '0 8px 25px rgba(16, 185, 129, 0.4)',
-              textTransform: 'none',
-              fontSize: '1rem',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #059669 0%, #10B981 100%)',
-                transform: 'translateY(-2px)',
-                boxShadow: '0 12px 30px rgba(16, 185, 129, 0.5)'
-              },
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-            }}
-          >
-            กลับหน้าหลัก
-          </Button>
-          
+
           <Button
             variant="outlined"
             onClick={() => router.back()}

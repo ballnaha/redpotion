@@ -67,12 +67,16 @@ interface RestaurantContextType {
   error: string | null;
   cart: CartItem[];
   cartTotal: number;
+  favorites: string[];
   userRole: 'customer' | 'restaurant_owner' | 'rider' | 'admin';
   addToCart: (item: MenuItem, quantity?: number) => void;
   setCartItemQuantity: (item: MenuItem & { addOns?: Array<{id: string, name: string, price: number}> }, totalQuantity: number) => void;
   removeFromCart: (itemId: string) => void;
   updateCartItemQuantity: (itemId: string, quantity: number) => void;
   clearCart: () => void;
+  toggleFavorite: (itemId: string) => void;
+  isFavorite: (itemId: string) => boolean;
+  clearFavorites: () => void;
 }
 
 const RestaurantContext = createContext<RestaurantContextType | undefined>(undefined);
@@ -229,6 +233,9 @@ const transformApiToRestaurant = (apiData: ApiRestaurant): Restaurant => {
 const getCartStorageKey = (restaurantId: string, userRole: string) => 
   `redpotion_cart_${userRole}_${restaurantId}`;
 
+const getFavoritesStorageKey = (restaurantId: string, userRole: string) => 
+  `redpotion_favorites_${userRole}_${restaurantId}`;
+
 const saveCartToStorage = (restaurantId: string, cart: CartItem[], userRole: string) => {
   if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
     try {
@@ -243,6 +250,24 @@ const saveCartToStorage = (restaurantId: string, cart: CartItem[], userRole: str
       }
     } catch (error) {
       console.warn('❌ ไม่สามารถบันทึกตะกร้าได้:', error);
+    }
+  }
+};
+
+const saveFavoritesToStorage = (restaurantId: string, favorites: string[], userRole: string) => {
+  if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+    try {
+      // ตรวจสอบว่า favorites เป็น array ก่อนบันทึก
+      if (Array.isArray(favorites)) {
+        const key = getFavoritesStorageKey(restaurantId, userRole);
+        console.log('💾 saveFavoritesToStorage:', { key, favoritesLength: favorites.length, favorites });
+        localStorage.setItem(key, JSON.stringify(favorites));
+        console.log('✅ บันทึก favorites สำเร็จ');
+      } else {
+        console.warn('⚠️ Favorites ไม่ใช่ array:', favorites);
+      }
+    } catch (error) {
+      console.warn('❌ ไม่สามารถบันทึก favorites ได้:', error);
     }
   }
 };
@@ -281,6 +306,40 @@ const loadCartFromStorage = (restaurantId: string, userRole: string): CartItem[]
   return [];
 };
 
+const loadFavoritesFromStorage = (restaurantId: string, userRole: string): string[] => {
+  if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+    try {
+      const key = getFavoritesStorageKey(restaurantId, userRole);
+      const saved = localStorage.getItem(key);
+      console.log('📂 loadFavoritesFromStorage:', { key, saved });
+      
+      if (saved) {
+        const parsedFavorites = JSON.parse(saved);
+        console.log('📋 ParsedFavorites:', parsedFavorites);
+        // ตรวจสอบว่าข้อมูลที่โหลดมาเป็น array ที่ถูกต้อง
+        if (Array.isArray(parsedFavorites)) {
+          console.log('✅ โหลด favorites สำเร็จ:', parsedFavorites.length, 'รายการ');
+          return parsedFavorites;
+        } else {
+          console.warn('⚠️ ข้อมูล favorites ใน localStorage ไม่ใช่ array');
+        }
+      } else {
+        console.log('📋 ไม่มีข้อมูล favorites ใน localStorage');
+      }
+    } catch (error) {
+      console.warn('❌ ไม่สามารถโหลด favorites ได้:', error);
+      // ลบข้อมูลที่เสียหายออก
+      try {
+        localStorage.removeItem(getFavoritesStorageKey(restaurantId, userRole));
+      } catch (e) {
+        console.warn('ไม่สามารถลบข้อมูล favorites ที่เสียหายได้:', e);
+      }
+    }
+  }
+  console.log('📋 ส่งกลับ favorites ว่าง');
+  return [];
+};
+
 export function RestaurantProvider({ 
   children, 
   restaurantId,
@@ -295,6 +354,7 @@ export function RestaurantProvider({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [favorites, setFavorites] = useState<string[]>([]);
   const [mounted, setMounted] = useState(false);
 
   // Handle hydration
@@ -311,6 +371,15 @@ export function RestaurantProvider({
     setCart(savedCart);
   }, [restaurant?.id, userRole, mounted]);
 
+  // โหลด favorites จาก localStorage เมื่อเปลี่ยนร้าน (หลัง hydration เท่านั้น)
+  useEffect(() => {
+    if (!mounted || !restaurant) return;
+
+    const savedFavorites = loadFavoritesFromStorage(restaurant.id, userRole);
+    console.log('🔄 Loading favorites from storage:', savedFavorites);
+    setFavorites(savedFavorites);
+  }, [restaurant?.id, userRole, mounted]);
+
   // บันทึกตะกร้าใน localStorage เมื่อมีการเปลี่ยนแปลง (หลัง hydration เท่านั้น)
   useEffect(() => {
     if (!mounted || !restaurant) return;
@@ -318,6 +387,14 @@ export function RestaurantProvider({
     console.log('💾 Saving cart to storage:', cart);
     saveCartToStorage(restaurant.id, cart, userRole);
   }, [cart, restaurant?.id, userRole, mounted]);
+
+  // บันทึก favorites ใน localStorage เมื่อมีการเปลี่ยนแปลง (หลัง hydration เท่านั้น)
+  useEffect(() => {
+    if (!mounted || !restaurant) return;
+    
+    console.log('💾 Saving favorites to storage:', favorites);
+    saveFavoritesToStorage(restaurant.id, favorites, userRole);
+  }, [favorites, restaurant?.id, userRole, mounted]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -496,6 +573,25 @@ export function RestaurantProvider({
     setCart([]);
   };
 
+  // เพิ่ม/ลบ favorites
+  const toggleFavorite = (itemId: string) => {
+    setFavorites(prev => 
+      prev.includes(itemId) 
+        ? prev.filter(id => id !== itemId)
+        : [...prev, itemId]
+    );
+  };
+
+  // ตรวจสอบว่าเป็น favorite หรือไม่
+  const isFavorite = (itemId: string): boolean => {
+    return favorites.includes(itemId);
+  };
+
+  // ล้าง favorites
+  const clearFavorites = () => {
+    setFavorites([]);
+  };
+
   return (
     <RestaurantContext.Provider value={{
       restaurant,
@@ -503,12 +599,16 @@ export function RestaurantProvider({
       error,
       cart,
       cartTotal,
+      favorites,
       userRole,
       addToCart,
       setCartItemQuantity,
       removeFromCart,
       updateCartItemQuantity,
-      clearCart
+      clearCart,
+      toggleFavorite,
+      isFavorite,
+      clearFavorites
     }}>
       {children}
     </RestaurantContext.Provider>

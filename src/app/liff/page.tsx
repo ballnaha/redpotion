@@ -30,13 +30,10 @@ function LiffLandingContent() {
           const restaurantId = searchParams.get('restaurant') || sessionRestore.sessionData.restaurantId;
           
           if (restaurantId) {
-            setTimeout(() => {
-              window.location.href = `/menu/${restaurantId}?from=liff-restore`;
-            }, 1000);
+            // Immediate redirect for faster loading
+            window.location.href = `/menu/${restaurantId}?from=liff-restore`;
           } else {
-            setTimeout(() => {
-              window.location.href = '/';
-            }, 1000);
+            window.location.href = '/';
           }
           return;
         }
@@ -44,14 +41,14 @@ function LiffLandingContent() {
         // ถ้าไม่มี session หรือ session หมดอายุ ให้ทำ LIFF login ปกติ
         console.log('🔄 No valid session found, proceeding with LIFF login...');
         
-        // โหลด LIFF SDK ด้วย timeout
+        // โหลด LIFF SDK ด้วย timeout - ลดเวลาให้เร็วขึ้น
         const loadTimeout = setTimeout(() => {
           if (!liffReady) {
             console.error('❌ LIFF SDK load timeout');
             setError('connection_timeout');
             setIsLoading(false);
           }
-        }, 15000); // 15 วินาที timeout
+        }, 8000); // ลดเป็น 8 วินาที
         
         await loadLiffSdk();
         clearTimeout(loadTimeout);
@@ -223,15 +220,11 @@ function LiffLandingContent() {
           setLoadingMessage(`กำลังเข้าสู่เมนูร้านอาหาร...`);
           console.log('🏪 Redirecting to restaurant menu:', data.restaurantId);
           
-          // Smooth redirect with delay
-          setTimeout(() => {
-            window.location.href = `/menu/${data.restaurantId}?from=liff-auto-login`;
-          }, 1000);
+          // Fast redirect for better UX
+          window.location.href = `/menu/${data.restaurantId}?from=liff-auto-login`;
         } else {
           setLoadingMessage('เข้าสู่ระบบสำเร็จ!');
-          setTimeout(() => {
-            window.location.href = data.redirectUrl;
-          }, 1000);
+          window.location.href = data.redirectUrl;
         }
       } else {
         console.error('❌ LINE authentication failed:', data.error);
@@ -245,19 +238,50 @@ function LiffLandingContent() {
     }
   };
 
-  // Load LIFF SDK
+  // Load LIFF SDK with preload optimization - เร็วขึ้นเพราะมี preload ใน layout แล้ว
   const loadLiffSdk = (): Promise<void> => {
     return new Promise((resolve, reject) => {
+      // ตรวจสอบว่า LIFF SDK โหลดแล้วหรือไม่
       if ((window as any).liff) {
+        console.log('✅ LIFF SDK already available from preload');
         resolve();
         return;
       }
 
+      // เช็คว่า script tag มีอยู่แล้วไหม (จาก layout)
+      const existingScript = document.querySelector('script[src*="liff/edge/2/sdk.js"]');
+      if (existingScript) {
+        console.log('🔄 LIFF SDK script exists, waiting for load...');
+        
+        // รอให้ script ที่มีอยู่แล้วโหลดเสร็จ
+        const checkLoaded = () => {
+          if ((window as any).liff) {
+            console.log('✅ LIFF SDK loaded from existing script');
+            resolve();
+          } else {
+            setTimeout(checkLoaded, 100);
+          }
+        };
+        
+        setTimeout(() => {
+          if (!(window as any).liff) {
+            console.warn('⚠️ LIFF SDK timeout, loading manually');
+            reject(new Error('LIFF SDK load timeout'));
+          }
+        }, 3000);
+        
+        checkLoaded();
+        return;
+      }
+
+      // สร้าง script ใหม่ถ้าไม่มี
+      console.log('📥 Loading LIFF SDK manually...');
       const script = document.createElement('script');
       script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
       script.async = true;
+      script.crossOrigin = 'anonymous';
       script.onload = () => {
-        console.log('✅ LIFF SDK loaded');
+        console.log('✅ LIFF SDK loaded manually');
         resolve();
       };
       script.onerror = () => {
@@ -320,97 +344,36 @@ function LiffLandingContent() {
     handleFallbackRedirect();
   }, [liffReady, isLoading, searchParams]);
 
-  // Loading State
+  // Loading State - ทำให้เรียบง่ายเพื่อลด loading หลายอัน
   if (isLoading && !error) {
     return (
       <Box sx={{ 
         minHeight: '100vh', 
-        background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+        background: '#ffffff',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        p: 3,
-        position: 'relative',
-        overflow: 'hidden'
+        p: 3
       }}>
-        {/* Animated Background Elements */}
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '10%',
-            right: '10%',
-            width: 100,
-            height: 100,
-            borderRadius: '50%',
-            background: 'rgba(16, 185, 129, 0.08)',
-            animation: 'float 3s ease-in-out infinite'
-          }}
-        />
-        <Box
-          sx={{
-            position: 'absolute',
-            bottom: '20%',
-            left: '15%',
-            width: 60,
-            height: 60,
-            borderRadius: '50%',
-            background: 'rgba(16, 185, 129, 0.05)',
-            animation: 'float 4s ease-in-out infinite reverse'
-          }}
-        />
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '5%',
-            width: 40,
-            height: 40,
-            borderRadius: '50%',
-            background: 'rgba(16, 185, 129, 0.03)',
-            animation: 'float 5s ease-in-out infinite'
-          }}
-        />
-
-        <Card
-          sx={{
-            maxWidth: 400,
-            width: '100%',
-            background: 'rgba(255, 255, 255, 0.25)',
-            backdropFilter: 'blur(20px) saturate(180%)',
-            borderRadius: 4,
-            boxShadow: '0 8px 32px rgba(31, 38, 135, 0.08)',
-            p: 4,
-            textAlign: 'center',
-            border: '1px solid rgba(255, 255, 255, 0.18)',
-            position: 'relative',
-            overflow: 'hidden',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
-              borderRadius: 4,
-              zIndex: -1
-            }
-          }}
-        >
-
-          {/* Loading Message */}
+        <Box sx={{ textAlign: 'center' }}>
+          <CircularProgress 
+            sx={{ 
+              color: '#10B981',
+              mb: 2
+            }} 
+            size={32}
+          />
           <Typography 
             variant="body1" 
             sx={{ 
               color: '#111827',
-              fontWeight: 600,
-              mb: 1,
-              minHeight: '24px'
+              fontWeight: 500,
+              fontSize: '1rem',
+              mb: 0.5
             }}
           >
             {loadingMessage}
           </Typography>
-
           <Typography 
             variant="body2" 
             sx={{ 
@@ -420,49 +383,7 @@ function LiffLandingContent() {
           >
             กรุณารอสักครู่...
           </Typography>
-
-          {/* Progress Indicator */}
-          <Box sx={{ mt: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
-              {[1, 2, 3].map((dot, index) => (
-                <Box
-                  key={dot}
-                  sx={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    background: '#10B981',
-                    opacity: 0.3,
-                    animation: `dotPulse 1.5s ease-in-out infinite ${index * 0.2}s`
-                  }}
-                />
-              ))}
-            </Box>
-          </Box>
-        </Card>
-
-        {/* CSS Animations */}
-        <style jsx global>{`
-          @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-20px); }
-          }
-          
-          @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-          }
-          
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-          
-          @keyframes dotPulse {
-            0%, 100% { opacity: 0.3; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.2); }
-          }
-        `}</style>
+        </Box>
       </Box>
     );
   }
@@ -780,35 +701,23 @@ function LiffLandingContent() {
   );
 }
 
-// Loading fallback component
+// Loading fallback component - เรียบง่าย
 function LiffLandingLoading() {
   return (
     <Box sx={{ 
       minHeight: '100vh', 
-      background: 'linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%)',
+      background: '#ffffff',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       p: 3
     }}>
-      <Card
-        sx={{
-          maxWidth: 500,
-          width: '100%',
-          background: 'rgba(255, 255, 255, 0.25)',
-          backdropFilter: 'blur(20px) saturate(180%)',
-          border: '1px solid rgba(255, 255, 255, 0.18)',
-          borderRadius: 4,
-          boxShadow: '0 8px 32px rgba(31, 38, 135, 0.15)',
-          p: 5,
-          textAlign: 'center',
-        }}
-      >
-        <CircularProgress size={40} sx={{ mb: 2, color: '#10B981' }} />
-        <Typography variant="body2" color="text.secondary">
+      <Box sx={{ textAlign: 'center' }}>
+        <CircularProgress size={32} sx={{ mb: 2, color: '#10B981' }} />
+        <Typography variant="body2" sx={{ color: '#6B7280', fontSize: '0.875rem' }}>
           กำลังโหลด...
         </Typography>
-      </Card>
+      </Box>
     </Box>
   );
 }

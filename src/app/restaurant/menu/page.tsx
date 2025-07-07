@@ -54,7 +54,9 @@ import {
   Star,
   LocalFireDepartment,
   FiberNew,
-  Whatshot
+  Whatshot,
+  CalendarToday,
+  DateRange
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import ImageUploadDropzone, { uploadImageFile } from '../components/ImageUploadDropzone';
@@ -541,11 +543,12 @@ export default function MenuManagementPage() {
 
   // Available tags with icons and labels
   const availableTags = [
-    { value: 'recommended', label: 'เมนูแนะนำ', icon: <Star />, color: '#fbbf24' },
-    { value: 'bestseller', label: 'ขายดี', icon: <LocalFireDepartment />, color: '#f97316' },
-    { value: 'new', label: 'เมนูใหม่', icon: <FiberNew />, color: '#06b6d4' } ,
-    { value: 'promotion', label: 'โปรโมชั่น', icon: <LocalOffer />, color: '#dc2626' }
-    
+          { value: 'recommended', label: 'เมนูแนะนำ', icon: <Star />, color: '#fbbf24' },
+      { value: 'bestseller', label: 'ขายดี', icon: <LocalFireDepartment />, color: '#f97316' },
+      { value: 'new', label: 'เมนูใหม่', icon: <FiberNew />, color: '#06b6d4' } ,
+      { value: 'promotion', label: 'โปรโมชั่น', icon: <LocalOffer />, color: '#dc2626' },
+      { value: 'weekly-course', label: 'คอร์สรายอาทิตย์', icon: <CalendarToday />, color: '#6366f1' },
+      { value: 'monthly-course', label: 'คอร์สรายเดือน', icon: <DateRange />, color: '#8b5a87' }
   ];
 
   const removeAddonFromForm = (index: number) => {

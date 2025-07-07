@@ -239,12 +239,11 @@ const CategoryIcon = React.memo(function CategoryIcon({
 export default function MenuPageComponent() {
   const router = useRouter();
   const { data: session } = useSession();
-  const { restaurant, loading, error, cart, cartTotal, addToCart } = useRestaurant();
+  const { restaurant, loading, error, cart, cartTotal, addToCart, favorites, toggleFavorite, isFavorite } = useRestaurant();
   
   // States
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [favorites, setFavorites] = useState<string[]>([]);
   const [lineUser, setLineUser] = useState<any>(null);
   const [lineSessionChecked, setLineSessionChecked] = useState(false);
   const [sessionCheckComplete, setSessionCheckComplete] = useState(false);
@@ -362,25 +361,8 @@ export default function MenuPageComponent() {
     
     const checkLineSession = async () => {
       try {
-        console.log('🔍 Checking LINE session (mandatory check)');
+        console.log('🔍 Checking LINE session (simplified check)');
         const config = getAppConfig();
-        
-        // Production diagnostics - เฉพาะใน production
-        if (config.enableDebugLogs && typeof window !== 'undefined') {
-          try {
-            const { collectProductionDiagnostics, generateProductionReport } = await import('@/lib/productionDebug');
-            const diagnostics = await collectProductionDiagnostics();
-            console.log('🔧 Production Diagnostics:', diagnostics);
-            
-            // แสดง detailed report ถ้าเจอปัญหา
-            if (!diagnostics.networking.canReachApi || !diagnostics.session.jwtValid) {
-              const report = generateProductionReport(diagnostics);
-              console.warn('⚠️ Production Issues Detected:\n' + report);
-            }
-          } catch (debugError) {
-            console.warn('⚠️ Production debug failed:', debugError);
-          }
-        }
         
         // ตรวจสอบว่ามาจาก LIFF หรือไม่
         const urlParams = new URLSearchParams(window.location.search);
@@ -401,134 +383,92 @@ export default function MenuPageComponent() {
             
             if (sessionResult.authenticated && sessionResult.user) {
               console.log('✅ Session found after LIFF login - User:', sessionResult.user.name);
-              console.log('📸 Profile data:', {
-                name: sessionResult.user.name,
-                image: sessionResult.user.image,
-                lineUserId: sessionResult.user.lineUserId
-              });
               
-                             // อัพเดท user state ทันที
-               setLineUser(sessionResult.user);
-               setLineSessionChecked(true);
-               
-               // ล้าง auth error เมื่อ LIFF login สำเร็จ
-               setAuthError(null);
-               
-               // แสดงข้อความอัพเดทโปรไฟล์
-               if (isFromLiffAutoLogin) {
-                 setProfileUpdateMessage('อัพเดทข้อมูลโปรไฟล์สำเร็จ! 📸');
-                 setTimeout(() => setProfileUpdateMessage(null), 3000);
-               }
-               
-               // อัพเดท localStorage ด้วยข้อมูลใหม่
-               try {
-                 localStorage.setItem('line_user_data', JSON.stringify(sessionResult.user));
-                 console.log('💾 Updated localStorage with fresh profile data');
-               } catch (error) {
-                 console.error('❌ Error saving user to localStorage:', error);
-               }
-                         } else {
-               console.warn('⚠️ No session found after LIFF login');
-             }
-           } catch (error) {
-             console.error('❌ Error checking session after LIFF login:', error);
-           }
-           
-           // ล้าง URL parameters หลังจากประมวลผลเสร็จแล้ว
-           if (typeof window !== 'undefined') {
-             const cleanUrl = window.location.pathname;
-             window.history.replaceState({}, '', cleanUrl);
-             console.log('🧹 Cleaned URL parameters after profile update');
-           }
-           
-           setSessionCheckComplete(true);
-           return;
+              // อัพเดท user state ทันที
+              setLineUser(sessionResult.user);
+              setLineSessionChecked(true);
+              
+              // ล้าง auth error เมื่อ LIFF login สำเร็จ
+              setAuthError(null);
+              
+              // แสดงข้อความอัพเดทโปรไฟล์
+              if (isFromLiffAutoLogin) {
+                setProfileUpdateMessage('อัพเดทข้อมูลโปรไฟล์สำเร็จ! 📸');
+                setTimeout(() => setProfileUpdateMessage(null), 3000);
+              }
+              
+              // อัพเดท localStorage ด้วยข้อมูลใหม่
+              try {
+                localStorage.setItem('line_user_data', JSON.stringify(sessionResult.user));
+                console.log('💾 Updated localStorage with fresh profile data');
+              } catch (error) {
+                console.error('❌ Error saving user to localStorage:', error);
+              }
+            } else {
+              console.warn('⚠️ No session found after LIFF login');
+            }
+          } catch (error) {
+            console.error('❌ Error checking session after LIFF login:', error);
+          }
+          
+          // ล้าง URL parameters หลังจากประมวลผลเสร็จแล้ว
+          if (typeof window !== 'undefined') {
+            const cleanUrl = window.location.pathname;
+            window.history.replaceState({}, '', cleanUrl);
+            console.log('🧹 Cleaned URL parameters after profile update');
+          }
+          
+          setSessionCheckComplete(true);
+          return;
         }
         
-        // ถ้าปิดการบังคับ LINE login หรือมีการตั้งค่า skip authentication
-        if (!config.requireLineLogin || config.skipAuthenticationCheck || isFromLiff) {
+        // ถ้าไม่บังคับ LINE login หรือเป็น development mode ให้ข้ามการตรวจสอบ
+        if (!config.requireLineLogin || config.skipAuthenticationCheck || isFromLiff || process.env.NODE_ENV === 'development') {
           console.log('🔓 Menu: LINE login check skipped', {
             requireLineLogin: config.requireLineLogin,
             skipAuthenticationCheck: config.skipAuthenticationCheck,
-            isFromLiff
+            isFromLiff,
+            isDevelopment: process.env.NODE_ENV === 'development'
           });
+          
+          // ถ้ามี user ใน localStorage ให้ใช้เลย
+          const savedUser = localStorage.getItem('line_user_data');
+          if (savedUser) {
+            try {
+              const parsedUser = JSON.parse(savedUser);
+              setLineUser(parsedUser);
+              setLineSessionChecked(true);
+              console.log('✅ Using cached user data:', parsedUser.name);
+            } catch (error) {
+              console.error('❌ Error parsing cached user:', error);
+            }
+          }
+          
           setSessionCheckComplete(true);
           return;
         }
 
-        // ลองกู้คืน LIFF session ก่อน
-        try {
-          const { restoreLiffSession } = await import('@/lib/sessionUtils');
-          const sessionRestore = await restoreLiffSession();
-          
-          if (sessionRestore.success && sessionRestore.sessionData) {
-            console.log('✅ LIFF session restored in menu page');
-            
-            // ใช้ข้อมูลจาก restored session
-            const userData = sessionRestore.sessionData.userProfile;
-            setLineUser({
-              id: userData.userId || userData.id,
-              name: userData.displayName || userData.name,
-              displayName: userData.displayName,
-              image: userData.pictureUrl || userData.image,
-              lineUserId: userData.userId || userData.lineUserId,
-              email: userData.email || `line_${userData.userId}@line.user`,
-              role: 'USER'
-            });
-            setLineSessionChecked(true);
-            setSessionCheckComplete(true);
-            
-            // อัพเดท localStorage ด้วยข้อมูลใหม่
-            try {
-              localStorage.setItem('line_user_data', JSON.stringify({
-                id: userData.userId || userData.id,
-                name: userData.displayName || userData.name,
-                displayName: userData.displayName,
-                image: userData.pictureUrl || userData.image,
-                lineUserId: userData.userId || userData.lineUserId,
-                email: userData.email || `line_${userData.userId}@line.user`,
-                role: 'USER'
-              }));
-              console.log('💾 Updated localStorage with restored session data');
-            } catch (storageError) {
-              console.error('❌ Error updating localStorage:', storageError);
-            }
-            
-            return;
-          }
-        } catch (restoreError) {
-          console.warn('⚠️ Failed to restore LIFF session:', restoreError);
-        }
-
-        // ใช้ session utility function
+        // ใช้ session utility function สำหรับ production เท่านั้น
         const { checkLineSession: checkSession } = await import('@/lib/sessionUtils');
         const sessionResult = await checkSession();
         
         if (sessionResult.authenticated && sessionResult.user) {
           console.log('✅ LINE session valid - User:', sessionResult.user.name);
           
-          // ตรวจสอบว่าเป็น real LINE user หรือไม่
-          const isRealUser = sessionResult.user.lineUserId && sessionResult.user.lineUserId !== 'demo';
+          // อัพเดท user state
+          setLineUser(sessionResult.user);
+          setLineSessionChecked(true);
+          setSessionCheckComplete(true);
           
-          if (isRealUser) {
-            // อัพเดท user state
-            setLineUser(sessionResult.user);
-            setLineSessionChecked(true);
-            setSessionCheckComplete(true);
-            
-            // ล้าง auth error เมื่อ session สำเร็จ
-            setAuthError(null);
-            
-            // บันทึกข้อมูล real user ลง localStorage
-            try {
-              localStorage.setItem('line_user_data', JSON.stringify(sessionResult.user));
-              console.log('💾 Updated localStorage with real LINE user');
-            } catch (error) {
-              console.error('❌ Error saving user to localStorage:', error);
-            }
-          } else {
-            console.log('⚠️ Session user is not real LINE user');
-            setSessionCheckComplete(true);
+          // ล้าง auth error เมื่อ session สำเร็จ
+          setAuthError(null);
+          
+          // บันทึกข้อมูล user ลง localStorage
+          try {
+            localStorage.setItem('line_user_data', JSON.stringify(sessionResult.user));
+            console.log('💾 Updated localStorage with session data');
+          } catch (error) {
+            console.error('❌ Error saving user to localStorage:', error);
           }
         } else {
           console.log('❌ No valid LINE session found');
@@ -540,14 +480,14 @@ export default function MenuPageComponent() {
           
           // ป้องกัน redirect loop โดยตรวจสอบ flag
           if (hasRedirectedFlag) {
-            console.log('⚠️ Already redirected once, preventing redirect loop');
+            console.log('⚠️ Already redirected once, skipping redirect to prevent loop');
             setSessionCheckComplete(true);
             return;
           }
           
           // เพิ่มการตรวจสอบจำนวนครั้งของการ redirect
           const redirectCount = parseInt(sessionStorage.getItem('menu_redirect_count') || '0');
-          if (redirectCount >= 3) {
+          if (redirectCount >= 2) {
             console.log('⚠️ Too many redirects, stopping to prevent loop');
             setSessionCheckComplete(true);
             sessionStorage.removeItem('menu_redirect_count');
@@ -557,26 +497,33 @@ export default function MenuPageComponent() {
           // บันทึกจำนวนครั้งของการ redirect
           sessionStorage.setItem('menu_redirect_count', (redirectCount + 1).toString());
           
-          // Redirect to LINE login
-          const callbackUrl = encodeURIComponent(window.location.pathname + '?redirected=true');
-          console.log('🔄 Redirecting to LINE signin with callback:', callbackUrl);
-          
-          // ใช้ setTimeout เพื่อให้ state update เสร็จก่อน
-          setTimeout(() => {
-            window.location.href = `/auth/line-signin?callbackUrl=${callbackUrl}&restaurant=${restaurant?.id}`;
-          }, 100);
-          return;
+          // Redirect to LINE login เฉพาะใน production
+          if (process.env.NODE_ENV === 'production') {
+            const callbackUrl = encodeURIComponent(window.location.pathname + '?redirected=true');
+            console.log('🔄 Redirecting to LINE signin with callback:', callbackUrl);
+            
+            setTimeout(() => {
+              window.location.href = `/auth/line-signin?callbackUrl=${callbackUrl}&restaurant=${restaurant?.id}`;
+            }, 100);
+            return;
+          } else {
+            // ใน development mode ให้แสดงหน้าปกติ
+            console.log('🔧 Development mode: Skipping redirect, allowing access');
+            setSessionCheckComplete(true);
+          }
         }
       } catch (error) {
         console.error('❌ Session check failed:', error);
         
-        // ในกรณีที่ error ให้ล้าง user state และแสดง error
+        // ในกรณีที่ error ให้ล้าง user state
         setLineUser(null);
         setLineSessionChecked(false);
         localStorage.removeItem('line_user_data');
         
-        // ตั้งค่า auth error สำหรับแสดงผล
-        setAuthError('เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์การเข้าใช้งาน');
+        // ใน development mode ไม่ต้องแสดง auth error
+        if (process.env.NODE_ENV !== 'development') {
+          setAuthError('เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์การเข้าใช้งาน');
+        }
         
         console.log('⚠️ Session check error, clearing user state');
         setSessionCheckComplete(true);
@@ -586,105 +533,17 @@ export default function MenuPageComponent() {
     checkLineSession();
   }, [isClient, restaurant?.id]);
 
-  // เพิ่ม LIFF auto-restore mechanism หลังจาก refresh
-  useEffect(() => {
-    if (!isClient || !lineUser || !lineSessionChecked) return;
+  // LIFF auto-restore - ปิดใช้งานเพื่อลดความซับซ้อน
+  // useEffect(() => {
+  //   // LIFF auto-restore disabled to reduce complexity
+  // }, []);
 
-    const restoreLiffStatus = async () => {
-      try {
-        // ตรวจสอบว่า LIFF SDK มีอยู่หรือไม่
-        if (!window.liff) {
-          console.log('🔄 LIFF SDK not available, loading...');
-          
-          // โหลด LIFF SDK
-          const script = document.createElement('script');
-          script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
-          script.async = true;
-          
-          await new Promise((resolve, reject) => {
-            script.onload = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
-          });
-          
-          console.log('✅ LIFF SDK loaded after refresh');
-        }
+  // Activity tracking - ปิดใช้งานเพื่อลดความซับซ้อน
+  // useEffect(() => {
+  //   // LIFF activity tracking disabled to reduce complexity
+  // }, []);
 
-        // ตรวจสอบว่า LIFF ถูก initialize แล้วหรือไม่
-        const isLiffInitialized = window.liff && typeof window.liff.init === 'function';
-        
-        if (isLiffInitialized) {
-          try {
-            // ลอง call LIFF function เพื่อดูว่า initialized หรือไม่
-            const isLoggedIn = window.liff.isLoggedIn();
-            console.log('✅ LIFF already initialized, login status:', isLoggedIn);
-            return;
-          } catch (error) {
-            // ถ้า error แปลว่าไม่ได้ initialize
-            console.log('⚠️ LIFF not initialized, need to initialize...');
-          }
-        }
-
-        // Initialize LIFF ใหม่หลัง refresh
-        const { initializeLiff } = await import('@/lib/sessionUtils');
-        const initResult = await initializeLiff();
-        
-        if (initResult.success) {
-          console.log('✅ LIFF re-initialized successfully after refresh');
-          
-          // ตรวจสอบสถานะ login
-          if (window.liff.isLoggedIn()) {
-            console.log('✅ LIFF login status restored');
-          } else {
-            console.log('⚠️ LIFF initialized but not logged in');
-          }
-        } else {
-          console.warn('⚠️ Failed to re-initialize LIFF:', initResult.error);
-        }
-
-      } catch (error) {
-        console.error('❌ LIFF restore failed:', error);
-      }
-    };
-
-    // รอ 2 วินาทีหลัง component mount แล้วค่อย restore LIFF
-    const timeoutId = setTimeout(restoreLiffStatus, 2000);
-    
-    return () => clearTimeout(timeoutId);
-  }, [isClient, lineUser, lineSessionChecked]);
-
-  // เพิ่ม activity tracking เพื่อ refresh LIFF session
-  useEffect(() => {
-    if (!lineUser || !lineSessionChecked) return;
-
-    const refreshSessionOnActivity = () => {
-      try {
-        import('@/lib/sessionUtils').then(({ refreshLiffSessionTimestamp }) => {
-          refreshLiffSessionTimestamp();
-        });
-      } catch (error) {
-        console.error('❌ Error refreshing LIFF session:', error);
-      }
-    };
-
-    // เพิ่ม event listeners สำหรับ user activity
-    const events = ['click', 'scroll', 'keypress', 'touchstart'];
-    events.forEach(event => {
-      window.addEventListener(event, refreshSessionOnActivity, { passive: true });
-    });
-
-    // Refresh session ทุก 5 นาที
-    const intervalId = setInterval(refreshSessionOnActivity, 5 * 60 * 1000);
-
-    return () => {
-      events.forEach(event => {
-        window.removeEventListener(event, refreshSessionOnActivity);
-      });
-      clearInterval(intervalId);
-    };
-  }, [lineUser, lineSessionChecked]);
-
-  // เพิ่ม cleanup สำหรับ redirect counter เมื่อ component unmount
+  // Session cleanup - ลดความซับซ้อน
   useEffect(() => {
     return () => {
       // ล้าง redirect counter เมื่อออกจากหน้า
@@ -692,34 +551,10 @@ export default function MenuPageComponent() {
     };
   }, []);
 
-  // เพิ่ม listener สำหรับ session expired event
-  useEffect(() => {
-    const handleSessionExpired = () => {
-      console.log('🔔 Session expired event received');
-      localStorage.removeItem('line_user_data');
-      setLineUser(null);
-      setLineSessionChecked(false);
-      
-      // ลบ LIFF session ด้วย
-      try {
-        import('@/lib/sessionUtils').then(({ clearLiffSession }) => {
-          clearLiffSession();
-        });
-      } catch (error) {
-        console.error('❌ Error clearing LIFF session:', error);
-      }
-      
-      // Redirect ไป login page
-      const callbackUrl = encodeURIComponent(window.location.pathname);
-      window.location.href = `/auth/line-signin?callbackUrl=${callbackUrl}&restaurant=${restaurant?.id}&reason=expired`;
-    };
-
-    window.addEventListener('lineSessionExpired', handleSessionExpired);
-    
-    return () => {
-      window.removeEventListener('lineSessionExpired', handleSessionExpired);
-    };
-  }, [restaurant?.id]);
+  // Session expired listener - ปิดใช้งานเพื่อลดความซับซ้อน
+  // useEffect(() => {
+  //   // Session expired event listener disabled to reduce complexity
+  // }, []);
 
   // Categories with virtual categories
   const categories: MenuCategory[] = useMemo(() => {
@@ -775,11 +610,21 @@ export default function MenuPageComponent() {
         icon: 'LocalOffer',
         excludeIfRegular: ['โปรโมชั่น', 'ส่วนลด', 'ราคาพิเศษ']
       },
+      'weekly-course': { 
+        name: 'คอร์สรายอาทิตย์', 
+        icon: 'CalendarToday',
+        excludeIfRegular: ['คอร์สรายอาทิตย์', 'รายอาทิตย์', 'สัปดาห์']
+      },
+      'monthly-course': { 
+        name: 'คอร์สรายเดือน', 
+        icon: 'DateRange',
+        excludeIfRegular: ['คอร์สรายเดือน', 'รายเดือน', 'เดือน']
+      },
 
     };
 
     // สร้าง virtual categories เฉพาะ tags ที่มีอยู่จริง
-    const priorityOrder = ['recommended', 'bestseller', 'new', 'promotion'];
+    const priorityOrder = ['recommended', 'bestseller', 'new', 'promotion', 'weekly-course', 'monthly-course'];
     
     priorityOrder.forEach(tag => {
       if (existingTags.has(tag) && tagCategoryMap[tag]) {
@@ -865,13 +710,7 @@ export default function MenuPageComponent() {
     setSelectedCategory(categoryId);
   }, []);
 
-  const toggleFavorite = useCallback((itemId: string) => {
-    setFavorites(prev => 
-      prev.includes(itemId) 
-        ? prev.filter(id => id !== itemId)
-        : [...prev, itemId]
-    );
-  }, []);
+
 
   const getCartItemQuantity = useCallback((itemId: string) => {
     const cartItem = cart.find(item => item.itemId === itemId);
@@ -1073,7 +912,7 @@ export default function MenuPageComponent() {
     );
   }
 
-  // Show loading if not ready
+  // Show simple loading if not ready
   if (!restaurant || !sessionCheckComplete) {
     return (
       <Box sx={{ 
@@ -1083,24 +922,12 @@ export default function MenuPageComponent() {
         alignItems: 'center',
         justifyContent: 'center'
       }}>
-        <Paper
-          className="liquid-glass"
-          sx={{
-            p: 4,
-            borderRadius: 1,
-            textAlign: 'center',
-            maxWidth: 400,
-            width: '90%'
-          }}
-        >
-          <CircularProgress sx={{ color: '#10B981', mb: 2 }} size={40} />
-          <Typography variant="h6" sx={{ color: '#065f46', fontWeight: 600 }}>
-            กำลังโหลด...
+        <Box sx={{ textAlign: 'center' }}>
+          <CircularProgress sx={{ color: '#10B981', mb: 2 }} size={32} />
+          <Typography variant="body1" sx={{ color: '#065f46', fontWeight: 500 }}>
+            กำลังโหลดเมนู...
           </Typography>
-          <Typography variant="body2" sx={{ color: '#047857', mt: 1 }}>
-            กรุณารอสักครู่
-          </Typography>
-        </Paper>
+        </Box>
       </Box>
     );
   }
@@ -1665,7 +1492,7 @@ export default function MenuPageComponent() {
                 border: selectedCategory === 'all' 
                   ? 'none' 
                   : '1px solid rgba(16, 185, 129, 0.3)',
-                          fontWeight: 600,
+                          fontWeight: 500,
                       '&:hover': {
                   transform: 'scale(1.05)',
                   background: selectedCategory === 'all'
@@ -1695,7 +1522,7 @@ export default function MenuPageComponent() {
                   border: selectedCategory === category.id 
                     ? 'none' 
                     : '1px solid rgba(16, 185, 129, 0.3)',
-                  fontWeight: 600,
+                  fontWeight: 500,
                   '&:hover': {
                     transform: 'scale(1.05)',
                     background: selectedCategory === category.id
@@ -1719,7 +1546,7 @@ export default function MenuPageComponent() {
               {filteredItems.map((item, index) => (
                 <Card
                   key={item.id}
-                  className="scale-on-hover liquid-glass"
+                  className="liquid-glass"
                   onClick={() => router.push(`/menu/${restaurant.id}/item/${item.id}`)}
                   sx={{
                     borderRadius: 1,
@@ -1737,8 +1564,7 @@ export default function MenuPageComponent() {
                       image={item.image}
                       alt={item.name}
                       sx={{ 
-                        objectFit: 'cover',
-                        transition: 'transform 0.3s ease'
+                        objectFit: 'cover'
                       }}
                     />
                     
@@ -1760,7 +1586,7 @@ export default function MenuPageComponent() {
                               background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)',
                           color: 'white',
                           fontSize: '0.7rem',
-                          fontWeight: 600,
+                          fontWeight: 500,
                           height: '20px',
                               borderRadius: 2,
                               '& .MuiChip-label': { px: 1 }
@@ -1775,7 +1601,7 @@ export default function MenuPageComponent() {
                               background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
                           color: 'white',
                           fontSize: '0.7rem',
-                          fontWeight: 600,
+                          fontWeight: 500,
                           height: '20px',
                               borderRadius: 2,
                               '& .MuiChip-label': { px: 1 }
@@ -1790,7 +1616,7 @@ export default function MenuPageComponent() {
                               background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                               color: 'white',
                               fontSize: '0.7rem',
-                              fontWeight: 600,
+                              fontWeight: 500,
                               height: '20px',
                               borderRadius: 2,
                               '& .MuiChip-label': { px: 1 }
@@ -1805,7 +1631,37 @@ export default function MenuPageComponent() {
                               background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
                               color: 'white',
                               fontSize: '0.7rem',
-                              fontWeight: 600,
+                              fontWeight: 500,
+                              height: '20px',
+                              borderRadius: 2,
+                              '& .MuiChip-label': { px: 1 }
+                            }}
+                          />
+                        )}
+                        {item.tags.includes('weekly-course') && (
+                          <Chip
+                            label="รายอาทิตย์"
+                            size="small"
+                            sx={{
+                              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                              color: 'white',
+                              fontSize: '0.7rem',
+                              fontWeight: 500,
+                              height: '20px',
+                              borderRadius: 2,
+                              '& .MuiChip-label': { px: 1 }
+                            }}
+                          />
+                        )}
+                        {item.tags.includes('monthly-course') && (
+                          <Chip
+                            label="รายเดือน"
+                            size="small"
+                            sx={{
+                              background: 'linear-gradient(135deg, #8b5a87 0%, #7c5174 100%)',
+                              color: 'white',
+                              fontSize: '0.7rem',
+                              fontWeight: 500,
                               height: '20px',
                               borderRadius: 2,
                               '& .MuiChip-label': { px: 1 }
@@ -1827,15 +1683,11 @@ export default function MenuPageComponent() {
                         right: 8,
                         background: 'rgba(255, 255, 255, 0.9)',
                         backdropFilter: 'blur(10px)',
-                        color: favorites.includes(item.id) ? '#dc2626' : '#6b7280',
-                        '&:hover': {
-                          background: 'rgba(255, 255, 255, 1)',
-                          transform: 'scale(1.1)'
-                        }
+                        color: isFavorite(item.id) ? '#dc2626' : '#6b7280'
                       }}
                       size="small"
                     >
-                      {favorites.includes(item.id) ? 
+                      {isFavorite(item.id) ? 
                         <Favorite sx={{ fontSize: '18px' }} /> : 
                         <FavoriteBorder sx={{ fontSize: '18px' }} />
                       }
@@ -1847,7 +1699,7 @@ export default function MenuPageComponent() {
                     <Typography 
                       variant="subtitle2" 
                       sx={{ 
-                        fontWeight: 600, 
+                        fontWeight: 500, 
                         color: '#065f46',
                         lineHeight: 1.2,
                         mb: 0.5,

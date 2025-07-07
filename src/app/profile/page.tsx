@@ -104,6 +104,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [debugMode, setDebugMode] = useState(false);
   
   // Dialog states
   const [editPersonalOpen, setEditPersonalOpen] = useState(false);
@@ -156,33 +157,65 @@ export default function ProfilePage() {
     checkLineSession();
   }, [router]);
 
-  const loadProfile = async () => {
+  const loadProfile = async (useDebugApi = false) => {
     try {
       setLoading(true);
-      const response = await fetch('/api/customer/profile');
+      setError(''); // Clear previous errors
+      
+      const apiUrl = useDebugApi ? '/api/debug/customer-profile' : '/api/customer/profile';
+      console.log('🔄 Loading customer profile from:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // ส่ง cookies ด้วย
+      });
+      
+      console.log('📡 Profile API response status:', response.status);
+      
       if (!response.ok) {
-        throw new Error('Failed to load profile');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('❌ Profile API error:', errorData);
+        
+        if (response.status === 401) {
+          throw new Error('ไม่มีสิทธิ์เข้าถึง กรุณาเข้าสู่ระบบใหม่');
+        } else if (response.status === 500) {
+          throw new Error('เกิดข้อผิดพลาดของเซิร์ฟเวอร์ กรุณาลองใหม่อีกครั้ง');
+        } else {
+          throw new Error(errorData.error || `HTTP ${response.status}: Failed to load profile`);
+        }
       }
+      
       const data = await response.json();
-      setProfile(data);
+      console.log('✅ Profile API response:', data);
+      
+      // Handle debug API response
+      const profileData = useDebugApi ? data.profile : data;
+      
+      console.log('✅ Profile loaded successfully:', profileData.id);
+      setProfile(profileData);
       
       // Set form values
-      setFirstName(data.firstName || '');
-      setLastName(data.lastName || '');
-      setPhone(data.phone || '');
-      setRiderNote(data.riderNote || '');
-      setSelectedAddressType(data.selectedAddressType || 'HOME');
+      setFirstName(profileData.firstName || '');
+      setLastName(profileData.lastName || '');
+      setPhone(profileData.phone || '');
+      setRiderNote(profileData.riderNote || '');
+      setSelectedAddressType(profileData.selectedAddressType || 'HOME');
       
       // Load current location from profile
-      if (data.currentLatitude && data.currentLongitude) {
+      if (profileData.currentLatitude && profileData.currentLongitude) {
         setCurrentLocation({
-          lat: data.currentLatitude,
-          lng: data.currentLongitude,
-          address: data.currentAddress || `${data.currentLatitude.toFixed(6)}, ${data.currentLongitude.toFixed(6)}`
+          lat: profileData.currentLatitude,
+          lng: profileData.currentLongitude,
+          address: profileData.currentAddress || `${profileData.currentLatitude.toFixed(6)}, ${profileData.currentLongitude.toFixed(6)}`
         });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load profile');
+      console.error('❌ Load profile error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูลโปรไฟล์ได้';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -479,8 +512,91 @@ export default function ProfilePage() {
     >
       <Container maxWidth="md">
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
+          <Alert 
+            severity="error" 
+            sx={{ mb: 2 }}
+            action={
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button 
+                  color="inherit" 
+                  size="small" 
+                  onClick={() => loadProfile(false)}
+                  disabled={loading}
+                >
+                  ลองใหม่
+                </Button>
+                <Button 
+                  color="inherit" 
+                  size="small" 
+                  onClick={() => loadProfile(true)}
+                  disabled={loading}
+                >
+                  Debug
+                </Button>
+                <Button 
+                  color="inherit" 
+                  size="small" 
+                  onClick={() => setDebugMode(!debugMode)}
+                >
+                  {debugMode ? 'ซ่อน Debug' : 'แสดง Debug'}
+                </Button>
+              </Box>
+            }
+          >
             {error}
+          </Alert>
+        )}
+
+        {debugMode && (
+          <Alert 
+            severity="info" 
+            sx={{ mb: 2, '& .MuiAlert-message': { width: '100%' } }}
+          >
+            <Typography variant="h6" sx={{ mb: 1 }}>🔧 Debug Information</Typography>
+            <Typography variant="body2" component="pre" sx={{ 
+              fontFamily: 'monospace', 
+              fontSize: '0.75rem',
+              whiteSpace: 'pre-wrap',
+              overflow: 'auto',
+              maxHeight: '200px'
+            }}>
+              {JSON.stringify({
+                sessionLoading,
+                loading,
+                hasLineUser: !!lineUser,
+                hasProfile: !!profile,
+                profileId: profile?.id,
+                addressCount: profile?.addresses?.length || 0,
+                selectedAddressType,
+                currentLocation: !!currentLocation,
+                environment: process.env.NODE_ENV
+              }, null, 2)}
+            </Typography>
+            <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Button 
+                size="small" 
+                variant="outlined" 
+                onClick={() => loadProfile(false)}
+                disabled={loading}
+              >
+                ลองใช้ API ปกติ
+              </Button>
+              <Button 
+                size="small" 
+                variant="outlined" 
+                onClick={() => loadProfile(true)}
+                disabled={loading}
+              >
+                ลองใช้ Debug API
+              </Button>
+              <Button 
+                size="small" 
+                variant="outlined" 
+                onClick={() => window.location.reload()}
+              >
+                รีเฟรชหน้า
+              </Button>
+            </Box>
           </Alert>
         )}
 
@@ -510,9 +626,9 @@ export default function ProfilePage() {
               {lineUser.name || 'ผู้ใช้'}
             </Typography>
             
-            {profile?.firstName && profile?.lastName && (
+            {(profile?.firstName || profile?.lastName) && (
               <Typography variant="body1" sx={{ mt: 1, color: '#10B981' }}>
-                ชื่อจริง: {profile.firstName} {profile.lastName}
+                ชื่อจริง: {[profile.firstName, profile.lastName].filter(Boolean).join(' ')}
               </Typography>
             )}
           </CardContent>
@@ -555,8 +671,8 @@ export default function ProfilePage() {
                   primary={<Typography sx={{ color: '#065f46', fontWeight: 600 }}>ชื่อ-นามสกุล</Typography>}
                   secondary={
                     <Typography sx={{ color: '#047857' }}>
-                      {profile?.firstName && profile?.lastName
-                        ? `${profile.firstName} ${profile.lastName}`
+                      {profile?.firstName || profile?.lastName
+                        ? [profile.firstName, profile.lastName].filter(Boolean).join(' ')
                         : 'ยังไม่ได้ตั้งค่า'}
                     </Typography>
                   }

@@ -29,11 +29,12 @@ export async function POST(req: NextRequest) {
     const loginType = isRecovery ? 'Recovery' : 'Normal';
     console.log(`🔐 LINE ${loginType} Login attempt with restaurantId:`, restaurantId)
 
-    // ตรวจสอบ access token กับ LINE API
+    // ตรวจสอบ access token กับ LINE API - เพิ่ม timeout เพื่อความเร็ว
     const lineResponse = await fetch('https://api.line.me/v2/profile', {
       headers: {
         'Authorization': `Bearer ${accessToken}`
-      }
+      },
+      signal: AbortSignal.timeout(5000) // 5 วินาที timeout
     })
 
     if (!lineResponse.ok) {

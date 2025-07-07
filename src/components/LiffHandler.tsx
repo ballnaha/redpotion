@@ -93,7 +93,7 @@ function LiffHandlerContent() {
         const needsLiff = isLiffPage || 
                          searchParams.get('liff') === 'true';
 
-        // สำหรับหน้าเมนูและตะกร้า ให้ใช้ session API แทน LIFF
+        // สำหรับหน้าเมนูและตะกร้า ให้ปิด loading ทันทีเพื่อไม่ให้ซ้อนกับ loading อื่น
         const isMenuOrCart = currentPath.startsWith('/menu/') || currentPath.startsWith('/cart/');
         
         if (!needsLiff && !isMenuOrCart) {
@@ -102,8 +102,8 @@ function LiffHandlerContent() {
           return;
         }
         
-        if (isMenuOrCart && !searchParams.get('liff')) {
-          console.log('🍽️ Menu/Cart page detected, using session API instead of LIFF');
+        if (isMenuOrCart) {
+          console.log('🍽️ Menu/Cart page detected, skipping LIFF handler loading to avoid multiple loading states');
           setLoading(false);
           return;
         }

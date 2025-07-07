@@ -210,14 +210,35 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://images.unsplash.com" />
+        <link rel="preconnect" href="https://static.line-scdn.net" />
         
         {/* DNS Prefetch */}
         <link rel="dns-prefetch" href="//www.google-analytics.com" />
+        <link rel="dns-prefetch" href="//static.line-scdn.net" />
+        
+        {/* Preload LIFF SDK for faster loading */}
+        <link rel="preload" href="https://static.line-scdn.net/liff/edge/2/sdk.js" as="script" crossOrigin="anonymous" />
         
         <script 
           src="https://static.line-scdn.net/liff/edge/2/sdk.js"
           async
+          crossOrigin="anonymous"
         ></script>
+        
+        {/* Register Service Worker for caching */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                  navigator.serviceWorker.register('/sw.js')
+                    .then(registration => console.log('✅ SW registered'))
+                    .catch(error => console.log('❌ SW registration failed', error));
+                });
+              }
+            `
+          }}
+        />
         
         {/* Dynamic Structured Data will be added by DynamicStructuredData component */}
       </head>

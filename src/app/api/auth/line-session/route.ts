@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
         console.log('⚠️ JWT token expiring soon, days left:', daysUntilExpiry.toFixed(1))
       }
       
-      // ตรวจสอบว่า user ยังมีอยู่ใน database หรือไม่
+      // ตรวจสอบว่า user ยังมีอยู่ใน database หรือไม่ - optimized query
       const user = await prisma.user.findUnique({
         where: { lineUserId: decoded.lineUserId },
         select: {
