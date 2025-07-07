@@ -168,11 +168,23 @@ function LineSignInContent() {
           // แสดงภาพและชื่อผู้ใช้ก่อน redirect
           setShowProfileAnimation(true);
           
-          // ตรวจสอบว่ามาจาก LINE environment หรือไม่
-          const isFromLine = typeof window !== 'undefined' && 
-            (window.location.href.includes('liff.line.me') || 
-             window.location.href.includes('line.me') ||
-             (window as any).liff);
+          // ตรวจสอบว่ามาจาก LINE environment หรือไม่ - ปรับปรุงการตรวจสอบ
+          const isFromLine = typeof window !== 'undefined' && (
+            window.location.href.includes('liff.line.me') || 
+            window.location.href.includes('line.me') ||
+            (window as any).liff || // มี LIFF object
+            navigator.userAgent.includes('Line') || // LINE app user agent
+            data.user.lineUserId // มี LINE user ID = มาจาก LINE
+          );
+          
+          // Debug information for existing session
+          console.log('🔍 LINE environment detection (existing session):', {
+            isFromLine,
+            hasLiffObject: !!(window as any).liff,
+            userAgent: navigator.userAgent,
+            hasLineUserId: !!data.user.lineUserId,
+            url: window.location.href
+          });
           
           if (isFromLine) {
             // ถ้ามาจาก LINE ให้ไปหน้า liff
@@ -180,9 +192,11 @@ function LineSignInContent() {
             const liffUrl = restaurantId 
               ? `/liff?restaurant=${restaurantId}` 
               : '/liff';
+            console.log('🎯 LIFF URL (existing session):', liffUrl);
             window.location.href = liffUrl;
           } else {
             // Redirect ทันทีเพื่อลด loading time (web browser)
+            console.log('🌐 Already authenticated, not from LINE, using web browser redirect...');
             if (restaurantId) {
               console.log('🏪 Already authenticated, redirecting to restaurant menu:', restaurantId)
               window.location.href = `/menu/${restaurantId}?from=line-signin`
@@ -416,11 +430,25 @@ function LineSignInContent() {
           
           // หน่วงเวลาให้เห็นข้อความสำเร็จ
           setTimeout(() => {
-            // ตรวจสอบว่ามาจาก LINE environment หรือไม่
-            const isFromLine = typeof window !== 'undefined' && 
-              (window.location.href.includes('liff.line.me') || 
-               window.location.href.includes('line.me') ||
-               (window as any).liff);
+            // ตรวจสอบว่ามาจาก LINE environment หรือไม่ - ปรับปรุงการตรวจสอบ
+            const isFromLine = typeof window !== 'undefined' && (
+              window.location.href.includes('liff.line.me') || 
+              window.location.href.includes('line.me') ||
+              (window as any).liff || // มี LIFF object
+              navigator.userAgent.includes('Line') || // LINE app user agent
+              isAutoLoginInProgress || // กำลัง auto login = มาจาก LINE
+              lineProfile // มีข้อมูล LINE profile = มาจาก LINE
+            );
+            
+            // Debug information
+            console.log('🔍 LINE environment detection:', {
+              isFromLine,
+              hasLiffObject: !!(window as any).liff,
+              userAgent: navigator.userAgent,
+              isAutoLoginInProgress,
+              hasLineProfile: !!lineProfile,
+              url: window.location.href
+            });
             
             if (isFromLine) {
               // ถ้ามาจาก LINE ให้ไปหน้า liff
@@ -428,9 +456,11 @@ function LineSignInContent() {
               const liffUrl = data.shouldRedirectToRestaurant && data.restaurantId 
                 ? `/liff?restaurant=${data.restaurantId}` 
                 : '/liff';
+              console.log('🎯 LIFF URL:', liffUrl);
               window.location.href = liffUrl;
             } else {
               // ถ้ามาจาก web browser ให้ไปตาม response ปกติ
+              console.log('🌐 Not from LINE, using web browser redirect...');
               if (data.shouldRedirectToRestaurant && data.restaurantId) {
                 console.log('🏪 Redirecting to restaurant menu:', data.restaurantId)
                 window.location.href = `/menu/${data.restaurantId}?from=line-signin`
