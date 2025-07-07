@@ -91,12 +91,19 @@ function LiffHandlerContent() {
 
         // เฉพาะหน้าที่ต้องการ LIFF เท่านั้น
         const needsLiff = isLiffPage || 
-                         currentPath.startsWith('/menu/') || 
-                         currentPath.startsWith('/cart/') ||
                          searchParams.get('liff') === 'true';
 
-        if (!needsLiff) {
+        // สำหรับหน้าเมนูและตะกร้า ให้ใช้ session API แทน LIFF
+        const isMenuOrCart = currentPath.startsWith('/menu/') || currentPath.startsWith('/cart/');
+        
+        if (!needsLiff && !isMenuOrCart) {
           console.log('🚫 Page does not need LIFF');
+          setLoading(false);
+          return;
+        }
+        
+        if (isMenuOrCart && !searchParams.get('liff')) {
+          console.log('🍽️ Menu/Cart page detected, using session API instead of LIFF');
           setLoading(false);
           return;
         }

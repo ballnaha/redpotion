@@ -22,7 +22,8 @@ import {
   Stack,
   Paper,
   Skeleton,
-  CircularProgress
+  CircularProgress,
+  Button
 } from '@mui/material';
 import {
   Search,
@@ -252,6 +253,7 @@ export default function MenuPageComponent() {
   const [currentGalleryIndex, setCurrentGalleryIndex] = useState(0);
   const [galleryLoading, setGalleryLoading] = useState(true);
   const [profileUpdateMessage, setProfileUpdateMessage] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // Client-side hydration check
   useEffect(() => {
@@ -290,6 +292,9 @@ export default function MenuPageComponent() {
             console.log('🚀 Setting user from localStorage immediately for better UX');
             setLineUser(parsedUser);
             setLineSessionChecked(true);
+            
+            // ล้าง auth error เมื่อมี user ใน localStorage
+            setAuthError(null);
           }
           
           // ยังคงต้องตรวจสอบ session อีกครั้งเสมอเพื่อความปลอดภัย
@@ -406,6 +411,9 @@ export default function MenuPageComponent() {
                setLineUser(sessionResult.user);
                setLineSessionChecked(true);
                
+               // ล้าง auth error เมื่อ LIFF login สำเร็จ
+               setAuthError(null);
+               
                // แสดงข้อความอัพเดทโปรไฟล์
                if (isFromLiffAutoLogin) {
                  setProfileUpdateMessage('อัพเดทข้อมูลโปรไฟล์สำเร็จ! 📸');
@@ -508,6 +516,9 @@ export default function MenuPageComponent() {
             setLineSessionChecked(true);
             setSessionCheckComplete(true);
             
+            // ล้าง auth error เมื่อ session สำเร็จ
+            setAuthError(null);
+            
             // บันทึกข้อมูล real user ลง localStorage
             try {
               localStorage.setItem('line_user_data', JSON.stringify(sessionResult.user));
@@ -563,6 +574,9 @@ export default function MenuPageComponent() {
         setLineUser(null);
         setLineSessionChecked(false);
         localStorage.removeItem('line_user_data');
+        
+        // ตั้งค่า auth error สำหรับแสดงผล
+        setAuthError('เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์การเข้าใช้งาน');
         
         console.log('⚠️ Session check error, clearing user state');
         setSessionCheckComplete(true);
@@ -928,6 +942,80 @@ export default function MenuPageComponent() {
     
     setTouchStart(null);
   }, [touchStart, isTransitioning, handleNextImage, handlePrevImage]);
+
+  // Show authentication error first
+  if (authError) {
+    return (
+      <Box sx={{ 
+        minHeight: '100vh', 
+        background: '#ffffff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        p: 2
+      }}>
+        <Paper
+          className="liquid-glass"
+          sx={{
+            p: 4,
+            borderRadius: 2,
+            textAlign: 'center',
+            maxWidth: 500,
+            width: '100%',
+            border: '1px solid #fecaca'
+          }}
+        >
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h4" sx={{ color: '#dc2626', mb: 2 }}>
+              🔐
+            </Typography>
+            <Typography variant="h6" sx={{ color: '#dc2626', fontWeight: 600, mb: 1 }}>
+              ปัญหาการเข้าสู่ระบบ
+            </Typography>
+            <Typography variant="body1" sx={{ color: '#991b1b', mb: 2, whiteSpace: 'pre-line' }}>
+              {authError}
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>
+              กรุณาลองเข้าสู่ระบบใหม่อีกครั้ง
+            </Typography>
+          </Box>
+          
+          <Stack spacing={2} direction="row" justifyContent="center">
+            <Button
+              variant="contained"
+              onClick={() => {
+                const callbackUrl = encodeURIComponent(window.location.pathname);
+                window.location.href = `/auth/line-signin?callbackUrl=${callbackUrl}&restaurant=${restaurant?.id}`;
+              }}
+              sx={{
+                bgcolor: '#10B981',
+                color: 'white',
+                '&:hover': {
+                  bgcolor: '#059669'
+                }
+              }}
+            >
+              เข้าสู่ระบบใหม่
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => window.location.reload()}
+              sx={{
+                borderColor: '#10B981',
+                color: '#10B981',
+                '&:hover': {
+                  borderColor: '#059669',
+                  color: '#059669'
+                }
+              }}
+            >
+              รีเฟรชหน้า
+            </Button>
+          </Stack>
+        </Paper>
+      </Box>
+    );
+  }
 
   // Show error if there's an error
   if (error && error.includes('ไม่พบร้านอาหาร')) {
