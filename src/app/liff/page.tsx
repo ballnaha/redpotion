@@ -460,7 +460,7 @@ function LiffLandingContent() {
     return (
       <Box sx={{ 
         minHeight: '100vh', 
-        background: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%)',
+        background: '#ffffff',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -514,19 +514,17 @@ function LiffLandingContent() {
               variant="contained"
               onClick={() => window.location.reload()}
               sx={{
-                background: 'linear-gradient(45deg, #667eea 30%, #764ba2 90%)',
+                background: '#10B981',
                 color: 'white',
                 px: 4,
                 py: 1.5,
                 borderRadius: 3,
                 textTransform: 'none',
                 fontWeight: 'bold',
-                '&:hover': {
-                  background: 'linear-gradient(45deg, #5a6fd8 30%, #6a4190 90%)',
-                }
+                
               }}
             >
-              🔄 ลองใหม่
+              ลองใหม่
             </Button>
             
             {/* ปุ่มกลับไปหน้าหลัก สำหรับบาง error */}

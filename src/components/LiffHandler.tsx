@@ -303,38 +303,12 @@ function LiffHandlerContent() {
     );
   }
 
-  // แสดง error อื่นๆ
+  // ซ่อน error messages เพื่อป้องกันการแสดงข้อความที่ทำให้สับสน
+  // ไม่แสดง error UI เลย เพื่อให้ component อื่นๆ ทำงานได้ปกติ
   if (error && error !== 'desktop') {
-    return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: '#f5f5f5',
-          p: 2
-        }}
-      >
-        <Paper sx={{ p: 4, maxWidth: 400, textAlign: 'center' }}>
-          <Typography variant="h6" gutterBottom color="error">
-            เกิดข้อผิดพลาด
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {error === 'liff_sdk' && 'LIFF SDK ไม่พร้อมใช้งาน'}
-            {error === 'init_failed' && 'เชื่อมต่อ LINE ไม่สำเร็จ'}
-            {error === 'login_failed' && 'เข้าสู่ระบบไม่สำเร็จ'}
-          </Typography>
-          <Button
-            variant="outlined"
-            sx={{ mt: 2 }}
-            onClick={() => window.location.reload()}
-          >
-            ลองใหม่
-          </Button>
-        </Paper>
-      </Box>
-    );
+    // Silent error - ไม่แสดงอะไร แต่ log error สำหรับ debugging
+    console.log('🔇 LiffHandler error (silenced):', error);
+    return null; // ไม่แสดง error UI
   }
 
   // แสดง loading

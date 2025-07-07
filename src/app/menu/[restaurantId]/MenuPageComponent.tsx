@@ -414,10 +414,10 @@ export default function MenuPageComponent() {
                setAuthError(null);
                
                // แสดงข้อความอัพเดทโปรไฟล์
-               if (isFromLiffAutoLogin) {
-                 setProfileUpdateMessage('อัพเดทข้อมูลโปรไฟล์สำเร็จ! 📸');
-                 setTimeout(() => setProfileUpdateMessage(null), 3000);
-               }
+              //  if (isFromLiffAutoLogin) {
+              //    setProfileUpdateMessage('อัพเดทข้อมูลโปรไฟล์สำเร็จ! 📸');
+              //    setTimeout(() => setProfileUpdateMessage(null), 3000);
+              //  }
                
                // อัพเดท localStorage ด้วยข้อมูลใหม่
                try {

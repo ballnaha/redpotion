@@ -52,34 +52,23 @@ function LineSignInContent() {
   const isRequired = searchParams.get('required') === 'true'
   const errorType = searchParams.get('error')
 
-  // Load LIFF SDK
+  // Pre-load LIFF SDK แบบเงียบๆ
   useEffect(() => {
-    const loadLiffSdk = () => {
-      // ตรวจสอบว่ามี LIFF SDK หรือยัง
-      if (window.liff) {
-        console.log('✅ LIFF SDK already loaded');
-        return;
+    const preloadLiffSdk = async () => {
+      try {
+        const { ensureLiffSDKLoaded } = await import('@/lib/liffLoader');
+        const result = await ensureLiffSDKLoaded();
+        if (result.success) {
+          console.log('✅ LIFF SDK pre-loaded successfully');
+        } else {
+          console.log('⚠️ LIFF SDK pre-loading failed, will retry when needed');
+        }
+      } catch (error) {
+        console.log('⚠️ LIFF SDK pre-loading error (silent):', error);
       }
-
-      // โหลด LIFF SDK
-      const script = document.createElement('script');
-      script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
-      script.async = true;
-      script.onload = () => {
-        console.log('✅ LIFF SDK loaded successfully');
-      };
-      script.onerror = () => {
-        console.error('❌ Failed to load LIFF SDK');
-        setTimeout(() => {
-          if (!isAutoLoginInProgress && !lineUser) {
-            setError('ไม่สามารถโหลด LINE SDK ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต');
-          }
-        }, 5000);
-      };
-      document.head.appendChild(script);
     };
 
-    loadLiffSdk();
+    preloadLiffSdk();
   }, []);
 
   // ตรวจสอบ LINE session
@@ -87,66 +76,90 @@ function LineSignInContent() {
     checkLineSession()
   }, [])
 
-  // Auto login effect สำหรับ LIFF environment
+  // Auto login effect สำหรับ LIFF environment - ใช้ระบบใหม่
   useEffect(() => {
     const attemptAutoLogin = async () => {
       if (autoLoginAttempted || checkingSession) return;
       
       setIsAutoLoginInProgress(true);
+      setLoadingMessage('กำลังเตรียมการเข้าสู่ระบบ...');
       
-      // รอให้ LIFF SDK โหลดก่อน
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      if (typeof window !== 'undefined' && (window as any).liff && !lineUser) {
-        try {
-          setLoadingMessage('เตรียมการเข้าสู่ระบบ...');
-          
-          const { getValidatedLiffId } = await import('@/lib/liffUtils');
-          const { liffId, error: liffError } = getValidatedLiffId();
-          
-          if (!liffId) {
-            console.error('❌ Invalid LIFF configuration:', liffError);
-            setAutoLoginAttempted(true);
-            setIsAutoLoginInProgress(false);
-            return;
-          }
-          
-          // ลองเรียก init
-          try {
-            await (window as any).liff.init({ liffId });
-          } catch (initError) {
-            if (!(initError instanceof Error && initError.message.includes('already initialized'))) {
-              throw initError;
-            }
-          }
-          
-          if ((window as any).liff.isLoggedIn()) {
-            setLoadingMessage('พบข้อมูลการเข้าสู่ระบบ กำลังโหลด...');
-            
-            // ดึงข้อมูลโปรไฟล์จาก LIFF
-            try {
-              const profile = await (window as any).liff.getProfile();
-              console.log('✅ LINE Profile:', profile);
-              setLineProfile(profile);
-              setShowProfileAnimation(true);
-              setLoadingMessage('กำลังเข้าสู่ระบบ...');
-            } catch (profileError) {
-              console.warn('⚠️ ไม่สามารถดึงโปรไฟล์ได้:', profileError);
-            }
-            
-            setAutoLoginAttempted(true);
-            await handleLineSignIn();
-          } else {
-            setLoadingMessage('เตรียมหน้าเข้าสู่ระบบ...');
-            setAutoLoginAttempted(true);
-            setIsAutoLoginInProgress(false);
-          }
-        } catch (error) {
-          console.log('⚠️ Auto login failed:', error);
+      try {
+        const { smartInitializeLiff, gracefulLiffOperation } = await import('@/lib/liffLoader');
+        const { getValidatedLiffId } = await import('@/lib/liffUtils');
+        
+        const { liffId, error: liffError } = getValidatedLiffId();
+        if (!liffId) {
+          console.log('⚠️ No valid LIFF ID, skipping auto login');
           setAutoLoginAttempted(true);
           setIsAutoLoginInProgress(false);
+          return;
         }
-      } else {
+
+        setLoadingMessage('กำลังเชื่อมต่อ LINE...');
+        
+        // ลอง initialize LIFF แบบ graceful
+        const initResult = await smartInitializeLiff(liffId);
+        if (!initResult.success) {
+          console.log('⚠️ LIFF initialization failed, will try manual login');
+          setAutoLoginAttempted(true);
+          setIsAutoLoginInProgress(false);
+          return;
+        }
+
+        setLoadingMessage('ตรวจสอบสถานะการเข้าสู่ระบบ...');
+        
+        // ตรวจสอบ login status แบบ graceful
+        const isLoggedIn = await gracefulLiffOperation(
+          async () => window.liff.isLoggedIn(),
+          () => false,
+          { operationName: 'Check login status' }
+        );
+
+        if (!isLoggedIn) {
+          console.log('🔐 Not logged in to LINE, will show manual login');
+          setAutoLoginAttempted(true);
+          setIsAutoLoginInProgress(false);
+          return;
+        }
+
+        setLoadingMessage('กำลังดึงข้อมูลโปรไฟล์...');
+        
+        // ดึงข้อมูล access token และ profile
+        const accessToken = await gracefulLiffOperation(
+          async () => window.liff.getAccessToken(),
+          () => null,
+          { operationName: 'Get access token' }
+        );
+        
+        if (!accessToken) {
+          console.log('⚠️ No access token available');
+          setAutoLoginAttempted(true);
+          setIsAutoLoginInProgress(false);
+          return;
+        }
+
+        setLoadingMessage('พบข้อมูลการเข้าสู่ระบบ กำลังโหลด...');
+        
+        // ดึงข้อมูลโปรไฟล์จาก LIFF แบบ graceful
+        const profile = await gracefulLiffOperation(
+          async () => window.liff.getProfile(),
+          () => null,
+          { operationName: 'Get profile' }
+        );
+        
+        if (profile) {
+          console.log('✅ LINE Profile:', profile);
+          setLineProfile(profile);
+          setShowProfileAnimation(true);
+        }
+        
+        setLoadingMessage('กำลังเข้าสู่ระบบ...');
+        setAutoLoginAttempted(true);
+        await handleLineSignIn();
+        
+      } catch (error) {
+        console.log('⚠️ Auto login failed (silent):', error);
         setAutoLoginAttempted(true);
         setIsAutoLoginInProgress(false);
       }
@@ -229,35 +242,14 @@ function LineSignInContent() {
     try {
       console.log('📱 Starting LINE login via LIFF...')
       
-      // ฟังก์ชันรอให้ LIFF SDK โหลดเสร็จ - ปรับปรุงให้เสถียรขึ้น
-      const waitForLiff = () => {
-        return new Promise<void>((resolve, reject) => {
-          if (typeof window !== 'undefined' && window.liff) {
-            console.log('✅ LIFF SDK already available')
-            resolve();
-            return;
-          }
-
-          let attempts = 0;
-          const maxAttempts = 50; // ลดเป็น 5 วินาที สำหรับ UX ที่ดีขึ้น
-          const checkInterval = setInterval(() => {
-            attempts++;
-            
-            if (typeof window !== 'undefined' && window.liff) {
-              console.log('✅ LIFF SDK loaded successfully')
-              clearInterval(checkInterval);
-              resolve();
-            } else if (attempts >= maxAttempts) {
-              console.log('⚠️ LIFF SDK timeout, but continuing with fallback...')
-              clearInterval(checkInterval);
-              // ไม่ reject แต่ให้ resolve เพื่อให้ระบบลองต่อ
-              resolve();
-            }
-          }, 100);
-        });
-      };
-
-      await waitForLiff();
+      // ใช้ระบบ LIFF loading ใหม่ที่เสถียรกว่า
+      const { ensureLiffSDKLoaded, smartInitializeLiff, gracefulLiffOperation } = await import('@/lib/liffLoader');
+      const loadResult = await ensureLiffSDKLoaded(3); // ลอง 3 ครั้ง
+      
+      if (!loadResult.success) {
+        console.log('⚠️ LIFF SDK loading failed, trying fallback method');
+        throw new Error('ไม่สามารถโหลด LINE SDK ได้ กรุณาลองใหม่อีกครั้ง');
+      }
       
       // ตรวจสอบว่าอยู่ใน LIFF environment หรือไม่
       if (typeof window !== 'undefined' && window.liff) {

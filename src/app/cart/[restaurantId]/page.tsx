@@ -39,7 +39,11 @@ import {
   Payment,
   LocalShipping,
   Close,
-  ArrowBack
+  ArrowBack,
+  QrCode,
+  AccountBalance,
+  ContentCopy,
+  CheckCircle
 } from '@mui/icons-material';
 
 interface CartItem {
@@ -128,6 +132,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
   // Drawer states
   const [addressDrawerOpen, setAddressDrawerOpen] = useState(false);
   const [paymentDrawerOpen, setPaymentDrawerOpen] = useState(false);
+  const [qrCodeDrawerOpen, setQrCodeDrawerOpen] = useState(false);
   
   // Selected values
   const [selectedAddress, setSelectedAddress] = useState({
@@ -138,10 +143,10 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
   });
   
   const [selectedPayment, setSelectedPayment] = useState({
-    id: 'credit',
-    label: 'บัตรเครดิต',
-    details: '**** **** **** 1234',
-    icon: '💳'
+    id: 'cash',
+    label: 'เงินสด',
+    details: 'ชำระเงินปลายทาง',
+    icon: '💵'
   });
   
   const resolvedParams = use(params);
@@ -442,6 +447,12 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
       icon: '💰'
     },
     {
+      id: 'transfer',
+      label: 'โอนเงินผ่านธนาคาร',
+      details: 'แสกน QR Code เพื่อโอนเงิน',
+      icon: '🏦'
+    },
+    {
       id: 'cash',
       label: 'เงินสด',
       details: 'ชำระเงินปลายทาง',
@@ -457,6 +468,163 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
   const handlePaymentSelect = (payment: typeof selectedPayment) => {
     setSelectedPayment(payment);
     setPaymentDrawerOpen(false);
+    
+    // ถ้าเลือกโอนเงิน ให้เปิด QR Code drawer
+    if (payment.id === 'transfer') {
+      setTimeout(() => {
+        setQrCodeDrawerOpen(true);
+      }, 300);
+    }
+  };
+
+  // สร้าง QR Code สำหรับการโอนเงิน (PromptPay)
+  const generateQRCode = () => {
+    const totalAmount = finalTotal;
+    const restaurantName = restaurant?.name || 'ร้านอาหาร';
+    const orderId = `ORD${Date.now()}`;
+    
+    // PromptPay ID สำหรับร้านอาหาร (รองรับทั้งเบอร์โทรและบัตรประชาชน)
+    const promptPayPhone = '0862061354'; // เบอร์โทรศัพท์ร้าน
+    const promptPayCitizenId = '1739990025373'; // เลขบัตรประชาชน 13 หลัก (ตัวอย่าง)
+    
+    // เลือกใช้ เบอร์โทร หรือ บัตรประชาชน (สามารถปรับเปลี่ยนได้)
+    // ตอนนี้ใช้เบอร์โทร แต่สามารถเปลี่ยนเป็น false เพื่อใช้บัตรประชาชนได้
+    const usePhoneNumber = true; // true = ใช้เบอร์โทร, false = ใช้บัตรประชาชน
+    const promptPayId = usePhoneNumber ? promptPayPhone : promptPayCitizenId;
+    const promptPayType = usePhoneNumber ? 'phone' : 'citizen_id';
+    
+        // สร้าง PromptPay QR Code ตามมาตรฐาน EMV
+    const generatePromptPayQR = (identifier: string, identifierType: string, amount: number) => {
+      let merchantInfo = '';
+      
+      if (identifierType === 'phone') {
+        // PromptPay Thailand Professional Format
+        let formattedPhone = identifier.replace(/\D/g, ''); // เอาเฉพาะตัวเลข
+        
+        // ตรวจสอบและแปลงเบอร์โทรไทย
+        if (formattedPhone.startsWith('66') && formattedPhone.length === 11) {
+          // แปลงจาก 66xxxxxxxxx เป็น 0xxxxxxxxx
+          formattedPhone = '0' + formattedPhone.slice(2);
+        } else if (formattedPhone.startsWith('0') && formattedPhone.length === 10) {
+          // เบอร์โทรรูปแบบ 0xxxxxxxxx อยู่แล้ว
+          // ไม่ต้องทำอะไร
+        } else if (formattedPhone.length === 9) {
+          // เบอร์โทรแบบ xxxxxxxxx (9 หลัก) → 0xxxxxxxxx
+          formattedPhone = '0' + formattedPhone;
+        } else {
+          throw new Error(`รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง: ${identifier}`);
+        }
+        
+        if (formattedPhone.length !== 10 || !formattedPhone.startsWith('0')) {
+          throw new Error(`เบอร์โทรศัพท์ไม่ถูกต้อง: ${formattedPhone}`);
+        }
+        
+        // PromptPay Thailand Official Format
+        // ใช้ Phone Number แบบ Thailand Standard (0xxxxxxxxx → 66xxxxxxxxx)
+        const thaiPhone = '66' + formattedPhone.slice(1); // 0862061354 → 66862061354
+        
+        // Standard PromptPay EMV Format for Thailand
+        const aid = '0016A000000677010111'; // Official PromptPay AID
+        
+        // Phone Number Field (Tag 01)
+        const phoneTag = '01';
+        const phoneLength = thaiPhone.length.toString().padStart(2, '0');
+        const phoneField = phoneTag + phoneLength + thaiPhone;
+        
+        // Merchant Account Information (Tag 29)
+        const merchantTag = '29';
+        const merchantDataLength = (aid + phoneField).length.toString().padStart(2, '0');
+        merchantInfo = merchantTag + merchantDataLength + aid + phoneField;
+        
+        console.log('📱 PromptPay Thailand Professional:', {
+          input: identifier,
+          formatted: formattedPhone,
+          international: thaiPhone,
+          phoneField: phoneField,
+          merchantInfo: merchantInfo,
+          qrShouldShow: thaiPhone
+        });
+        
+      } else if (identifierType === 'citizen_id') {
+        // Format เลขบัตรประชาชน 13 หลัก
+        const citizenId = identifier.replace(/\D/g, ''); // เอาเฉพาะตัวเลข
+        if (citizenId.length !== 13) {
+          throw new Error('เลขบัตรประชาชนต้องเป็น 13 หลัก');
+        }
+        
+        const aid = '0016A000000677010111'; // AID for PromptPay
+        const citizenIdData = `02${citizenId.length.toString().padStart(2, '0')}${citizenId}`;
+        merchantInfo = `29${(aid + citizenIdData).length.toString().padStart(2, '0')}${aid}${citizenIdData}`;
+      }
+      
+      // EMV QR Code Format สำหรับ PromptPay
+      const payloadFormatIndicator = '000201'; // Payload Format Indicator
+      const pointOfInitiation = '010212'; // Point of Initiation Method (12 = QR reusable)
+      
+      const merchantCategoryCode = '52044111'; // MCC for restaurants
+      const transactionCurrency = '5303764'; // THB (764)
+      const transactionAmount = amount > 0 ? `54${amount.toFixed(2).length.toString().padStart(2, '0')}${amount.toFixed(2)}` : '';
+      const countryCode = '5802TH'; // Thailand
+      
+      // Merchant Name (Optional)
+      const merchantNameField = restaurantName ? `59${restaurantName.length.toString().padStart(2, '0')}${restaurantName}` : '';
+      
+      // Additional Data (Order ID)
+      const additionalData = `62${(orderId.length + 4).toString().padStart(2, '0')}05${orderId.length.toString().padStart(2, '0')}${orderId}`;
+      
+      // Combine all fields
+      const qrString = payloadFormatIndicator + pointOfInitiation + merchantInfo + 
+                      merchantCategoryCode + transactionCurrency + transactionAmount + 
+                      countryCode + merchantNameField + additionalData;
+      
+      // Calculate CRC16 checksum
+      const crc16 = calculateCRC16(qrString + '6304');
+      
+      return qrString + '63' + '04' + crc16;
+    };
+    
+    // ฟังก์ชันคำนวณ CRC16 สำหรับ PromptPay
+    const calculateCRC16 = (data: string): string => {
+      let crc = 0xFFFF;
+      for (let i = 0; i < data.length; i++) {
+        crc ^= data.charCodeAt(i) << 8;
+        for (let j = 0; j < 8; j++) {
+          if (crc & 0x8000) {
+            crc = (crc << 1) ^ 0x1021;
+          } else {
+            crc = crc << 1;
+          }
+        }
+      }
+      crc = crc & 0xFFFF;
+      return crc.toString(16).toUpperCase().padStart(4, '0');
+    };
+    
+    let promptPayQR;
+    try {
+      promptPayQR = generatePromptPayQR(promptPayId, promptPayType, totalAmount);
+      console.log('✅ PromptPay QR Generated:', promptPayQR);
+    } catch (error) {
+      console.error('❌ PromptPay QR Error:', error);
+      promptPayQR = 'ERROR_GENERATING_QR';
+    }
+    
+    const bankData = {
+      bankName: 'PromptPay',
+      accountName: restaurantName,
+      accountNumber: promptPayId,
+      promptPayId: promptPayId,
+      promptPayPhone: promptPayPhone,
+      promptPayCitizenId: promptPayCitizenId,
+      promptPayType: promptPayType,
+      usePhoneNumber: usePhoneNumber,
+      amount: totalAmount,
+      orderId: orderId,
+      qrData: promptPayQR,
+      isPromptPay: true
+    };
+    
+    return bankData;
   };
 
   return (
@@ -900,86 +1068,8 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                 </Box>
               </NoSSR>
 
-              {/* Payment Methods */}
+              {/* Promo Code Section */}
               <Box sx={{ px: 3, py: 2 }}>
-                <Box 
-                  sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between', 
-                    mb: 2,
-                    cursor: 'pointer',
-                    '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.02)' },
-                    borderRadius: '12px',
-                    p: 1,
-                    mx: -1
-                  }}
-                  onClick={() => setPaymentDrawerOpen(true)}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Box 
-                      sx={{ 
-                        width: 48,
-                        height: 48,
-                        borderRadius: '16px',
-                        background: selectedPayment.id === 'credit' ? 
-                          'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)' :
-                          selectedPayment.id === 'wallet' ?
-                          'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)' :
-                          'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: selectedPayment.id === 'credit' ? 
-                          '0 4px 12px rgba(59, 130, 246, 0.25)' :
-                          selectedPayment.id === 'wallet' ?
-                          '0 4px 12px rgba(139, 92, 246, 0.25)' :
-                          '0 4px 12px rgba(16, 185, 129, 0.25)',
-                        position: 'relative',
-                        '&::before': {
-                          content: '""',
-                          position: 'absolute',
-                          inset: 2,
-                          borderRadius: '14px',
-                          background: 'rgba(255, 255, 255, 0.15)',
-                          backdropFilter: 'blur(10px)'
-                        }
-                      }}
-                    >
-                      {selectedPayment.id === 'credit' ? 
-                        <CreditCard sx={{ 
-                          color: selectedPayment.id === 'credit' ? 'white' : '#3B82F6', 
-                          fontSize: 22, 
-                          zIndex: 1, 
-                          filter: selectedPayment.id === 'credit' ? 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' : 'none' 
-                        }} /> :
-                        selectedPayment.id === 'wallet' ?
-                        <AccountBalanceWallet sx={{ 
-                          color: selectedPayment.id === 'wallet' ? 'white' : '#8B5CF6', 
-                          fontSize: 22, 
-                          zIndex: 1, 
-                          filter: selectedPayment.id === 'wallet' ? 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' : 'none' 
-                        }} /> :
-                        <Payment sx={{ 
-                          color: selectedPayment.id === 'wallet' ? 'white' : '#10B981', 
-                          fontSize: 22, 
-                          zIndex: 1, 
-                          filter: selectedPayment.id === 'wallet' ? 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' : 'none' 
-                        }} />}
-                    </Box>
-                    <Box>
-                      <Typography sx={{ fontWeight: 500, color: '#374151', fontSize: '0.85rem' }}>
-                        {selectedPayment.label}
-                      </Typography>
-                      <Typography sx={{ color: '#6B7280', fontSize: '0.75rem' }}>
-                        {selectedPayment.details}
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <ArrowBack sx={{ transform: 'rotate(180deg)', fontSize: 18, color: '#9CA3AF' }} />
-                </Box>
-                
-                {/* Promo Code Section */}
                 <Box sx={{ mb: 3 }}>
                   {!promoApplied ? (
                     <Box sx={{ display: 'flex', gap: 1 }}>
@@ -1042,6 +1132,95 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                     </Box>
                   )}
                 </Box>
+                
+                {/* Payment Methods */}
+                <Box 
+                  sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between', 
+                    mb: 2,
+                    cursor: 'pointer',
+                    '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.02)' },
+                    borderRadius: '12px',
+                    p: 1,
+                    mx: -1
+                  }}
+                  onClick={() => setPaymentDrawerOpen(true)}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box 
+                      sx={{ 
+                        width: 48,
+                        height: 48,
+                        borderRadius: '16px',
+                        background: selectedPayment.id === 'credit' ? 
+                          'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)' :
+                          selectedPayment.id === 'wallet' ?
+                          'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)' :
+                          selectedPayment.id === 'transfer' ?
+                          'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' :
+                          'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: selectedPayment.id === 'credit' ? 
+                          '0 4px 12px rgba(59, 130, 246, 0.25)' :
+                          selectedPayment.id === 'wallet' ?
+                          '0 4px 12px rgba(139, 92, 246, 0.25)' :
+                          selectedPayment.id === 'transfer' ?
+                          '0 4px 12px rgba(245, 158, 11, 0.25)' :
+                          '0 4px 12px rgba(16, 185, 129, 0.25)',
+                        position: 'relative',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          inset: 2,
+                          borderRadius: '14px',
+                          background: 'rgba(255, 255, 255, 0.15)',
+                          backdropFilter: 'blur(10px)'
+                        }
+                      }}
+                    >
+                      {selectedPayment.id === 'credit' ? 
+                        <CreditCard sx={{ 
+                          color: 'white', 
+                          fontSize: 22, 
+                          zIndex: 1, 
+                          filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' 
+                        }} /> :
+                        selectedPayment.id === 'wallet' ?
+                        <AccountBalanceWallet sx={{ 
+                          color: 'white', 
+                          fontSize: 22, 
+                          zIndex: 1, 
+                          filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' 
+                        }} /> :
+                        selectedPayment.id === 'transfer' ?
+                        <AccountBalance sx={{ 
+                          color: 'white', 
+                          fontSize: 22, 
+                          zIndex: 1, 
+                          filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' 
+                        }} /> :
+                        <Payment sx={{ 
+                          color: 'white', 
+                          fontSize: 22, 
+                          zIndex: 1, 
+                          filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' 
+                        }} />}
+                    </Box>
+                    <Box>
+                      <Typography sx={{ fontWeight: 500, color: '#374151', fontSize: '0.85rem' }}>
+                        {selectedPayment.label}
+                      </Typography>
+                      <Typography sx={{ color: '#6B7280', fontSize: '0.75rem' }}>
+                        {selectedPayment.details}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <ArrowBack sx={{ transform: 'rotate(180deg)', fontSize: 18, color: '#9CA3AF' }} />
+                </Box>
 
                 {/* Order Summary */}
                 <Box sx={{ borderTop: '1px solid rgba(0, 0, 0, 0.05)', pt: 2 }}>
@@ -1071,38 +1250,12 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                       </Typography>
                     </Box>
                   )}
-                  <Divider sx={{ mb: 2, opacity: 0.3 }} />
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-                    <Typography sx={{ fontWeight: 500, color: '#111827', fontSize: '1rem' }}>
-                      รวมทั้งสิ้น
-                    </Typography>
-                    <Typography sx={{ fontWeight: 700, color: '#111827', fontSize: '1rem' }}>
-                      ฿{mounted ? finalTotal.toFixed(0) : '0'}
-                    </Typography>
-                  </Box>
+
                 </Box>
               </Box>
             </Box>
 
-            {/* Place Order Button */}
-            <Button
-              variant="contained"
-              fullWidth
-              sx={{
-                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                borderRadius: '20px',
-                py: 2,
-                fontSize: '1rem',
-                fontWeight: 700,
-                boxShadow: '0 8px 24px rgba(34, 197, 94, 0.4)',
-                '&:hover': { 
-                  boxShadow: '0 12px 32px rgba(34, 197, 94, 0.5)',
-                  transform: 'translateY(-2px)'
-                }
-              }}
-            >
-              สั่งซื้อ • ฿{mounted ? finalTotal.toFixed(0) : '0'}
-            </Button>
+
           </Box>
         )}
       </Box>
@@ -1305,19 +1458,23 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                     width: 48,
                     height: 48,
                     borderRadius: '16px',
-                    background: payment.id === 'credit' ? 
-                      (selectedPayment.id === payment.id ? 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)' : 'linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%)') :
-                      payment.id === 'wallet' ?
-                      (selectedPayment.id === payment.id ? 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)' : 'linear-gradient(135deg, #EDE9FE 0%, #DDD6FE 100%)') :
-                      (selectedPayment.id === payment.id ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)' : 'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)'),
+                                          background: payment.id === 'credit' ?
+                        (selectedPayment.id === payment.id ? 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)' : 'linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%)') :
+                        payment.id === 'wallet' ?
+                        (selectedPayment.id === payment.id ? 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)' : 'linear-gradient(135deg, #EDE9FE 0%, #DDD6FE 100%)') :
+                        payment.id === 'transfer' ?
+                        (selectedPayment.id === payment.id ? 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' : 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)') :
+                        (selectedPayment.id === payment.id ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)' : 'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)'),
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: selectedPayment.id === payment.id ? 
-                      (payment.id === 'credit' ? 
+                                          boxShadow: selectedPayment.id === payment.id ?
+                      (payment.id === 'credit' ?
                         '0 4px 12px rgba(59, 130, 246, 0.25)' :
                         payment.id === 'wallet' ?
                         '0 4px 12px rgba(139, 92, 246, 0.25)' :
+                        payment.id === 'transfer' ?
+                        '0 4px 12px rgba(245, 158, 11, 0.25)' :
                         '0 4px 12px rgba(16, 185, 129, 0.25)') :
                       '0 2px 8px rgba(0, 0, 0, 0.05)',
                     position: 'relative',
@@ -1342,6 +1499,13 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                     payment.id === 'wallet' ?
                     <AccountBalanceWallet sx={{ 
                       color: selectedPayment.id === payment.id ? 'white' : '#8B5CF6', 
+                      fontSize: 22, 
+                      zIndex: 1, 
+                      filter: selectedPayment.id === payment.id ? 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' : 'none' 
+                    }} /> :
+                    payment.id === 'transfer' ?
+                    <AccountBalance sx={{ 
+                      color: selectedPayment.id === payment.id ? 'white' : '#F59E0B', 
                       fontSize: 22, 
                       zIndex: 1, 
                       filter: selectedPayment.id === payment.id ? 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' : 'none' 
@@ -1371,6 +1535,8 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                         'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)' :
                         payment.id === 'wallet' ?
                         'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)' :
+                        payment.id === 'transfer' ?
+                        'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' :
                         'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                       display: 'flex',
                       alignItems: 'center',
@@ -1379,6 +1545,8 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                         '0 2px 6px rgba(59, 130, 246, 0.3)' :
                         payment.id === 'wallet' ?
                         '0 2px 6px rgba(139, 92, 246, 0.3)' :
+                        payment.id === 'transfer' ?
+                        '0 2px 6px rgba(245, 158, 11, 0.3)' :
                         '0 2px 6px rgba(16, 185, 129, 0.3)',
                       animation: 'checkPulse 0.3s ease-out'
                     }}
@@ -1418,7 +1586,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                 // Handle order placement
                 console.log('🛒 Placing order...', {
                   items: cartItems,
-                  total: getTotal(),
+                  total: finalTotal,
                   address: selectedAddress,
                   payment: selectedPayment
                 });
@@ -1473,7 +1641,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Typography sx={{ fontSize: '1.2rem', fontWeight: 700 }}>
-                    ฿{getTotal().toLocaleString()}
+                    ฿{finalTotal.toLocaleString()}
                   </Typography>
                   <Box
                     sx={{
@@ -1506,6 +1674,292 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
           </Box>
         </Box>
       )}
+
+      {/* QR Code Payment Drawer */}
+      <Drawer
+        anchor="bottom"
+        open={qrCodeDrawerOpen}
+        onClose={() => setQrCodeDrawerOpen(false)}
+        sx={{
+          '& .MuiDrawer-paper': {
+            borderTopLeftRadius: '24px',
+            borderTopRightRadius: '24px',
+            background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
+            boxShadow: '0 -20px 40px rgba(0, 0, 0, 0.15)',
+            backdropFilter: 'blur(20px)',
+            maxHeight: '85vh',
+            overflowY: 'auto',
+          }
+        }}
+      >
+        <Box sx={{ p: 3, maxWidth: '500px', mx: 'auto' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: '#111827' }}>
+              💳 PromptPay QR Code
+            </Typography>
+            <IconButton 
+              onClick={() => setQrCodeDrawerOpen(false)}
+              sx={{ 
+                backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.1)' }
+              }}
+            >
+              <Close sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Box>
+
+          {(() => {
+            const bankData = generateQRCode();
+            return (
+              <Box>
+                {/* QR Code Display */}
+                <Box 
+                  sx={{ 
+                    textAlign: 'center', 
+                    mb: 3,
+                    p: 3,
+                    background: 'rgba(255, 255, 255, 0.9)',
+                    borderRadius: '20px',
+                    border: '1px solid rgba(245, 158, 11, 0.1)',
+                    boxShadow: '0 4px 16px rgba(245, 158, 11, 0.1)'
+                  }}
+                >
+                  <Box 
+                    sx={{ 
+                      width: 200,
+                      height: 200,
+                      background: 'url(https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(bankData.qrData) + ')',
+                      backgroundSize: 'contain',
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'center',
+                      mx: 'auto',
+                      mb: 2,
+                      borderRadius: '16px',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                    }}
+                  />
+                  <Typography variant="h6" sx={{ color: '#F59E0B', fontWeight: 600, mb: 1 }}>
+                    ฿{bankData.amount.toLocaleString()}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#6B7280', fontSize: '0.85rem' }}>
+                    แสกน QR Code ด้วยแอปธนาคารหรือ Mobile Banking
+                  </Typography>
+                </Box>
+
+                {/* Bank Information */}
+                <Box 
+                  sx={{ 
+                    background: 'rgba(255, 255, 255, 0.7)',
+                    borderRadius: '16px',
+                    p: 2.5,
+                    mb: 3,
+                    border: '1px solid rgba(0, 0, 0, 0.05)'
+                  }}
+                >
+                  <Typography variant="subtitle2" sx={{ color: '#374151', fontWeight: 600, mb: 2 }}>
+                    ข้อมูล PromptPay
+                  </Typography>
+                  
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
+                    <Typography sx={{ color: '#6B7280', fontSize: '0.85rem' }}>
+                      ระบบ
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography sx={{ fontWeight: 500, color: '#111827', fontSize: '0.85rem' }}>
+                        {bankData.bankName}
+                      </Typography>
+                      <Box sx={{ 
+                        background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                        color: 'white',
+                        px: 1,
+                        py: 0.2,
+                        borderRadius: '6px',
+                        fontSize: '0.6rem',
+                        fontWeight: 500
+                      }}>
+                        ใช้งานได้จริง
+                      </Box>
+                    </Box>
+                  </Box>
+                  
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
+                    <Typography sx={{ color: '#6B7280', fontSize: '0.85rem' }}>
+                      ชื่อร้าน
+                    </Typography>
+                    <Typography sx={{ fontWeight: 500, color: '#111827', fontSize: '0.85rem' }}>
+                      {bankData.accountName}
+                    </Typography>
+                  </Box>
+                  
+                  {bankData.usePhoneNumber ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
+                      <Typography sx={{ color: '#6B7280', fontSize: '0.85rem' }}>
+                        เบอร์โทร PromptPay
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography sx={{ fontWeight: 500, color: '#111827', fontSize: '0.85rem' }}>
+                          {bankData.promptPayPhone}
+                        </Typography>
+                        <IconButton 
+                          size="small"
+                          onClick={() => {
+                            navigator.clipboard.writeText(bankData.promptPayPhone);
+                            // Show feedback
+                          }}
+                          sx={{ p: 0.5 }}
+                        >
+                          <ContentCopy sx={{ fontSize: 14, color: '#6B7280' }} />
+                        </IconButton>
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
+                      <Typography sx={{ color: '#6B7280', fontSize: '0.85rem' }}>
+                        เลขบัตรประชาชน
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography sx={{ fontWeight: 500, color: '#111827', fontSize: '0.85rem' }}>
+                          {bankData.promptPayCitizenId.replace(/(\d{1})(\d{4})(\d{5})(\d{2})(\d{1})/, '$1-$2-$3-$4-$5')}
+                        </Typography>
+                        <IconButton 
+                          size="small"
+                          onClick={() => {
+                            navigator.clipboard.writeText(bankData.promptPayCitizenId);
+                            // Show feedback
+                          }}
+                          sx={{ p: 0.5 }}
+                        >
+                          <ContentCopy sx={{ fontSize: 14, color: '#6B7280' }} />
+                        </IconButton>
+                      </Box>
+                    </Box>
+                  )}
+                  
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
+                    <Typography sx={{ color: '#6B7280', fontSize: '0.85rem' }}>
+                      จำนวนเงิน
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography sx={{ fontWeight: 600, color: '#F59E0B', fontSize: '0.9rem' }}>
+                        ฿{bankData.amount.toLocaleString()}
+                      </Typography>
+                      <IconButton 
+                        size="small"
+                        onClick={() => {
+                          navigator.clipboard.writeText(bankData.amount.toString());
+                          // Show feedback
+                        }}
+                        sx={{ p: 0.5 }}
+                      >
+                        <ContentCopy sx={{ fontSize: 14, color: '#6B7280' }} />
+                      </IconButton>
+                    </Box>
+                  </Box>
+                  
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography sx={{ color: '#6B7280', fontSize: '0.85rem' }}>
+                      รหัสคำสั่งซื้อ
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography sx={{ fontWeight: 500, color: '#111827', fontSize: '0.85rem' }}>
+                        {bankData.orderId}
+                      </Typography>
+                      <IconButton 
+                        size="small"
+                        onClick={() => {
+                          navigator.clipboard.writeText(bankData.orderId);
+                          // Show feedback
+                        }}
+                        sx={{ p: 0.5 }}
+                      >
+                        <ContentCopy sx={{ fontSize: 14, color: '#6B7280' }} />
+                      </IconButton>
+                    </Box>
+                  </Box>
+                </Box>
+
+                {/* Instructions */}
+                <Alert 
+                  severity="info" 
+                  sx={{ 
+                    mb: 2,
+                    borderRadius: '12px',
+                    backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                    border: '1px solid rgba(59, 130, 246, 0.1)',
+                    '& .MuiAlert-icon': { color: '#3B82F6' }
+                  }}
+                >
+                  <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
+                    💡 <strong>วิธีการโอน:</strong> แสกน QR Code ด้วยแอป Mobile Banking หรือโอนผ่าน PromptPay ด้วยเบอร์โทร จากนั้นส่งสลิปยืนยันการโอนเงิน
+                  </Typography>
+                </Alert>
+
+                {/* Supported Apps */}
+                <Alert 
+                  severity="success" 
+                  sx={{ 
+                    mb: 3,
+                    borderRadius: '12px',
+                    backgroundColor: 'rgba(34, 197, 94, 0.05)',
+                    border: '1px solid rgba(34, 197, 94, 0.1)',
+                    '& .MuiAlert-icon': { color: '#10B981' }
+                  }}
+                >
+                  <Typography variant="body2" sx={{ fontSize: '0.8rem', mb: 1 }}>
+                    📱 <strong>แอปที่รองรับ:</strong>
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontSize: '0.75rem', color: '#059669' }}>
+                    • ธนาคารกสิกรไทย (K PLUS) • ธนาคารกรุงเทพ (Bualuang) • ธนาคารไทยพาณิชย์ (SCB EASY)<br/>
+                    • ธนาคารกรุงไทย (Krungthai NEXT) • ธนาคารกรุงศรี (KMA) • True Money Wallet • ทุกแอป Mobile Banking
+                  </Typography>
+                </Alert>
+
+                {/* Action Buttons */}
+                <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    onClick={() => setQrCodeDrawerOpen(false)}
+                    sx={{
+                      borderRadius: '12px',
+                      py: 1.5,
+                      borderColor: '#E5E7EB',
+                      color: '#6B7280',
+                      '&:hover': {
+                        borderColor: '#D1D5DB',
+                        backgroundColor: 'rgba(0, 0, 0, 0.02)'
+                      }
+                    }}
+                  >
+                    ปิด
+                  </Button>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={() => {
+                      // Handle transfer confirmation
+                      setQrCodeDrawerOpen(false);
+                      alert('จะดำเนินการตรวจสอบการโอนเงิน (Demo)');
+                    }}
+                    sx={{
+                      background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                      borderRadius: '12px',
+                      py: 1.5,
+                      boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #D97706 0%, #B45309 100%)',
+                        boxShadow: '0 6px 16px rgba(245, 158, 11, 0.4)'
+                      }
+                    }}
+                  >
+                    โอนเงินแล้ว
+                  </Button>
+                </Box>
+              </Box>
+            );
+          })()}
+        </Box>
+      </Drawer>
 
       <style jsx global>{`
         @keyframes pulse {
