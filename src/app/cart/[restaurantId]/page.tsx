@@ -498,7 +498,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
       let merchantInfo = '';
       
       if (identifierType === 'phone') {
-        // PromptPay Thailand Professional Format
+        // PromptPay Thailand Real Format - ใช้ National ID encoding สำหรับเบอร์โทร
         let formattedPhone = identifier.replace(/\D/g, ''); // เอาเฉพาะตัวเลข
         
         // ตรวจสอบและแปลงเบอร์โทรไทย
@@ -519,30 +519,26 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
           throw new Error(`เบอร์โทรศัพท์ไม่ถูกต้อง: ${formattedPhone}`);
         }
         
-        // PromptPay Thailand Official Format
-        // ใช้ Phone Number แบบ Thailand Standard (0xxxxxxxxx → 66xxxxxxxxx)
-        const thaiPhone = '66' + formattedPhone.slice(1); // 0862061354 → 66862061354
-        
-        // Standard PromptPay EMV Format for Thailand
+        // PromptPay Thailand Real Format - ใช้ Tag 03 (Tax ID/National ID) สำหรับเบอร์โทร
+        // เพื่อให้แสดงเบอร์โทรครบทุกหลัก
         const aid = '0016A000000677010111'; // Official PromptPay AID
         
-        // Phone Number Field (Tag 01)
-        const phoneTag = '01';
-        const phoneLength = thaiPhone.length.toString().padStart(2, '0');
-        const phoneField = phoneTag + phoneLength + thaiPhone;
+        // ใช้ Tax ID Tag (03) แทน Mobile Tag (01) เพื่อให้แสดงครบ
+        const idTag = '03';
+        const idLength = formattedPhone.length.toString().padStart(2, '0'); // 10 หลัก
+        const idField = idTag + idLength + formattedPhone; // 03100862061354
         
         // Merchant Account Information (Tag 29)
         const merchantTag = '29';
-        const merchantDataLength = (aid + phoneField).length.toString().padStart(2, '0');
-        merchantInfo = merchantTag + merchantDataLength + aid + phoneField;
+        const merchantDataLength = (aid + idField).length.toString().padStart(2, '0');
+        merchantInfo = merchantTag + merchantDataLength + aid + idField;
         
-        console.log('📱 PromptPay Thailand Professional:', {
+        console.log('📱 PromptPay Thailand Real (Tax ID Format):', {
           input: identifier,
           formatted: formattedPhone,
-          international: thaiPhone,
-          phoneField: phoneField,
+          idField: idField,
           merchantInfo: merchantInfo,
-          qrShouldShow: thaiPhone
+          qrShouldShow: formattedPhone + ' (เบอร์โทรครบ 10 หลัก)'
         });
         
       } else if (identifierType === 'citizen_id') {
