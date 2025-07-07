@@ -191,6 +191,14 @@ function LiffLandingContent() {
       if (response.ok && data.success) {
         console.log('✅ LINE authentication successful:', data.user.name);
         
+        // แสดงข้อความที่เหมาะสมเมื่อมีการอัพเดทโปรไฟล์
+        if (data.profileUpdated) {
+          console.log('📸 Profile updated:', {
+            name: data.user.name,
+            image: data.user.image
+          });
+        }
+        
         // บันทึก LIFF session เพื่อป้องกันการหลุดเมื่อ refresh
         try {
           const { saveLiffSession } = await import('@/lib/sessionUtils');

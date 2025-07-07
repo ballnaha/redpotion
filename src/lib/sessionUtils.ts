@@ -15,6 +15,7 @@ interface LineUser {
 
 interface SessionResponse {
   authenticated: boolean;
+  success?: boolean; // เพิ่มสำหรับ recovery
   user?: LineUser;
   restaurantId?: string;
   sessionInfo?: {
@@ -25,7 +26,7 @@ interface SessionResponse {
 }
 
 /**
- * ตรวจสอบ LINE session
+ * ตรวจสอบ LINE session พร้อม auto recovery
  */
 export const checkLineSession = async (): Promise<SessionResponse> => {
   try {
@@ -34,13 +35,26 @@ export const checkLineSession = async (): Promise<SessionResponse> => {
       headers: {
         'Content-Type': 'application/json',
       },
-      cache: 'no-cache'
+      cache: 'no-cache',
+      credentials: 'include' // สำคัญสำหรับ cookie
     });
 
     const data = await response.json();
     
     if (response.ok && data.authenticated) {
       console.log('✅ Session valid for:', data.user?.name);
+      
+      // บันทึก session ลง localStorage เป็น backup
+      try {
+        const sessionBackup = {
+          user: data.user,
+          timestamp: Date.now(),
+          expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000) // 7 days backup
+        };
+        localStorage.setItem('session_backup', JSON.stringify(sessionBackup));
+      } catch (e) {
+        console.warn('⚠️ Failed to save session backup:', e);
+      }
       
       // ถ้า token ใกล้หมดอายุให้ refresh อัตโนมัติ
       if (data.sessionInfo?.needsRefresh) {
@@ -50,13 +64,153 @@ export const checkLineSession = async (): Promise<SessionResponse> => {
       
       return data;
     } else {
-      console.log('❌ Session invalid:', data.error);
+      console.log('❌ Session invalid, trying recovery...', data.error);
+      
+      // ลอง session recovery
+      const recoveryResult = await attemptSessionRecovery();
+      if (recoveryResult.success && recoveryResult.authenticated) {
+        return recoveryResult;
+      }
+      
       return { authenticated: false, error: data.error };
     }
   } catch (error) {
-    console.error('❌ Session check failed:', error);
+    console.error('❌ Session check failed, trying recovery:', error);
+    
+    // ลอง session recovery เมื่อเกิด network error
+    const recoveryResult = await attemptSessionRecovery();
+    if (recoveryResult.success && recoveryResult.authenticated) {
+      return recoveryResult;
+    }
+    
     return { authenticated: false, error: 'Session check failed' };
   }
+};
+
+/**
+ * พยายาม recover session จาก backup หรือ LIFF
+ */
+const attemptSessionRecovery = async (): Promise<SessionResponse> => {
+  console.log('🔄 Attempting session recovery...');
+  
+  // ลองจาก localStorage backup ก่อน
+  try {
+    const backupData = localStorage.getItem('session_backup');
+    if (backupData) {
+      const backup = JSON.parse(backupData);
+      const now = Date.now();
+      
+      // ตรวจสอบว่า backup ยังใช้ได้ไหม (ไม่เกิน 7 วัน)
+      if (backup.expiresAt && backup.expiresAt > now && backup.user) {
+        console.log('📦 Found valid session backup, verifying with server...');
+        
+        // ลองตรวจสอบกับ server อีกครั้งด้วย force refresh
+        try {
+          const verifyResponse = await fetch('/api/auth/line-session', {
+            method: 'GET',
+            headers: {
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            },
+            credentials: 'include'
+          });
+          
+          if (verifyResponse.ok) {
+            const verifyData = await verifyResponse.json();
+            if (verifyData.authenticated) {
+              console.log('✅ Session backup verified with server');
+              return verifyData;
+            }
+          }
+        } catch (e) {
+          console.log('⚠️ Server verification failed, trying LIFF recovery');
+        }
+      } else {
+        console.log('📦 Session backup expired, removing...');
+        localStorage.removeItem('session_backup');
+      }
+    }
+  } catch (e) {
+    console.warn('⚠️ Failed to load session backup:', e);
+  }
+  
+  // ลอง LIFF session recovery
+  if (typeof window !== 'undefined' && isInLineEnvironment()) {
+    console.log('🔄 Trying LIFF session recovery...');
+    try {
+      const liffRecovery = await recoverFromLiffSession();
+      if (liffRecovery.success) {
+        return {
+          authenticated: true,
+          success: true,
+          user: liffRecovery.user
+        };
+      }
+    } catch (e) {
+      console.warn('⚠️ LIFF recovery failed:', e);
+    }
+  }
+  
+  console.log('❌ All recovery attempts failed');
+  return { authenticated: false, success: false, error: 'Session recovery failed' };
+};
+
+/**
+ * ลอง recover จาก LIFF session
+ */
+const recoverFromLiffSession = async (): Promise<{ success: boolean; user?: any }> => {
+  try {
+    // ตรวจสอบว่ามี LIFF SDK และ logged in
+    if (typeof window !== 'undefined' && (window as any).liff) {
+      const liff = (window as any).liff;
+      
+      // ตรวจสอบสถานะ login โดยไม่ต้อง init ใหม่
+      if (liff.isLoggedIn && liff.isLoggedIn()) {
+        const accessToken = liff.getAccessToken();
+        if (accessToken) {
+          console.log('🔄 Found valid LIFF token, attempting backend login...');
+          
+                     // ส่ง token ไป backend เพื่อสร้าง session ใหม่และอัพเดทโปรไฟล์
+           const response = await fetch('/api/auth/line-login', {
+             method: 'POST',
+             headers: {
+               'Content-Type': 'application/json',
+             },
+             body: JSON.stringify({
+               accessToken: accessToken,
+               isRecovery: true
+             })
+           });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.user) {
+              console.log('✅ LIFF session recovery successful');
+              return { success: true, user: data.user };
+            }
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('❌ LIFF session recovery error:', error);
+  }
+  
+  return { success: false };
+};
+
+/**
+ * ตรวจสอบว่าอยู่ใน LINE environment
+ */
+const isInLineEnvironment = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  
+  const userAgent = navigator.userAgent;
+  const isLineApp = userAgent.includes('Line');
+  const hasLiffParam = window.location.search.includes('liff=true');
+  const isLiffDomain = window.location.hostname === 'liff.line.me';
+  
+  return isLineApp || hasLiffParam || isLiffDomain;
 };
 
 /**
@@ -115,18 +269,6 @@ export const logoutLineSession = async (): Promise<boolean> => {
     console.error('❌ Logout error:', error);
     return false;
   }
-};
-
-/**
- * ตรวจสอบว่าอยู่ใน LINE environment หรือไม่
- */
-export const isInLineEnvironment = (): boolean => {
-  if (typeof window === 'undefined') return false;
-  
-  const userAgent = navigator.userAgent;
-  return userAgent.includes('Line') || 
-         window.location.search.includes('liff=true') ||
-         window.location.search.includes('openExternalBrowser=1');
 };
 
 /**

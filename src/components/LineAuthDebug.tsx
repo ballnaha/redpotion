@@ -233,7 +233,7 @@ export default function LineAuthDebug({ show = false }: LineAuthDebugProps) {
     <Paper
       sx={{
         position: 'fixed',
-        top: 10,
+        top: 70,
         right: 10,
         width: 300,
         maxHeight: '80vh',

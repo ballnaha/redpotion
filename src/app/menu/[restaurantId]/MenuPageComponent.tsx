@@ -251,10 +251,25 @@ export default function MenuPageComponent() {
   const [galleryImages, setGalleryImages] = useState<any[]>([]);
   const [currentGalleryIndex, setCurrentGalleryIndex] = useState(0);
   const [galleryLoading, setGalleryLoading] = useState(true);
+  const [profileUpdateMessage, setProfileUpdateMessage] = useState<string | null>(null);
 
   // Client-side hydration check
   useEffect(() => {
     setIsClient(true);
+    
+    // ตรวจสอบ immediate profile update จาก URL params
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const isFromLiffLogin = urlParams.get('from') === 'liff-auto-login' || 
+                              urlParams.get('from') === 'line-signin' ||
+                              urlParams.get('from') === 'liff-restore';
+      
+      if (isFromLiffLogin) {
+        console.log('🔄 Immediate profile check triggered from LIFF login');
+        // ตั้ง flag ให้ทำ immediate session check
+        setSessionCheckComplete(false);
+      }
+    }
   }, []);
 
   // ดึงข้อมูล user จาก localStorage เมื่อ client-side เท่านั้น
@@ -270,10 +285,16 @@ export default function MenuPageComponent() {
           const isRealLineUser = parsedUser.lineUserId && parsedUser.lineUserId !== 'demo';
           console.log('📋 Found stored user:', parsedUser.name, isRealLineUser ? '(Real LINE user)' : '(Mock user)');
           
-          // ไม่ set user state ทันที แต่จะรอให้ session check ทำการตรวจสอบ
-          console.log('⏳ User data found in localStorage, waiting for session validation...');
+          // Set user state ทันทีถ้าเป็น real LINE user เพื่อแสดง UI
+          if (isRealLineUser) {
+            console.log('🚀 Setting user from localStorage immediately for better UX');
+            setLineUser(parsedUser);
+            setLineSessionChecked(true);
+          }
           
-          // แต่ยังคงต้องตรวจสอบ session อีกครั้งเสมอ
+          // ยังคงต้องตรวจสอบ session อีกครั้งเสมอเพื่อความปลอดภัย
+          console.log('⏳ User displayed from localStorage, will validate session...');
+          
           return { user: parsedUser, isReal: isRealLineUser };
         }
       } catch (error) {
@@ -361,13 +382,59 @@ export default function MenuPageComponent() {
         const isFromLiff = urlParams.get('liff') === 'true';
         const isFromLineSignin = urlParams.get('from') === 'line-signin';
         const isFromLiffRestore = urlParams.get('from') === 'liff-restore';
+        const isFromLiffAutoLogin = urlParams.get('from') === 'liff-auto-login';
         const hasRedirectedFlag = urlParams.get('redirected') === 'true';
         
-        // ป้องกัน redirect loop โดยตรวจสอบว่ามาจาก line-signin หรือ liff-restore
-        if (isFromLineSignin || isFromLiffRestore) {
-          console.log('✅ Coming from LINE signin or LIFF restore, skipping authentication check');
-          setSessionCheckComplete(true);
-          return;
+        // ป้องกัน redirect loop และอัพเดท profile เมื่อมาจาก LIFF
+        if (isFromLineSignin || isFromLiffRestore || isFromLiffAutoLogin) {
+          console.log('✅ Coming from LINE signin or LIFF restore, updating user profile...');
+          
+          // ตรวจสอบและอัพเดท user profile จาก session API
+          try {
+            const { checkLineSession: checkSession } = await import('@/lib/sessionUtils');
+            const sessionResult = await checkSession();
+            
+            if (sessionResult.authenticated && sessionResult.user) {
+              console.log('✅ Session found after LIFF login - User:', sessionResult.user.name);
+              console.log('📸 Profile data:', {
+                name: sessionResult.user.name,
+                image: sessionResult.user.image,
+                lineUserId: sessionResult.user.lineUserId
+              });
+              
+                             // อัพเดท user state ทันที
+               setLineUser(sessionResult.user);
+               setLineSessionChecked(true);
+               
+               // แสดงข้อความอัพเดทโปรไฟล์
+               if (isFromLiffAutoLogin) {
+                 setProfileUpdateMessage('อัพเดทข้อมูลโปรไฟล์สำเร็จ! 📸');
+                 setTimeout(() => setProfileUpdateMessage(null), 3000);
+               }
+               
+               // อัพเดท localStorage ด้วยข้อมูลใหม่
+               try {
+                 localStorage.setItem('line_user_data', JSON.stringify(sessionResult.user));
+                 console.log('💾 Updated localStorage with fresh profile data');
+               } catch (error) {
+                 console.error('❌ Error saving user to localStorage:', error);
+               }
+                         } else {
+               console.warn('⚠️ No session found after LIFF login');
+             }
+           } catch (error) {
+             console.error('❌ Error checking session after LIFF login:', error);
+           }
+           
+           // ล้าง URL parameters หลังจากประมวลผลเสร็จแล้ว
+           if (typeof window !== 'undefined') {
+             const cleanUrl = window.location.pathname;
+             window.history.replaceState({}, '', cleanUrl);
+             console.log('🧹 Cleaned URL parameters after profile update');
+           }
+           
+           setSessionCheckComplete(true);
+           return;
         }
         
         // ถ้าปิดการบังคับ LINE login หรือมีการตั้งค่า skip authentication
@@ -960,6 +1027,39 @@ export default function MenuPageComponent() {
       height: '100vh',
       overflow: 'hidden'
     }}>
+      {/* Profile Update Notification */}
+      {profileUpdateMessage && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 20,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1000,
+            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+            color: 'white',
+            px: 3,
+            py: 1.5,
+            borderRadius: 2,
+            boxShadow: '0 4px 20px rgba(16, 185, 129, 0.3)',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            animation: 'slideInDown 0.3s ease-out',
+            '@keyframes slideInDown': {
+              '0%': {
+                transform: 'translateX(-50%) translateY(-100%)',
+                opacity: 0,
+              },
+              '100%': {
+                transform: 'translateX(-50%) translateY(0)',
+                opacity: 1,
+              },
+            },
+          }}
+        >
+          {profileUpdateMessage}
+        </Box>
+      )}
       {/* Header - Fixed */}
       <Paper
         className="liquid-glass"

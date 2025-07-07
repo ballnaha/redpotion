@@ -29,19 +29,26 @@ export const authenticateUser = async (options: AuthOptions = {}): Promise<AuthR
   
   console.log('🔐 Starting hybrid authentication...', options);
   
-  // Step 1: ตรวจสอบ Session API ก่อนเสมอ
+  // Step 1: ตรวจสอบ Session API ก่อนเสมอ (หลัก)
   const sessionResult = await checkSessionAuth();
   if (sessionResult.success && !options.forceReauth) {
     console.log('✅ Session authentication successful');
     return sessionResult;
   }
   
-  // Step 2: ถ้าไม่มี session แต่อยู่ใน LINE environment ให้ลอง LIFF
+  // Step 2: ถ้าไม่มี session และอยู่ใน LINE environment ให้ลอง LIFF (เป็น fallback เท่านั้น)
   if (isInLineEnvironment() && config.requireLineLogin) {
-    console.log('📱 No session but in LINE environment, trying LIFF...');
+    console.log('📱 No session but in LINE environment, trying LIFF as fallback...');
     const liffResult = await tryLiffAuth(options);
     if (liffResult.success) {
       return liffResult;
+    }
+    // ถ้า LIFF ล้มเหลว ให้ลอง session อีกครั้ง (เผื่อ user เพิ่ง login)
+    console.log('⚠️ LIFF failed, retrying session check...');
+    const retrySessionResult = await checkSessionAuth();
+    if (retrySessionResult.success) {
+      console.log('✅ Session authentication successful on retry');
+      return retrySessionResult;
     }
   }
   
@@ -99,31 +106,33 @@ export const checkSessionAuth = async (): Promise<AuthResult> => {
 };
 
 /**
- * ลอง LIFF Authentication (เป็น fallback)
+ * ลอง LIFF Authentication (เป็น fallback เท่านั้น)
  */
 export const tryLiffAuth = async (options: AuthOptions = {}): Promise<AuthResult> => {
   try {
-    console.log('📱 Attempting LIFF authentication...');
+    console.log('📱 Attempting LIFF authentication as fallback...');
     
     // ตรวจสอบ LIFF SDK
     if (!isLiffAvailable()) {
-      console.log('⚠️ LIFF SDK not available, loading...');
-      await loadLiffSdk();
+      console.log('⚠️ LIFF SDK not available, falling back to session API');
+      return await checkSessionAuth();
     }
     
-    // Initialize LIFF (with simplified approach)
-    const initResult = await initializeLiffSimple();
+    // Initialize LIFF (with timeout and fallback)
+    const initResult = await initializeLiffWithFallback();
     if (!initResult.success) {
-      return {
-        success: false,
-        error: initResult.error,
-        method: 'liff'
-      };
+      console.log('⚠️ LIFF initialization failed, falling back to session API');
+      return await checkSessionAuth();
     }
     
     // ตรวจสอบ login status
     if (!window.liff.isLoggedIn()) {
-      console.log('🔐 LIFF not logged in, redirecting...');
+      console.log('🔐 LIFF not logged in, checking session API first...');
+      const sessionFallback = await checkSessionAuth();
+      if (sessionFallback.success) {
+        return sessionFallback;
+      }
+      
       return {
         success: false,
         needsRedirect: true,
@@ -136,11 +145,8 @@ export const tryLiffAuth = async (options: AuthOptions = {}): Promise<AuthResult
     // ได้ access token แล้วส่งไป backend
     const accessToken = window.liff.getAccessToken();
     if (!accessToken) {
-      return {
-        success: false,
-        error: 'No LIFF access token',
-        method: 'liff'
-      };
+      console.log('⚠️ No LIFF access token, falling back to session API');
+      return await checkSessionAuth();
     }
     
     // ส่งไป backend เพื่อสร้าง session
@@ -148,19 +154,16 @@ export const tryLiffAuth = async (options: AuthOptions = {}): Promise<AuthResult
     return loginResult;
     
   } catch (error) {
-    console.error('❌ LIFF authentication error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'LIFF authentication failed',
-      method: 'liff'
-    };
+    console.error('❌ LIFF authentication error, falling back to session API:', error);
+    // เมื่อ LIFF ผิดพลาด ให้ลอง session API แทน
+    return await checkSessionAuth();
   }
 };
 
 /**
- * Initialize LIFF แบบง่าย (ไม่ซับซ้อน)
+ * Initialize LIFF แบบมี fallback
  */
-const initializeLiffSimple = async (): Promise<{ success: boolean; error?: string }> => {
+const initializeLiffWithFallback = async (): Promise<{ success: boolean; error?: string }> => {
   try {
     // ตรวจสอบ LIFF ID
     const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
@@ -168,9 +171,14 @@ const initializeLiffSimple = async (): Promise<{ success: boolean; error?: strin
       return { success: false, error: 'LIFF ID not configured' };
     }
     
-    // Initialize ครั้งเดียว ไม่ retry
+    // Initialize ด้วย timeout
     try {
-      await window.liff.init({ liffId });
+      await Promise.race([
+        window.liff.init({ liffId }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('LIFF init timeout')), 5000)
+        )
+      ]);
       console.log('✅ LIFF initialized successfully');
       return { success: true };
     } catch (initError) {
