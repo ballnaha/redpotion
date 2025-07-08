@@ -2069,8 +2069,10 @@ export default function MenuPageComponent() {
         </Box>
       </Paper>
 
-      {/* Debug Component - Development Only */}
-      {process.env.NODE_ENV === 'development' && (
+      {/* Debug Component - Development Only with URL Parameter */}
+      {process.env.NODE_ENV === 'development' && 
+       typeof window !== 'undefined' && 
+       new URLSearchParams(window.location.search).has('debug') && (
         <LineAuthDebug show={true} />
       )}
     </Box>

@@ -1,5 +1,6 @@
 /**
  * LIFF SDK Loader - ระบบโหลด LIFF SDK ที่เสถียรและไม่แสดง error ที่ไม่จำเป็น
+ * Version 2.0 - ปรับปรุงให้ทำงานร่วมกับ layout preload
  */
 
 interface LiffLoadResult {
@@ -27,11 +28,18 @@ export const isLiffSDKAvailable = (): boolean => {
 };
 
 /**
- * โหลด LIFF SDK แบบ Smart Loading พร้อม retry และ fallback
+ * รอให้ LIFF SDK โหลดเสร็จจาก layout หรือโหลดเอง
  */
 export const ensureLiffSDKLoaded = async (maxRetries: number = 3): Promise<LiffLoadResult> => {
   // ถ้าโหลดแล้วให้ return ทันที
   if (liffSDKLoaded && isLiffSDKAvailable()) {
+    return { success: true };
+  }
+
+  // ตรวจสอบว่ามี LIFF SDK ใน window แล้วหรือไม่ (จาก layout)
+  if (typeof window !== 'undefined' && window.liff) {
+    console.log('✅ LIFF SDK already available from layout');
+    liffSDKLoaded = true;
     return { success: true };
   }
 
@@ -40,23 +48,94 @@ export const ensureLiffSDKLoaded = async (maxRetries: number = 3): Promise<LiffL
     return await liffLoadingPromise;
   }
 
-  // สร้าง Promise ใหม่สำหรับโหลด
-  liffLoadingPromise = loadLiffSDKWithRetry(maxRetries);
-  
-  try {
-    const result = await liffLoadingPromise;
-    if (result.success) {
-      liffSDKLoaded = true;
+      // รอให้ layout โหลด SDK เสร็จก่อน (รอสูงสุด 3 วินาที) แบบ parallel
+    const layoutPromise = waitForLayoutLiffSDK(3000);
+    const manualPromise = new Promise<LiffLoadResult>((resolve) => {
+      // เริ่มโหลด manual หลังจาก 1 วินาที ถ้า layout ยังไม่เสร็จ
+      setTimeout(async () => {
+        console.log('🔄 Starting parallel manual LIFF loading...');
+        const result = await loadLiffSDKWithRetry(maxRetries);
+        resolve(result);
+      }, 1000);
+    });
+    
+    // รอให้ Promise ใดก็ได้ที่เสร็จก่อน (parallel loading)
+    liffLoadingPromise = Promise.race([layoutPromise, manualPromise]);
+    
+    try {
+      const result = await liffLoadingPromise;
+      if (result.success) {
+        liffSDKLoaded = true;
+        return result;
+      }
+      
+      // ถ้าทั้งคู่ไม่สำเร็จ ลองอีกครั้ง
+      console.log('🔄 Both layout and manual loading failed, final retry...');
+      const finalRetry = await loadLiffSDKWithRetry(1);
+      if (finalRetry.success) {
+        liffSDKLoaded = true;
+      }
+      return finalRetry;
+    } finally {
+      // ล้าง Promise หลังจากเสร็จแล้ว
+      liffLoadingPromise = null;
     }
-    return result;
-  } finally {
-    // ล้าง Promise หลังจากเสร็จแล้ว
-    liffLoadingPromise = null;
-  }
 };
 
 /**
- * โหลด LIFF SDK พร้อม retry mechanism
+ * รอให้ layout โหลด LIFF SDK เสร็จ - ปรับปรุงความเร็ว
+ */
+const waitForLayoutLiffSDK = async (timeout: number = 3000): Promise<LiffLoadResult> => {
+  return new Promise((resolve) => {
+    // ตรวจสอบว่ามี SDK แล้วหรือไม่
+    if (typeof window !== 'undefined' && window.liff) {
+      console.log('✅ LIFF SDK already loaded by layout');
+      resolve({ success: true });
+      return;
+    }
+
+    let resolved = false;
+    
+    // Listen for SDK load success
+    const handleSuccess = () => {
+      if (!resolved) {
+        resolved = true;
+        console.log('✅ LIFF SDK loaded by layout successfully');
+        window.removeEventListener('liffSDKLoaded', handleSuccess);
+        window.removeEventListener('liffSDKError', handleError);
+        resolve({ success: true });
+      }
+    };
+
+    // Listen for SDK load error
+    const handleError = () => {
+      if (!resolved) {
+        resolved = true;
+        console.warn('⚠️ LIFF SDK loading by layout failed');
+        window.removeEventListener('liffSDKLoaded', handleSuccess);
+        window.removeEventListener('liffSDKError', handleError);
+        resolve({ success: false, error: 'Layout LIFF load failed', retry: true });
+      }
+    };
+
+    window.addEventListener('liffSDKLoaded', handleSuccess);
+    window.addEventListener('liffSDKError', handleError);
+
+    // ลด timeout เพื่อความเร็ว
+    setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        console.warn('⚠️ LIFF SDK layout load timeout (3s)');
+        window.removeEventListener('liffSDKLoaded', handleSuccess);
+        window.removeEventListener('liffSDKError', handleError);
+        resolve({ success: false, error: 'Layout LIFF load timeout', retry: true });
+      }
+    }, timeout);
+  });
+};
+
+/**
+ * โหลด LIFF SDK พร้อม retry mechanism (fallback method)
  */
 const loadLiffSDKWithRetry = async (maxRetries: number): Promise<LiffLoadResult> => {
   // ตรวจสอบว่ามี SDK อยู่แล้วหรือไม่
@@ -66,7 +145,7 @@ const loadLiffSDKWithRetry = async (maxRetries: number): Promise<LiffLoadResult>
     return { success: true };
   }
 
-  console.log('📦 Loading LIFF SDK...');
+  console.log('📦 Loading LIFF SDK manually...');
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -90,7 +169,7 @@ const loadLiffSDKWithRetry = async (maxRetries: number): Promise<LiffLoadResult>
         return { 
           success: false, 
           error: 'Failed to load LIFF SDK after all retry attempts',
-          retry: true 
+          retry: false 
         };
       }
       
@@ -102,7 +181,7 @@ const loadLiffSDKWithRetry = async (maxRetries: number): Promise<LiffLoadResult>
   return { 
     success: false, 
     error: 'Maximum retry attempts exceeded',
-    retry: true 
+    retry: false 
   };
 };
 
@@ -112,24 +191,40 @@ const loadLiffSDKWithRetry = async (maxRetries: number): Promise<LiffLoadResult>
 const loadLiffScript = (): Promise<void> => {
   return new Promise((resolve, reject) => {
     // ลบ script เก่าออกก่อน (ถ้ามี)
-    const existingScript = document.querySelector('script[src*="liff/edge"]');
-    if (existingScript) {
-      existingScript.remove();
-    }
+    const existingScripts = document.querySelectorAll('script[src*="liff/edge"], script[data-liff-sdk]');
+    existingScripts.forEach(script => script.remove());
 
     const script = document.createElement('script');
     script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
     script.async = true;
     script.crossOrigin = 'anonymous';
+    script.dataset.liffSdk = 'manual';
     
     script.onload = () => {
-      console.log('📦 LIFF script loaded');
+      console.log('📦 LIFF script loaded manually');
       resolve();
     };
     
     script.onerror = (error) => {
       console.error('❌ LIFF script loading failed:', error);
-      reject(new Error('Failed to load LIFF script from CDN'));
+      
+      // ลอง backup URL
+      const backupScript = document.createElement('script');
+      backupScript.src = 'https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js';
+      backupScript.async = true;
+      backupScript.crossOrigin = 'anonymous';
+      backupScript.dataset.liffSdk = 'manual-backup';
+      
+      backupScript.onload = () => {
+        console.log('📦 LIFF backup script loaded');
+        resolve();
+      };
+      
+      backupScript.onerror = () => {
+        reject(new Error('Failed to load LIFF script from both primary and backup CDN'));
+      };
+      
+      document.head.appendChild(backupScript);
     };
     
     document.head.appendChild(script);

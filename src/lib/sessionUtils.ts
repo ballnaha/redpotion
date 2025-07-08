@@ -4,6 +4,18 @@
  * ฟังก์ชันสำหรับจัดการ LINE session validation, refresh และ cleanup
  */
 
+// User profile cache เพื่อลดการเรียก database
+interface UserProfileCache {
+  [lineUserId: string]: {
+    data: any;
+    timestamp: number;
+    expiresAt: number;
+  };
+}
+
+let userProfileCache: UserProfileCache = {};
+const USER_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 interface LineUser {
   id: string;
   name: string;
@@ -26,9 +38,55 @@ interface SessionResponse {
 }
 
 /**
- * ตรวจสอบ LINE session พร้อม auto recovery
+ * ตรวจสอบ session token ใน localStorage ก่อน
+ */
+const quickLocalSessionCheck = (): { valid: boolean; user?: any } => {
+  try {
+    const sessionBackup = localStorage.getItem('session_backup');
+    if (!sessionBackup) return { valid: false };
+    
+    const backup = JSON.parse(sessionBackup);
+    const now = Date.now();
+    
+    // ตรวจสอบว่า session ยังใช้ได้ไหม (ไม่เกิน 30 นาที)
+    const recentLimit = 30 * 60 * 1000; // 30 minutes
+    if (backup.timestamp && (now - backup.timestamp) < recentLimit && backup.user) {
+      return { valid: true, user: backup.user };
+    }
+    
+    return { valid: false };
+  } catch (e) {
+    return { valid: false };
+  }
+};
+
+/**
+ * ตรวจสอบ LINE session พร้อม auto recovery - เพิ่ม local validation
  */
 export const checkLineSession = async (): Promise<SessionResponse> => {
+  // ตรวจสอบ local session ก่อนเพื่อความเร็ว
+  const localCheck = quickLocalSessionCheck();
+  if (localCheck.valid) {
+    console.log('⚡ Using fast local session for:', localCheck.user.name);
+    // ทำ background validation กับ server (ไม่รอผลลัพธ์)
+    fetch('/api/auth/line-session', {
+      method: 'GET',
+      credentials: 'include'
+    }).then(response => {
+      if (!response.ok) {
+        console.warn('⚠️ Background session validation failed, clearing local cache');
+        localStorage.removeItem('session_backup');
+      }
+    }).catch(() => {
+      // Silent fail for background check
+    });
+    
+    return {
+      authenticated: true,
+      user: localCheck.user
+    };
+  }
+  
   try {
     const response = await fetch('/api/auth/line-session', {
       method: 'GET',

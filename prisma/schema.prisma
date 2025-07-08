@@ -81,6 +81,12 @@ model Restaurant {
   minOrderAmount Float?           @default(0)
   deliveryFee    Float?           @default(0)
   deliveryRadius Float?           @default(5)
+  // Payment Settings
+  acceptCash     Boolean          @default(true)
+  acceptTransfer Boolean          @default(false)
+  promptpayId    String?          // เลขพร้อมเพย์ (เบอร์โทรหรือบัตรประชาชน)
+  promptpayType  PromptPayType?   // ประเภทพร้อมเพย์
+  promptpayName  String?          // ชื่อบัญชีพร้อมเพย์
   ownerId        String           @unique
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
@@ -284,4 +290,9 @@ enum DocumentType {
 enum AddressType {
   HOME
   WORK
+}
+
+enum PromptPayType {
+  PHONE_NUMBER
+  CITIZEN_ID
 }

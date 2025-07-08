@@ -219,11 +219,60 @@ export default function RootLayout({
         {/* Preload LIFF SDK for faster loading */}
         <link rel="preload" href="https://static.line-scdn.net/liff/edge/2/sdk.js" as="script" crossOrigin="anonymous" />
         
+        {/* Load LIFF SDK with improved error handling */}
         <script 
-          src="https://static.line-scdn.net/liff/edge/2/sdk.js"
-          async
-          crossOrigin="anonymous"
-        ></script>
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                // ป้องกันการโหลด LIFF script ซ้ำ
+                if (window.liff || document.querySelector('script[src*="liff/edge/2/sdk.js"]')) {
+                  console.log('✅ LIFF SDK already loaded or loading');
+                  return;
+                }
+                
+                console.log('📦 Loading LIFF SDK...');
+                
+                const script = document.createElement('script');
+                script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
+                script.async = true;
+                script.crossOrigin = 'anonymous';
+                script.dataset.liffSdk = 'true';
+                
+                script.onload = function() {
+                  console.log('✅ LIFF SDK loaded successfully');
+                  window.dispatchEvent(new CustomEvent('liffSDKLoaded'));
+                };
+                
+                script.onerror = function(error) {
+                  console.error('❌ LIFF SDK loading failed:', error);
+                  
+                  // ลองโหลดจาก backup CDN
+                  setTimeout(() => {
+                    console.log('🔄 Retrying LIFF SDK load...');
+                    const retryScript = document.createElement('script');
+                    retryScript.src = 'https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js';
+                    retryScript.async = true;
+                    retryScript.crossOrigin = 'anonymous';
+                    
+                    retryScript.onload = function() {
+                      console.log('✅ LIFF SDK loaded from backup CDN');
+                      window.dispatchEvent(new CustomEvent('liffSDKLoaded'));
+                    };
+                    
+                    retryScript.onerror = function() {
+                      console.error('❌ LIFF SDK backup load also failed');
+                      window.dispatchEvent(new CustomEvent('liffSDKError'));
+                    };
+                    
+                    document.head.appendChild(retryScript);
+                  }, 1000);
+                };
+                
+                document.head.appendChild(script);
+              })();
+            `
+          }}
+        />
         
         {/* Register Service Worker for caching */}
         <script

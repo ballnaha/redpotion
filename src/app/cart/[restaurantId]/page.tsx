@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import NoSSR from '../../components/NoSSR';
 import { getAppConfig } from '@/lib/appConfig';
@@ -79,6 +79,12 @@ interface RestaurantData {
   openTime?: string;
   closeTime?: string;
   locationName?: string;
+  // Payment settings
+  acceptCash?: boolean;
+  acceptTransfer?: boolean;
+  promptpayId?: string;
+  promptpayType?: 'PHONE_NUMBER' | 'CITIZEN_ID';
+  promptpayName?: string;
 }
 
 const getCartStorageKey = (restaurantId: string, userRole: string = 'customer') => 
@@ -134,11 +140,29 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
   const [paymentDrawerOpen, setPaymentDrawerOpen] = useState(false);
   const [qrCodeDrawerOpen, setQrCodeDrawerOpen] = useState(false);
   
+  // Customer profile state
+  const [customerProfile, setCustomerProfile] = useState<{
+    id: string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    selectedAddressType?: string;
+    addresses: Array<{
+      id: string;
+      label: string;
+      address: string;
+      type: string;
+      isDefault: boolean;
+      latitude?: number;
+      longitude?: number;
+    }>;
+  } | null>(null);
+  
   // Selected values
   const [selectedAddress, setSelectedAddress] = useState({
     id: 'home',
     label: 'บ้าน',
-    address: 'ไทม์สแควร์ นิวยอร์ก แมนฮัตตัน',
+    address: 'ยังไม่ได้ตั้งค่า',
     isDefault: true
   });
   
@@ -148,7 +172,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
     details: 'ชำระเงินปลายทาง',
     icon: '💵'
   });
-  
+
   const resolvedParams = use(params);
   const restaurantId = resolvedParams.restaurantId;
 
@@ -243,6 +267,42 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
     }
   }, [restaurantId, mounted, sessionCheckComplete]);
 
+  // ดึงข้อมูล customer profile
+  useEffect(() => {
+    const loadCustomerProfile = async () => {
+      if (!lineUser || !sessionCheckComplete) return;
+      
+      try {
+        console.log('🔄 Loading customer profile...');
+        const response = await fetch('/api/customer/profile');
+        
+        if (response.ok) {
+          const profileData = await response.json();
+          console.log('✅ Customer profile loaded:', profileData);
+          setCustomerProfile(profileData);
+          
+          // ตั้งค่าที่อยู่เริ่มต้นจากโปรไฟล์
+          if (profileData.addresses && profileData.addresses.length > 0) {
+            const defaultAddress = profileData.addresses.find((addr: any) => addr.isDefault) || profileData.addresses[0];
+            console.log('📍 Setting default address:', defaultAddress);
+            setSelectedAddress({
+              id: defaultAddress.id,
+              label: defaultAddress.label,
+              address: defaultAddress.address,
+              isDefault: defaultAddress.isDefault
+            });
+          }
+        } else {
+          console.warn('⚠️ Failed to load customer profile:', response.status);
+        }
+      } catch (error) {
+        console.error('❌ Error loading customer profile:', error);
+      }
+    };
+
+    loadCustomerProfile();
+  }, [lineUser, sessionCheckComplete]);
+
   const updateItemQuantity = (itemId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
       removeItem(itemId);
@@ -299,9 +359,16 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
     return cartItems.reduce((sum, item) => sum + getItemTotalPrice(item), 0);
   };
 
-  const deliveryFee = restaurant?.deliveryFee || 25;
+  // คำนวณค่าส่งตามเงื่อนไขยอดขั้นต่ำ
   const minOrderAmount = restaurant?.minOrderAmount || 0;
-  const finalTotal = getSubtotal() + deliveryFee - discount;
+  const baseDeliveryFee = restaurant?.deliveryFee || 25;
+  const subtotal = getSubtotal();
+  
+  // เช็คเงื่อนไขส่งฟรี: หากสินค้ามากกว่าหรือเท่ากับยอดขั้นต่ำ
+  const isEligibleForFreeDelivery = subtotal >= minOrderAmount && minOrderAmount > 0;
+  const deliveryFee = isEligibleForFreeDelivery ? 0 : baseDeliveryFee;
+  
+  const finalTotal = subtotal + deliveryFee - discount;
 
   const applyPromoCode = () => {
     const promos = {
@@ -416,49 +483,103 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
     );
   }
 
-  // Address options
-  const addressOptions = [
+  // Address options - ดึงจาก customer profile หรือใช้ fallback
+  const addressOptions = customerProfile?.addresses?.map(addr => ({
+    id: addr.id,
+    label: addr.label,
+    address: addr.address,
+    isDefault: addr.isDefault,
+    type: addr.type
+  })) || [
+    // fallback addresses ถ้าไม่มีข้อมูลในโปรไฟล์
     {
       id: 'home',
       label: 'บ้าน',
-      address: 'ไทม์สแควร์ นิวยอร์ก แมนฮัตตัน',
-      isDefault: true
+      address: 'ยังไม่ได้ตั้งค่า',
+      isDefault: true,
+      type: 'HOME'
     },
     {
       id: 'work',
       label: 'ที่ทำงาน',
-      address: 'เอ็มไพร์ สเตท บิลดิ้ง นิวยอร์ก',
-      isDefault: false
+      address: 'ยังไม่ได้ตั้งค่า',
+      isDefault: false,
+      type: 'WORK'
     }
   ];
 
-  // Payment options
-  const paymentOptions = [
-    {
-      id: 'credit',
-      label: 'บัตรเครดิต',
-      details: '**** **** **** 1234',
-      icon: '💳'
-    },
-    {
-      id: 'wallet',
-      label: 'กระเป๋าเงินดิจิทัล',
-      details: 'ยอดคงเหลือ ฿1,250',
-      icon: '💰'
-    },
-    {
-      id: 'transfer',
-      label: 'โอนเงินผ่านธนาคาร',
-      details: 'แสกน QR Code เพื่อโอนเงิน',
-      icon: '🏦'
-    },
-    {
-      id: 'cash',
-      label: 'เงินสด',
-      details: 'ชำระเงินปลายทาง',
-      icon: '💵'
+  // Payment options - ดึงจาก restaurant settings
+  const getPaymentOptions = () => {
+    const options: Array<{
+      id: string;
+      label: string;
+      details: string;
+      icon: string;
+    }> = [];
+    
+    // Debug: ดูข้อมูล restaurant payment settings
+    console.log('🔍 Payment Settings Debug:', {
+      acceptCash: restaurant?.acceptCash,
+      acceptTransfer: restaurant?.acceptTransfer,
+      promptpayId: restaurant?.promptpayId,
+      promptpayType: restaurant?.promptpayType,
+      promptpayName: restaurant?.promptpayName
+    });
+    
+    // เพิ่มตัวเลือกเงินสดถ้าร้านรับ
+    if (restaurant?.acceptCash) {
+      console.log('✅ Adding cash payment option');
+      options.push({
+        id: 'cash',
+        label: 'เงินสด',
+        details: 'ชำระเงินปลายทาง',
+        icon: '💵'
+      });
     }
-  ];
+    
+    // เพิ่มตัวเลือกโอนเงินถ้าร้านรับและมีข้อมูล PromptPay
+    if (restaurant?.acceptTransfer && restaurant?.promptpayId) {
+      console.log('✅ Adding PromptPay payment option');
+      options.push({
+        id: 'transfer',
+        label: 'โอนเงินผ่าน PromptPay',
+        details: `คลิกเพื่อสร้าง QR Code`,
+        icon: '🏦'
+      });
+    } else {
+      console.log('❌ PromptPay not available:', {
+        acceptTransfer: restaurant?.acceptTransfer,
+        promptpayId: restaurant?.promptpayId
+      });
+    }
+    
+    // ถ้าไม่มีตัวเลือกการชำระเงิน ให้แสดงเงินสดเป็นค่าเริ่มต้น
+    if (options.length === 0) {
+      console.log('⚠️ No payment options, adding default cash option');
+      options.push({
+        id: 'cash',
+        label: 'เงินสด',
+        details: 'ชำระเงินปลายทาง',
+        icon: '💵'
+      });
+    }
+    
+    console.log('💳 Final payment options:', options);
+    return options;
+  };
+  
+  const paymentOptions = getPaymentOptions();
+
+  // ตรวจสอบและอัปเดต selectedPayment ถ้าจำเป็น
+  if (paymentOptions.length > 0) {
+    const currentExists = paymentOptions.find(option => option.id === selectedPayment.id);
+    if (!currentExists && selectedPayment.id !== paymentOptions[0].id) {
+      // ใช้ setTimeout เพื่อหลีกเลี่ยง state update ระหว่าง render
+      setTimeout(() => {
+        setSelectedPayment(paymentOptions[0]);
+      }, 0);
+    }
+  }
 
   const handleAddressSelect = (address: typeof selectedAddress) => {
     setSelectedAddress(address);
@@ -479,19 +600,13 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
 
   // สร้าง QR Code สำหรับการโอนเงิน (PromptPay)
   const generateQRCode = () => {
-    const totalAmount = finalTotal;
+    const totalAmount = finalTotal; // ใช้ finalTotal ที่คำนวณแล้ว
     const restaurantName = restaurant?.name || 'ร้านอาหาร';
     const orderId = `ORD${Date.now()}`;
     
-    // PromptPay ID สำหรับร้านอาหาร (รองรับทั้งเบอร์โทรและบัตรประชาชน)
-    const promptPayPhone = '0862061354'; // เบอร์โทรศัพท์ร้าน
-    const promptPayCitizenId = '1739990025373'; // เลขบัตรประชาชน 13 หลัก (ตัวอย่าง)
-    
-    // เลือกใช้ เบอร์โทร หรือ บัตรประชาชน (สามารถปรับเปลี่ยนได้)
-    // ตอนนี้ใช้เบอร์โทร แต่สามารถเปลี่ยนเป็น false เพื่อใช้บัตรประชาชนได้
-    const usePhoneNumber = true; // true = ใช้เบอร์โทร, false = ใช้บัตรประชาชน
-    const promptPayId = usePhoneNumber ? promptPayPhone : promptPayCitizenId;
-    const promptPayType = usePhoneNumber ? 'phone' : 'citizen_id';
+    // ใช้ PromptPay ข้อมูลจากร้านอาหาร
+    const promptPayId = restaurant?.promptpayId || '0862061354'; // fallback เบอร์โทรศัพท์
+    const promptPayType = restaurant?.promptpayType === 'PHONE_NUMBER' ? 'phone' : 'citizen_id';
     
         // สร้าง PromptPay QR Code ตามมาตรฐาน EMV
     const generatePromptPayQR = (identifier: string, identifierType: string, amount: number) => {
@@ -544,13 +659,41 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
       } else if (identifierType === 'citizen_id') {
         // Format เลขบัตรประชาชน 13 หลัก
         const citizenId = identifier.replace(/\D/g, ''); // เอาเฉพาะตัวเลข
-        if (citizenId.length !== 13) {
-          throw new Error('เลขบัตรประชาชนต้องเป็น 13 หลัก');
-        }
         
-        const aid = '0016A000000677010111'; // AID for PromptPay
-        const citizenIdData = `02${citizenId.length.toString().padStart(2, '0')}${citizenId}`;
-        merchantInfo = `29${(aid + citizenIdData).length.toString().padStart(2, '0')}${aid}${citizenIdData}`;
+        // ถ้าความยาวไม่ใช่ 13 หลัก ให้ fallback เป็นเบอร์โทร
+        if (citizenId.length !== 13) {
+          console.warn(`⚠️ Invalid citizen ID length (${citizenId.length}), falling back to phone format`);
+          // ใช้โค้ดสำหรับเบอร์โทรแทน
+          let formattedPhone = citizenId.replace(/\D/g, '');
+          
+          // ตรวจสอบและแปลงเบอร์โทรไทย
+          if (formattedPhone.startsWith('66') && formattedPhone.length === 11) {
+            formattedPhone = '0' + formattedPhone.slice(2);
+          } else if (formattedPhone.startsWith('0') && formattedPhone.length === 10) {
+            // เบอร์โทรรูปแบบ 0xxxxxxxxx อยู่แล้ว
+          } else if (formattedPhone.length === 9) {
+            formattedPhone = '0' + formattedPhone;
+          } else if (formattedPhone.length === 10 && !formattedPhone.startsWith('0')) {
+            formattedPhone = '0' + formattedPhone.slice(1);
+          }
+          
+          if (formattedPhone.length === 10 && formattedPhone.startsWith('0')) {
+            const aid = '0016A000000677010111';
+            const idTag = '03';
+            const idLength = formattedPhone.length.toString().padStart(2, '0');
+            const idField = idTag + idLength + formattedPhone;
+            const merchantTag = '29';
+            const merchantDataLength = (aid + idField).length.toString().padStart(2, '0');
+            merchantInfo = merchantTag + merchantDataLength + aid + idField;
+          } else {
+            throw new Error(`ไม่สามารถแปลงข้อมูล PromptPay ได้: ${identifier}`);
+          }
+        } else {
+          // ใช้รูปแบบเลขบัตรประชาชนปกติ
+          const aid = '0016A000000677010111'; // AID for PromptPay
+          const citizenIdData = `02${citizenId.length.toString().padStart(2, '0')}${citizenId}`;
+          merchantInfo = `29${(aid + citizenIdData).length.toString().padStart(2, '0')}${aid}${citizenIdData}`;
+        }
       }
       
       // EMV QR Code Format สำหรับ PromptPay
@@ -610,10 +753,10 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
       accountName: restaurantName,
       accountNumber: promptPayId,
       promptPayId: promptPayId,
-      promptPayPhone: promptPayPhone,
-      promptPayCitizenId: promptPayCitizenId,
+      promptPayPhone: promptPayType === 'phone' ? promptPayId : '',
+      promptPayCitizenId: promptPayType === 'citizen_id' ? promptPayId : '',
       promptPayType: promptPayType,
-      usePhoneNumber: usePhoneNumber,
+      usePhoneNumber: promptPayType === 'phone',
       amount: totalAmount,
       orderId: orderId,
       qrData: promptPayQR,
@@ -1225,16 +1368,77 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                       ยอดรวมสินค้า
                     </Typography>
                     <Typography sx={{ fontWeight: 500, color: '#111827', fontSize: '0.85rem' }}>
-                      ฿{mounted ? getSubtotal().toFixed(0) : '0'}
+                      ฿{mounted ? subtotal.toFixed(0) : '0'}
                     </Typography>
                   </Box>
+                  
+                  {/* แสดงข้อมูลยอดขั้นต่ำและส่งฟรี */}
+                  {minOrderAmount > 0 && (
+                    <Box sx={{ 
+                      mb: 1.5, 
+                      p: 1.5, 
+                      borderRadius: '8px',
+                      backgroundColor: isEligibleForFreeDelivery ? 
+                        'rgba(34, 197, 94, 0.1)' : 'rgba(249, 115, 22, 0.1)',
+                      border: `1px solid ${isEligibleForFreeDelivery ? 
+                        'rgba(34, 197, 94, 0.2)' : 'rgba(249, 115, 22, 0.2)'}`
+                    }}>
+                      {isEligibleForFreeDelivery ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography sx={{ fontSize: '0.8rem', color: '#059669', fontWeight: 500 }}>
+                            🎉 ยินดีด้วย! ได้รับส่งฟรี
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Box>
+                          <Typography sx={{ fontSize: '0.8rem', color: '#EA580C', fontWeight: 500 }}>
+                            💡 สั่งซื้อขั้นต่ำ ฿{minOrderAmount.toFixed(0)} เพื่อได้รับส่งฟรี
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.75rem', color: '#9CA3AF', mt: 0.5 }}>
+                            เหลืออีก ฿{(minOrderAmount - subtotal).toFixed(0)}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  )}
+                  
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                    <Typography sx={{ color: '#6B7280', fontSize: '0.85rem' }}>
-                      ค่าจัดส่ง
-                    </Typography>
-                    <Typography sx={{ fontWeight: 500, color: '#111827', fontSize: '0.85rem' }}>
-                      ฿{deliveryFee.toFixed(0)}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography sx={{ color: '#6B7280', fontSize: '0.85rem' }}>
+                        ค่าจัดส่ง
+                      </Typography>
+                      {isEligibleForFreeDelivery && (
+                        <Typography sx={{ 
+                          fontSize: '0.7rem', 
+                          color: '#059669', 
+                          fontWeight: 500,
+                          background: 'rgba(34, 197, 94, 0.1)',
+                          px: 1,
+                          py: 0.2,
+                          borderRadius: '4px'
+                        }}>
+                          ฟรี!
+                        </Typography>
+                      )}
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {!isEligibleForFreeDelivery && baseDeliveryFee !== deliveryFee && (
+                        <Typography sx={{ 
+                          fontSize: '0.75rem', 
+                          color: '#9CA3AF', 
+                          textDecoration: 'line-through' 
+                        }}>
+                          ฿{baseDeliveryFee.toFixed(0)}
+                        </Typography>
+                      )}
+                      <Typography sx={{ 
+                        fontWeight: 500, 
+                        color: isEligibleForFreeDelivery ? '#059669' : '#111827', 
+                        fontSize: '0.85rem' 
+                      }}>
+                        {isEligibleForFreeDelivery ? 'ฟรี' : `฿${deliveryFee.toFixed(0)}`}
+                      </Typography>
+                    </Box>
                   </Box>
                   {discount > 0 && (
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
@@ -1370,6 +1574,11 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                   <Typography sx={{ color: '#6B7280', fontSize: '0.8rem' }}>
                     {address.address}
                   </Typography>
+                  {address.address === 'ยังไม่ได้ตั้งค่า' && (
+                    <Typography sx={{ color: '#EF4444', fontSize: '0.7rem', mt: 0.5 }}>
+                      กรุณาตั้งค่าที่อยู่ในโปรไฟล์
+                    </Typography>
+                  )}
                 </Box>
                 {selectedAddress.id === address.id && (
                   <Box 
@@ -1454,11 +1663,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                     width: 48,
                     height: 48,
                     borderRadius: '16px',
-                                          background: payment.id === 'credit' ?
-                        (selectedPayment.id === payment.id ? 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)' : 'linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%)') :
-                        payment.id === 'wallet' ?
-                        (selectedPayment.id === payment.id ? 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)' : 'linear-gradient(135deg, #EDE9FE 0%, #DDD6FE 100%)') :
-                        payment.id === 'transfer' ?
+                    background: payment.id === 'transfer' ?
                         (selectedPayment.id === payment.id ? 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' : 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)') :
                         (selectedPayment.id === payment.id ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)' : 'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)'),
                     display: 'flex',
@@ -1485,20 +1690,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                     } : {}
                   }}
                 >
-                  {payment.id === 'credit' ? 
-                    <CreditCard sx={{ 
-                      color: selectedPayment.id === payment.id ? 'white' : '#3B82F6', 
-                      fontSize: 22, 
-                      zIndex: 1, 
-                      filter: selectedPayment.id === payment.id ? 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' : 'none' 
-                    }} /> :
-                    payment.id === 'wallet' ?
-                    <AccountBalanceWallet sx={{ 
-                      color: selectedPayment.id === payment.id ? 'white' : '#8B5CF6', 
-                      fontSize: 22, 
-                      zIndex: 1, 
-                      filter: selectedPayment.id === payment.id ? 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' : 'none' 
-                    }} /> :
+                  {
                     payment.id === 'transfer' ?
                     <AccountBalance sx={{ 
                       color: selectedPayment.id === payment.id ? 'white' : '#F59E0B', 
@@ -1527,21 +1719,13 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                       width: 24,
                       height: 24,
                       borderRadius: '50%',
-                      background: payment.id === 'credit' ? 
-                        'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)' :
-                        payment.id === 'wallet' ?
-                        'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)' :
-                        payment.id === 'transfer' ?
+                      background: payment.id === 'transfer' ?
                         'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' :
                         'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: payment.id === 'credit' ? 
-                        '0 2px 6px rgba(59, 130, 246, 0.3)' :
-                        payment.id === 'wallet' ?
-                        '0 2px 6px rgba(139, 92, 246, 0.3)' :
-                        payment.id === 'transfer' ?
+                      boxShadow: payment.id === 'transfer' ?
                         '0 2px 6px rgba(245, 158, 11, 0.3)' :
                         '0 2px 6px rgba(16, 185, 129, 0.3)',
                       animation: 'checkPulse 0.3s ease-out'
@@ -1578,16 +1762,56 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
             <Button
               fullWidth
               variant="contained"
-              onClick={() => {
-                // Handle order placement
-                console.log('🛒 Placing order...', {
-                  items: cartItems,
-                  total: finalTotal,
-                  address: selectedAddress,
-                  payment: selectedPayment
-                });
-                // TODO: Implement order placement logic
-                alert('สั่งซื้อเรียบร้อย! (Demo)');
+              onClick={async () => {
+                try {
+                  console.log('🛒 Placing order...', {
+                    items: cartItems,
+                    total: finalTotal,
+                    address: selectedAddress,
+                    payment: selectedPayment
+                  });
+
+                  const orderData = {
+                    restaurantId,
+                    items: cartItems,
+                    customerInfo: customerProfile,
+                    deliveryAddress: selectedAddress,
+                    paymentMethod: selectedPayment.id,
+                    subtotal: subtotal,
+                    deliveryFee: deliveryFee, // ใช้ค่าที่คำนวณแล้ว (อาจเป็น 0 หากส่งฟรี)
+                    baseDeliveryFee: baseDeliveryFee, // ค่าส่งปกติ
+                    isEligibleForFreeDelivery: isEligibleForFreeDelivery,
+                    minOrderAmount: minOrderAmount,
+                    total: finalTotal,
+                    discount,
+                    promoCode: promoApplied || undefined
+                  };
+
+                  const response = await fetch('/api/order/create', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(orderData)
+                  });
+
+                  const result = await response.json();
+
+                  if (result.success) {
+                    alert(`✅ ${result.message}\nเลขที่ออเดอร์: ${result.order.orderNumber}`);
+                    
+                    // ล้างตะกร้าหลังสั่งซื้อสำเร็จ
+                    clearCart();
+                    
+                    // เปลี่ยนหน้าไปที่หน้าออเดอร์หรือหน้าหลัก (อาจเพิ่มในอนาคต)
+                    // router.push(`/order/${result.order.id}`);
+                  } else {
+                    alert(`❌ เกิดข้อผิดพลาด: ${result.error}`);
+                  }
+                } catch (error) {
+                  console.error('Order placement error:', error);
+                  alert('❌ ไม่สามารถสั่งซื้อได้ กรุณาลองใหม่อีกครั้ง');
+                }
               }}
               sx={{
                 background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
@@ -1720,6 +1944,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                     boxShadow: '0 4px 16px rgba(245, 158, 11, 0.1)'
                   }}
                 >
+                  <img src='/images/promptpay_logo.png' alt='promptpay logo' width={200} height={120} />
                   <Box 
                     sx={{ 
                       width: 200,
@@ -1755,29 +1980,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                   <Typography variant="subtitle2" sx={{ color: '#374151', fontWeight: 600, mb: 2 }}>
                     ข้อมูล PromptPay
                   </Typography>
-                  
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
-                    <Typography sx={{ color: '#6B7280', fontSize: '0.85rem' }}>
-                      ระบบ
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography sx={{ fontWeight: 500, color: '#111827', fontSize: '0.85rem' }}>
-                        {bankData.bankName}
-                      </Typography>
-                      <Box sx={{ 
-                        background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                        color: 'white',
-                        px: 1,
-                        py: 0.2,
-                        borderRadius: '6px',
-                        fontSize: '0.6rem',
-                        fontWeight: 500
-                      }}>
-                        ใช้งานได้จริง
-                      </Box>
-                    </Box>
-                  </Box>
-                  
+
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
                     <Typography sx={{ color: '#6B7280', fontSize: '0.85rem' }}>
                       ชื่อร้าน
@@ -1790,7 +1993,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                   {bankData.usePhoneNumber ? (
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
                       <Typography sx={{ color: '#6B7280', fontSize: '0.85rem' }}>
-                        เบอร์โทร PromptPay
+                        PromptPay
                       </Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Typography sx={{ fontWeight: 500, color: '#111827', fontSize: '0.85rem' }}>
@@ -1886,27 +2089,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                   }}
                 >
                   <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
-                    💡 <strong>วิธีการโอน:</strong> แสกน QR Code ด้วยแอป Mobile Banking หรือโอนผ่าน PromptPay ด้วยเบอร์โทร จากนั้นส่งสลิปยืนยันการโอนเงิน
-                  </Typography>
-                </Alert>
-
-                {/* Supported Apps */}
-                <Alert 
-                  severity="success" 
-                  sx={{ 
-                    mb: 3,
-                    borderRadius: '12px',
-                    backgroundColor: 'rgba(34, 197, 94, 0.05)',
-                    border: '1px solid rgba(34, 197, 94, 0.1)',
-                    '& .MuiAlert-icon': { color: '#10B981' }
-                  }}
-                >
-                  <Typography variant="body2" sx={{ fontSize: '0.8rem', mb: 1 }}>
-                    📱 <strong>แอปที่รองรับ:</strong>
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontSize: '0.75rem', color: '#059669' }}>
-                    • ธนาคารกสิกรไทย (K PLUS) • ธนาคารกรุงเทพ (Bualuang) • ธนาคารไทยพาณิชย์ (SCB EASY)<br/>
-                    • ธนาคารกรุงไทย (Krungthai NEXT) • ธนาคารกรุงศรี (KMA) • True Money Wallet • ทุกแอป Mobile Banking
+                    💡 <strong>วิธีการโอน:</strong> แสกน QR Code ด้วยแอป Mobile Banking หรือโอนผ่าน PromptPay  จากนั้นส่งสลิปยืนยันการโอนเงิน
                   </Typography>
                 </Alert>
 

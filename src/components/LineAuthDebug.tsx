@@ -1,551 +1,354 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Box, 
-  Typography, 
-  Paper, 
-  Chip, 
-  Stack,
+import {
+  Box,
+  Typography,
   Button,
-  Collapse,
-  IconButton,
+  Card,
+  CardContent,
+  Chip,
+  Stack,
   Accordion,
   AccordionSummary,
-  AccordionDetails
+  AccordionDetails,
+  Alert,
+  TextField,
+  Divider
 } from '@mui/material';
-import { 
-  ExpandMore, 
-  ExpandLess, 
-  Refresh,
-  CheckCircle,
-  Cancel,
-  Warning
-} from '@mui/icons-material';
+import { ExpandMore } from '@mui/icons-material';
 
 interface LineAuthDebugProps {
   show?: boolean;
 }
 
+interface LiffScriptStatus {
+  scriptsFound: number;
+  scriptSources: string[];
+  hasLayoutScript: boolean;
+  hasManualScript: boolean;
+  hasBackupScript: boolean;
+  liffObjectAvailable: boolean;
+  lastLoadAttempt: string | null;
+  loadErrors: string[];
+}
+
 export default function LineAuthDebug({ show = false }: LineAuthDebugProps) {
-  const [expanded, setExpanded] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<any>({});
-  const [loading, setLoading] = useState(false);
+  const [authStatus, setAuthStatus] = useState<any>(null);
   const [liffConfig, setLiffConfig] = useState<any>(null);
-  const [liffValidation, setLiffValidation] = useState<any>(null);
+  const [scriptStatus, setScriptStatus] = useState<LiffScriptStatus | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const checkScriptStatus = () => {
+    if (typeof window === 'undefined') return null;
+
+    const scripts = document.querySelectorAll('script[src*="liff"], script[data-liff-sdk]');
+    const scriptSources = Array.from(scripts).map(script => 
+      (script as HTMLScriptElement).src || 'inline'
+    );
+
+    const status: LiffScriptStatus = {
+      scriptsFound: scripts.length,
+      scriptSources,
+      hasLayoutScript: !!document.querySelector('script[data-liff-sdk="true"]'),
+      hasManualScript: !!document.querySelector('script[data-liff-sdk="manual"]'),
+      hasBackupScript: !!document.querySelector('script[data-liff-sdk="manual-backup"]'),
+      liffObjectAvailable: !!(window as any).liff,
+      lastLoadAttempt: localStorage.getItem('liff-last-load-attempt'),
+      loadErrors: JSON.parse(localStorage.getItem('liff-load-errors') || '[]')
+    };
+
+    return status;
+  };
 
   const checkAuthStatus = async () => {
-    setLoading(true);
+    setRefreshing(true);
+    
     try {
-      const info: any = {
-        timestamp: new Date().toISOString(),
-        localStorage: null,
-        sessionStorage: null,
-        sessionAPI: null,
-        liffStatus: null,
+      // ตรวจสอบ script status
+      const scriptStat = checkScriptStatus();
+      setScriptStatus(scriptStat);
+
+      // ตรวจสอบ LIFF config
+      const envLiffId = process.env.NEXT_PUBLIC_LIFF_ID;
+      const { getValidatedLiffId } = await import('@/lib/liffUtils');
+      const { liffId, error } = getValidatedLiffId();
+      
+      setLiffConfig({
+        envLiffId,
+        validatedLiffId: liffId,
+        validationError: error,
+        hasEnvVar: !!envLiffId,
+        isValid: !!liffId
+      });
+
+      // ตรวจสอบ auth status
+      const status: any = {
+        liffSdk: {
+          available: !!(window as any).liff,
+          initialized: false,
+          loggedIn: false,
+          canGetProfile: false,
+          hasAccessToken: false,
+          version: 'unknown',
+          environment: 'unknown'
+        },
+        session: {
+          hasSession: false,
+          sessionType: 'none',
+          userId: null,
+          userEmail: null
+        },
         environment: {
           userAgent: navigator.userAgent,
           isLineApp: navigator.userAgent.includes('Line'),
-          url: window.location.href,
-          referrer: document.referrer
+          currentUrl: window.location.href,
+          hasLiffParam: window.location.search.includes('liff=true'),
+          timestamp: new Date().toISOString()
         }
       };
 
-      // ตรวจสอบ localStorage
-      try {
-        const storedUser = localStorage.getItem('line_user_data');
-        const liffSession = localStorage.getItem('liff_session_data');
-        info.localStorage = {
-          line_user_data: storedUser ? JSON.parse(storedUser) : null,
-          liff_session_data: liffSession ? JSON.parse(liffSession) : null
-        };
-      } catch (e) {
-        info.localStorage = { error: 'Invalid JSON in localStorage' };
-      }
-
-      // ตรวจสอบ sessionStorage
-      try {
-        const redirectCount = sessionStorage.getItem('menu_redirect_count');
-        info.sessionStorage = {
-          redirectCount: redirectCount || '0',
-          allKeys: Object.keys(sessionStorage)
-        };
-      } catch (e) {
-        info.sessionStorage = { error: 'Cannot access sessionStorage' };
-      }
-
-      // ตรวจสอบ Session API
-      try {
-        const response = await fetch('/api/auth/line-session');
-        const data = await response.json();
-        info.sessionAPI = {
-          status: response.status,
-          ok: response.ok,
-          data: data
-        };
-      } catch (e) {
-        info.sessionAPI = { error: e instanceof Error ? e.message : 'Unknown error' };
-      }
-
-      // ตรวจสอบ LIFF Status - ละเอียดขึ้น
-      try {
-        if (typeof window !== 'undefined' && (window as any).liff) {
-          const liff = (window as any).liff;
+      // ตรวจสอบ LIFF SDK
+      if ((window as any).liff) {
+        try {
+          status.liffSdk.initialized = true;
           
-          // ตรวจสอบ functions ต่างๆ ที่มีอยู่
-          const liffMethods = {
-            init: typeof liff.init === 'function',
-            isLoggedIn: typeof liff.isLoggedIn === 'function',
-            isInClient: typeof liff.isInClient === 'function',
-            getProfile: typeof liff.getProfile === 'function',
-            getAccessToken: typeof liff.getAccessToken === 'function'
-          };
-
-          let loginStatus = null;
-          let clientStatus = null;
-          let profileStatus = null;
-          let accessTokenStatus = null;
-
-          try {
-            loginStatus = liff.isLoggedIn ? liff.isLoggedIn() : 'Method not available';
-          } catch (e) {
-            loginStatus = `Error: ${e instanceof Error ? e.message : 'Unknown'}`;
-          }
-
-          try {
-            clientStatus = liff.isInClient ? liff.isInClient() : 'Method not available';
-          } catch (e) {
-            clientStatus = `Error: ${e instanceof Error ? e.message : 'Unknown'}`;
-          }
-
-          try {
-            if (liff.getProfile && loginStatus === true) {
-              const profile = await liff.getProfile();
-              profileStatus = profile ? 'Available' : 'Not available';
-            } else {
-              profileStatus = 'Cannot check (not logged in or method unavailable)';
+          if ((window as any).liff.isLoggedIn()) {
+            status.liffSdk.loggedIn = true;
+            
+            try {
+              const profile = await (window as any).liff.getProfile();
+              status.liffSdk.canGetProfile = true;
+              status.liffSdk.userId = profile.userId;
+              status.liffSdk.displayName = profile.displayName;
+            } catch (profileError) {
+              console.warn('Cannot get LIFF profile:', profileError);
             }
-          } catch (e) {
-            profileStatus = `Error: ${e instanceof Error ? e.message : 'Unknown'}`;
-          }
-
-          try {
-            if (liff.getAccessToken && loginStatus === true) {
-              const token = liff.getAccessToken();
-              accessTokenStatus = token ? 'Available' : 'Not available';
-            } else {
-              accessTokenStatus = 'Cannot check (not logged in or method unavailable)';
-            }
-          } catch (e) {
-            accessTokenStatus = `Error: ${e instanceof Error ? e.message : 'Unknown'}`;
-          }
-
-          info.liffStatus = {
-            sdkAvailable: true,
-            methods: liffMethods,
-            isLoggedIn: loginStatus,
-            isInClient: clientStatus,
-            profile: profileStatus,
-            accessToken: accessTokenStatus,
-            initialized: 'Unknown' // จะอัพเดทด้านล่าง
-          };
-
-          // ลองตรวจสอบว่า LIFF initialized หรือไม่โดยลอง call function
-          try {
-            if (liff.isLoggedIn) {
-              liff.isLoggedIn(); // ถ้า call ได้แปลว่า initialized
-              info.liffStatus.initialized = true;
-            }
-          } catch (initError) {
-            if (initError instanceof Error && initError.message.includes('LIFF has not been initialized')) {
-              info.liffStatus.initialized = false;
-            } else {
-              info.liffStatus.initialized = `Error: ${initError instanceof Error ? initError.message : 'Unknown'}`;
+            
+            try {
+              const accessToken = (window as any).liff.getAccessToken();
+              status.liffSdk.hasAccessToken = !!accessToken;
+            } catch (tokenError) {
+              console.warn('Cannot get access token:', tokenError);
             }
           }
-        } else {
-          info.liffStatus = { sdkAvailable: false, reason: 'LIFF object not found' };
-        }
-      } catch (e) {
-        info.liffStatus = { error: e instanceof Error ? e.message : 'Unknown error' };
+          
+          // ตรวจสอบ version และ environment
+          try {
+            status.liffSdk.version = (window as any).liff.getVersion();
+            status.liffSdk.environment = (window as any).liff.getOS();
+            status.liffSdk.isInClient = (window as any).liff.isInClient();
+          } catch (versionError) {
+            console.warn('Cannot get LIFF version info:', versionError);
+          }
+          
+                 } catch (liffError) {
+           console.warn('LIFF error:', liffError);
+           status.liffSdk.error = liffError instanceof Error ? liffError.message : 'Unknown LIFF error';
+         }
       }
 
-      setDebugInfo(info);
+      // ตรวจสอบ NextAuth session
+      try {
+        const sessionResponse = await fetch('/api/auth/session');
+        if (sessionResponse.ok) {
+          const sessionData = await sessionResponse.json();
+          if (sessionData && sessionData.user) {
+            status.session.hasSession = true;
+            status.session.sessionType = 'nextauth';
+            status.session.userId = sessionData.user.id;
+            status.session.userEmail = sessionData.user.email;
+            status.session.userName = sessionData.user.name;
+          }
+        }
+      } catch (sessionError) {
+        console.warn('Cannot check session:', sessionError);
+      }
+
+      setAuthStatus(status);
     } catch (error) {
-      console.error('Debug check failed:', error);
+      console.error('Debug check error:', error);
     } finally {
-      setLoading(false);
+      setRefreshing(false);
     }
   };
-
-  // ตรวจสอบ LIFF configuration
-  useEffect(() => {
-    const checkLiffConfig = async () => {
-      try {
-        const { getValidatedLiffId, validateLiffId } = await import('@/lib/liffUtils');
-        const envLiffId = process.env.NEXT_PUBLIC_LIFF_ID;
-        const { liffId, error } = getValidatedLiffId();
-        
-        setLiffConfig({
-          envLiffId,
-          validatedLiffId: liffId,
-          error,
-          hasEnvVar: !!envLiffId
-        });
-        
-        if (envLiffId) {
-          const validation = validateLiffId(envLiffId);
-          setLiffValidation(validation);
-        }
-      } catch (error) {
-        console.error('Failed to check LIFF config:', error);
-      }
-    };
-
-    if (show) {
-      checkLiffConfig();
-    }
-  }, [show]);
 
   useEffect(() => {
     if (show) {
       checkAuthStatus();
+      
+      // Auto refresh ทุก 5 วินาที
+      const interval = setInterval(checkAuthStatus, 5000);
+      return () => clearInterval(interval);
     }
   }, [show]);
-
-  const getStatusIcon = (status: any) => {
-    if (status === null || status === undefined) return <Warning color="warning" />;
-    if (status.error) return <Cancel color="error" />;
-    if (status.authenticated || status.available) return <CheckCircle color="success" />;
-    return <Warning color="warning" />;
-  };
-
-  const getStatusColor = (status: any) => {
-    if (status === null || status === undefined) return 'warning';
-    if (status.error) return 'error';
-    if (status.authenticated || status.available) return 'success';
-    return 'warning';
-  };
 
   if (!show) return null;
 
   return (
-    <Paper
+    <Box
       sx={{
         position: 'fixed',
-        top: 70,
-        right: 10,
-        width: 300,
-        maxHeight: '80vh',
-        overflowY: 'auto',
-        zIndex: 9999,
-        bgcolor: 'rgba(0, 0, 0, 0.9)',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        bgcolor: 'rgba(0, 0, 0, 0.95)',
         color: 'white',
+        zIndex: 9999,
+        overflow: 'auto',
         p: 2
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-        <Typography variant="h6" sx={{ fontSize: '0.9rem', fontWeight: 600 }}>
-          🔍 LINE Auth Debug
-        </Typography>
-        <Box>
-          <IconButton size="small" onClick={checkAuthStatus} disabled={loading} sx={{ color: 'white' }}>
-            <Refresh />
-          </IconButton>
-          <IconButton size="small" onClick={() => setExpanded(!expanded)} sx={{ color: 'white' }}>
-            {expanded ? <ExpandLess /> : <ExpandMore />}
-          </IconButton>
-        </Box>
-      </Box>
+      <Typography variant="h4" gutterBottom sx={{ color: '#FFD700', fontWeight: 600 }}>
+        🔍 LINE Authentication Debug Panel
+      </Typography>
 
-      <Stack spacing={1}>
-        {/* Quick Status */}
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          <Chip
-            icon={getStatusIcon(debugInfo.localStorage)}
-            label="Storage"
-            size="small"
-            color={getStatusColor(debugInfo.localStorage) as any}
-            variant="outlined"
-          />
-          <Chip
-            icon={getStatusIcon(debugInfo.sessionAPI)}
-            label="Session"
-            size="small"
-            color={getStatusColor(debugInfo.sessionAPI) as any}
-            variant="outlined"
-          />
-          <Chip
-            icon={getStatusIcon(debugInfo.liffStatus)}
-            label={debugInfo.liffStatus?.sdkAvailable ? 
-              `LIFF ${debugInfo.liffStatus.initialized === true ? 'Ready' : 'Not Ready'}` : 
-              'No LIFF'
+      {/* Quick Actions */}
+      <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
+        <Button
+          variant="contained"
+          onClick={checkAuthStatus}
+          disabled={refreshing}
+          sx={{ bgcolor: '#1976d2' }}
+        >
+          {refreshing ? 'รีเฟรช...' : 'รีเฟรชข้อมูล'}
+        </Button>
+        
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={async () => {
+            try {
+              console.log('🧪 Testing LIFF SDK reload...');
+              
+              // Clear existing LIFF
+              if ((window as any).liff) {
+                console.log('🗑️ Clearing existing LIFF object');
+                delete (window as any).liff;
+              }
+              
+              // Remove existing scripts
+              const existingScripts = document.querySelectorAll('script[src*="liff"], script[data-liff-sdk]');
+              existingScripts.forEach(script => script.remove());
+              
+              // Reload LIFF SDK
+              const { ensureLiffSDKLoaded } = await import('@/lib/liffLoader');
+              const loadResult = await ensureLiffSDKLoaded(2);
+              
+              console.log('🧪 LIFF SDK reload result:', loadResult);
+              
+              checkAuthStatus();
+            } catch (error) {
+              console.error('🧪 LIFF SDK reload test failed:', error);
             }
-            size="small"
-            color={debugInfo.liffStatus?.sdkAvailable && debugInfo.liffStatus.initialized === true ? 'success' : 'error'}
-          />
-        </Box>
-
-        <Collapse in={expanded}>
-          <Stack spacing={2} sx={{ mt: 2 }}>
-            {/* localStorage */}
-            <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                📦 localStorage
-              </Typography>
-              <Box sx={{ bgcolor: 'rgba(255,255,255,0.1)', p: 1, borderRadius: 1, fontSize: '0.75rem' }}>
-                {debugInfo.localStorage ? (
-                  <pre>{JSON.stringify(debugInfo.localStorage, null, 2)}</pre>
-                ) : (
-                  <Typography variant="caption">No data</Typography>
-                )}
-              </Box>
-            </Box>
-
-            {/* Session API */}
-            <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                🔐 Session API
-              </Typography>
-              <Box sx={{ bgcolor: 'rgba(255,255,255,0.1)', p: 1, borderRadius: 1, fontSize: '0.75rem' }}>
-                {debugInfo.sessionAPI ? (
-                  <pre>{JSON.stringify(debugInfo.sessionAPI, null, 2)}</pre>
-                ) : (
-                  <Typography variant="caption">No data</Typography>
-                )}
-              </Box>
-            </Box>
-
-            {/* LIFF Status */}
-            <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                📱 LIFF Status
-              </Typography>
-              <Box sx={{ bgcolor: 'rgba(255,255,255,0.1)', p: 1, borderRadius: 1, fontSize: '0.75rem' }}>
-                {debugInfo.liffStatus ? (
-                  <pre>{JSON.stringify(debugInfo.liffStatus, null, 2)}</pre>
-                ) : (
-                  <Typography variant="caption">No data</Typography>
-                )}
-              </Box>
-            </Box>
-
-            {/* Environment */}
-            <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                🌍 Environment
-              </Typography>
-              <Box sx={{ bgcolor: 'rgba(255,255,255,0.1)', p: 1, borderRadius: 1, fontSize: '0.75rem' }}>
-                {debugInfo.environment ? (
-                  <pre>{JSON.stringify(debugInfo.environment, null, 2)}</pre>
-                ) : (
-                  <Typography variant="caption">No data</Typography>
-                )}
-              </Box>
-            </Box>
-
-            {/* Actions */}
-            <Stack direction="row" spacing={1}>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => {
-                  localStorage.removeItem('line_user_data');
-                  localStorage.removeItem('liff_session_data');
-                  sessionStorage.removeItem('menu_redirect_count');
-                  checkAuthStatus();
-                }}
-                sx={{ color: 'white', borderColor: 'white' }}
-              >
-                Clear All
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={async () => {
-                  try {
-                    const { restoreLiffSession } = await import('@/lib/sessionUtils');
-                    const result = await restoreLiffSession();
-                    console.log('🧪 Session restore test:', result);
-                    checkAuthStatus();
-                  } catch (error) {
-                    console.error('🧪 Session restore test failed:', error);
-                  }
-                }}
-                sx={{ color: 'white', borderColor: 'white' }}
-              >
-                Test Restore
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={async () => {
-                  try {
-                    console.log('🧪 Testing LIFF re-initialization...');
-                    
-                    // ลองลบ LIFF object และโหลดใหม่
-                    if ((window as any).liff) {
-                      console.log('🗑️ Clearing existing LIFF object');
-                      delete (window as any).liff;
-                    }
-                    
-                    // โหลด LIFF SDK ใหม่
-                    const script = document.createElement('script');
-                    script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
-                    script.async = true;
-                    
-                    await new Promise((resolve, reject) => {
-                      script.onload = resolve;
-                      script.onerror = reject;
-                      document.head.appendChild(script);
-                    });
-                    
-                    console.log('✅ LIFF SDK reloaded');
-                    
-                    // Initialize LIFF
-                    const { initializeLiff } = await import('@/lib/sessionUtils');
-                    const initResult = await initializeLiff();
-                    
-                    if (initResult.success) {
-                      console.log('✅ LIFF re-initialized successfully');
-                    } else {
-                      console.error('❌ LIFF re-initialization failed:', initResult.error);
-                    }
-                    
-                    checkAuthStatus();
-                  } catch (error) {
-                    console.error('🧪 LIFF re-init test failed:', error);
-                  }
-                }}
-                sx={{ color: 'white', borderColor: 'white' }}
-              >
-                Re-init LIFF
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => window.location.reload()}
-                sx={{ color: 'white', borderColor: 'white' }}
-              >
-                Reload
-              </Button>
-            </Stack>
-
-            {/* LIFF Configuration Status */}
-            <Accordion>
-              <AccordionSummary expandIcon={<ExpandMore />}>
-                <Typography variant="h6">🔧 LIFF Configuration</Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Environment Variable:</Typography>
-                    <Typography sx={{ 
-                      fontFamily: 'monospace', 
-                      bgcolor: liffConfig?.hasEnvVar ? '#e8f5e8' : '#ffe8e8',
-                      color: liffConfig?.hasEnvVar ? '#2e7d32' : '#d32f2f',
-                      p: 1,
-                      borderRadius: 1,
-                      fontSize: '0.85rem'
-                    }}>
-                      NEXT_PUBLIC_LIFF_ID = {liffConfig?.envLiffId || 'NOT SET'}
-                    </Typography>
-                  </Box>
-
-                  {liffValidation && (
-                    <Box>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Validation:</Typography>
-                      <Typography sx={{ 
-                        fontFamily: 'monospace', 
-                        bgcolor: liffValidation.valid ? '#e8f5e8' : '#ffe8e8',
-                        color: liffValidation.valid ? '#2e7d32' : '#d32f2f',
-                        p: 1,
-                        borderRadius: 1,
-                        fontSize: '0.85rem'
-                      }}>
-                        {liffValidation.valid ? '✅ Valid LIFF ID format' : `❌ ${liffValidation.error}`}
-                      </Typography>
-                    </Box>
-                  )}
-
-                  <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Validated LIFF ID:</Typography>
-                    <Typography sx={{ 
-                      fontFamily: 'monospace', 
-                      bgcolor: liffConfig?.validatedLiffId ? '#e8f5e8' : '#ffe8e8',
-                      color: liffConfig?.validatedLiffId ? '#2e7d32' : '#d32f2f',
-                      p: 1,
-                      borderRadius: 1,
-                      fontSize: '0.85rem'
-                    }}>
-                      {liffConfig?.validatedLiffId || liffConfig?.error || 'No valid LIFF ID'}
-                    </Typography>
-                  </Box>
-
-                  {liffConfig?.validatedLiffId && (
-                    <Box>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>LIFF URL Example:</Typography>
-                      <Typography sx={{ 
-                        fontFamily: 'monospace', 
-                        bgcolor: '#f5f5f5',
-                        p: 1,
-                        borderRadius: 1,
-                        fontSize: '0.8rem',
-                        wordBreak: 'break-all'
-                      }}>
-                        https://liff.line.me/{liffConfig.validatedLiffId}?restaurant=xxx
-                      </Typography>
-                    </Box>
-                  )}
-                </Box>
-              </AccordionDetails>
-            </Accordion>
-
-            {/* Detailed LIFF Status */}
-            {debugInfo.liffStatus && (
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                  🚀 LIFF Detailed Status
-                </Typography>
-                <Box sx={{ bgcolor: 'rgba(255,255,255,0.1)', p: 1, borderRadius: 1, fontSize: '0.75rem' }}>
-                  {debugInfo.liffStatus.sdkAvailable ? (
-                    <Stack spacing={0.5}>
-                      <Typography sx={{ color: debugInfo.liffStatus.initialized === true ? '#4caf50' : '#f44336' }}>
-                        <strong>Initialized:</strong> {debugInfo.liffStatus.initialized === true ? '✅ Yes' : debugInfo.liffStatus.initialized === false ? '❌ No' : debugInfo.liffStatus.initialized}
-                      </Typography>
-                      <Typography sx={{ color: debugInfo.liffStatus.isLoggedIn === true ? '#4caf50' : '#f44336' }}>
-                        <strong>Logged In:</strong> {debugInfo.liffStatus.isLoggedIn === true ? '✅ Yes' : debugInfo.liffStatus.isLoggedIn === false ? '❌ No' : debugInfo.liffStatus.isLoggedIn}
-                      </Typography>
-                      <Typography sx={{ color: debugInfo.liffStatus.isInClient === true ? '#4caf50' : '#ff9800' }}>
-                        <strong>In LINE App:</strong> {debugInfo.liffStatus.isInClient === true ? '✅ Yes' : debugInfo.liffStatus.isInClient === false ? '⚠️ No' : debugInfo.liffStatus.isInClient}
-                      </Typography>
-                      <Typography sx={{ color: debugInfo.liffStatus.profile === 'Available' ? '#4caf50' : '#f44336' }}>
-                        <strong>Profile:</strong> {debugInfo.liffStatus.profile}
-                      </Typography>
-                      <Typography sx={{ color: debugInfo.liffStatus.accessToken === 'Available' ? '#4caf50' : '#f44336' }}>
-                        <strong>Access Token:</strong> {debugInfo.liffStatus.accessToken}
-                      </Typography>
-                      
-                      <Typography variant="caption" sx={{ mt: 1, display: 'block', color: '#ccc' }}>
-                        <strong>Available Methods:</strong>
-                      </Typography>
-                      {Object.entries(debugInfo.liffStatus.methods || {}).map(([method, available]) => (
-                        <Typography key={method} variant="caption" sx={{ fontSize: '0.7rem', color: available ? '#4caf50' : '#f44336' }}>
-                          • {method}: {available ? '✅' : '❌'}
-                        </Typography>
-                      ))}
-                    </Stack>
-                  ) : (
-                    <Typography sx={{ color: '#f44336' }}>
-                      ❌ LIFF SDK not available - {debugInfo.liffStatus.reason || 'Unknown reason'}
-                    </Typography>
-                  )}
-                </Box>
-              </Box>
-            )}
-          </Stack>
-        </Collapse>
+          }}
+          sx={{ color: 'white', borderColor: 'white' }}
+        >
+          Test SDK Reload
+        </Button>
+        
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={() => window.location.reload()}
+          sx={{ color: 'white', borderColor: 'white' }}
+        >
+          Reload Page
+        </Button>
       </Stack>
-    </Paper>
+
+      {/* LIFF Script Status */}
+      <Accordion>
+        <AccordionSummary expandIcon={<ExpandMore />}>
+          <Typography variant="h6">
+            📦 LIFF Script Loading Status
+            {scriptStatus && (
+              <Chip 
+                label={`${scriptStatus.scriptsFound} scripts`} 
+                color={scriptStatus.liffObjectAvailable ? 'success' : 'error'}
+                size="small" 
+                sx={{ ml: 2 }} 
+              />
+            )}
+          </Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {scriptStatus && (
+              <>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Scripts Found:</Typography>
+                  <Typography sx={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                    {scriptStatus.scriptsFound} script(s) detected
+                  </Typography>
+                </Box>
+                
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Script Sources:</Typography>
+                  {scriptStatus.scriptSources.map((src, index) => (
+                    <Typography key={index} sx={{ 
+                      fontFamily: 'monospace', 
+                      fontSize: '0.75rem',
+                      bgcolor: 'rgba(255,255,255,0.1)',
+                      p: 0.5,
+                      borderRadius: 1,
+                      mb: 0.5
+                    }}>
+                      {src}
+                    </Typography>
+                  ))}
+                </Box>
+                
+                <Stack direction="row" spacing={1} flexWrap="wrap">
+                  <Chip 
+                    label="Layout Script" 
+                    color={scriptStatus.hasLayoutScript ? 'success' : 'default'}
+                    size="small"
+                  />
+                  <Chip 
+                    label="Manual Script" 
+                    color={scriptStatus.hasManualScript ? 'warning' : 'default'}
+                    size="small"
+                  />
+                  <Chip 
+                    label="Backup Script" 
+                    color={scriptStatus.hasBackupScript ? 'info' : 'default'}
+                    size="small"
+                  />
+                  <Chip 
+                    label="LIFF Object" 
+                    color={scriptStatus.liffObjectAvailable ? 'success' : 'error'}
+                    size="small"
+                  />
+                </Stack>
+                
+                {scriptStatus.lastLoadAttempt && (
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Last Load Attempt:</Typography>
+                    <Typography sx={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                      {scriptStatus.lastLoadAttempt}
+                    </Typography>
+                  </Box>
+                )}
+                
+                {scriptStatus.loadErrors.length > 0 && (
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#f44336' }}>
+                      Load Errors:
+                    </Typography>
+                    {scriptStatus.loadErrors.map((error, index) => (
+                      <Alert key={index} severity="error" sx={{ mt: 1 }}>
+                        {error}
+                      </Alert>
+                    ))}
+                  </Box>
+                )}
+              </>
+            )}
+          </Box>
+        </AccordionDetails>
+      </Accordion>
+    </Box>
   );
 } 

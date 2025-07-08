@@ -120,7 +120,13 @@ export async function PUT(request: NextRequest) {
       isOpen,
       minOrderAmount,
       deliveryFee,
-      deliveryRadius
+      deliveryRadius,
+      // Payment settings
+      acceptCash,
+      acceptTransfer,
+      promptpayId,
+      promptpayType,
+      promptpayName
     } = data
 
     // Validation
@@ -196,7 +202,13 @@ export async function PUT(request: NextRequest) {
         isOpen: isOpen !== undefined ? isOpen : true,
         minOrderAmount: minOrderAmount !== undefined ? minOrderAmount : null,
         deliveryFee: deliveryFee !== undefined ? deliveryFee : null,
-        deliveryRadius: deliveryRadius !== undefined ? deliveryRadius : null
+        deliveryRadius: deliveryRadius !== undefined ? deliveryRadius : null,
+        // Payment settings
+        acceptCash: acceptCash !== undefined ? acceptCash : true,
+        acceptTransfer: acceptTransfer !== undefined ? acceptTransfer : false,
+        promptpayId: promptpayId?.trim() || null,
+        promptpayType: promptpayType || null,
+        promptpayName: promptpayName?.trim() || null
       } as any,
       include: {
         _count: {

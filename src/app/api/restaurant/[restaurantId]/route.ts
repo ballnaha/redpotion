@@ -13,22 +13,7 @@ export async function GET(
       where: {
         id: restaurantId,
       },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        address: true,
-        phone: true,
-        email: true,
-        imageUrl: true,
-        status: true,
-        isOpen: true,
-        minOrderAmount: true,
-        deliveryFee: true,
-        deliveryRadius: true,
-        openTime: true,
-        closeTime: true,
-        locationName: true,
+      include: {
         categories: {
           where: {
             isActive: true,
@@ -66,8 +51,6 @@ export async function GET(
             },
           },
         },
-        createdAt: true,
-        updatedAt: true,
       },
     })
 

@@ -199,6 +199,7 @@ function LineSignInContent() {
             url: window.location.href
           });
           
+          // ใช้ router.replace แทน window.location.href เพื่อความเร็ว
           if (isFromLine) {
             // ถ้ามาจาก LINE ให้ไปหน้า liff
             console.log('📱 Already authenticated, coming from LINE, redirecting to LIFF page...')
@@ -206,16 +207,16 @@ function LineSignInContent() {
               ? `/liff?restaurant=${restaurantId}` 
               : '/liff';
             console.log('🎯 LIFF URL (existing session):', liffUrl);
-            window.location.href = liffUrl;
+            router.replace(liffUrl);
           } else {
             // Redirect ทันทีเพื่อลด loading time (web browser)
             console.log('🌐 Already authenticated, not from LINE, using web browser redirect...');
             if (restaurantId) {
               console.log('🏪 Already authenticated, redirecting to restaurant menu:', restaurantId)
-              window.location.href = `/menu/${restaurantId}?from=line-signin`
+              router.replace(`/menu/${restaurantId}?from=line-signin`);
             } else {
               console.log('🏠 Redirecting to home')
-              window.location.href = '/'
+              router.replace('/');
             }
           }
           return
@@ -353,8 +354,8 @@ function LineSignInContent() {
             setShowProfileAnimation(true);
             setLoadingMessage(`ยินดีต้อนรับ ${profile.displayName}!`);
             
-            // หน่วงเวลาให้เห็นภาพและชื่อ
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            // ลดเวลาหน่วงเพื่อความเร็ว
+            await new Promise(resolve => setTimeout(resolve, 800));
           } catch (profileError) {
             console.warn('⚠️ Cannot get LINE profile:', profileError);
           }
@@ -405,7 +406,7 @@ function LineSignInContent() {
             setLoadingMessage('ผู้ใช้ใหม่! กำลังตั้งค่าบัญชี...');
             setTimeout(() => {
               router.replace('/auth/role-selection')
-            }, 2000);
+            }, 1000); // ลดจาก 2000ms เป็น 1000ms
             return
           }
 
@@ -420,7 +421,7 @@ function LineSignInContent() {
             setLoadingMessage('เข้าสู่ระบบสำเร็จ! กำลังนำท่านไปยังหน้าเมนู...');
           }
           
-          // หน่วงเวลาให้เห็นข้อความสำเร็จ
+          // ลดเวลาหน่วงเพื่อความเร็ว
           setTimeout(() => {
             // ตรวจสอบว่ามาจาก LINE environment หรือไม่ - ปรับปรุงการตรวจสอบ
             const isFromLine = typeof window !== 'undefined' && (
@@ -442,6 +443,7 @@ function LineSignInContent() {
               url: window.location.href
             });
             
+            // ใช้ router.replace แทน window.location.href เพื่อความเร็ว
             if (isFromLine) {
               // ถ้ามาจาก LINE ให้ไปหน้า liff
               console.log('📱 Coming from LINE, redirecting to LIFF page...')
@@ -449,19 +451,19 @@ function LineSignInContent() {
                 ? `/liff?restaurant=${data.restaurantId}` 
                 : '/liff';
               console.log('🎯 LIFF URL:', liffUrl);
-              window.location.href = liffUrl;
+              router.replace(liffUrl);
             } else {
               // ถ้ามาจาก web browser ให้ไปตาม response ปกติ
               console.log('🌐 Not from LINE, using web browser redirect...');
               if (data.shouldRedirectToRestaurant && data.restaurantId) {
                 console.log('🏪 Redirecting to restaurant menu:', data.restaurantId)
-                window.location.href = `/menu/${data.restaurantId}?from=line-signin`
+                router.replace(`/menu/${data.restaurantId}?from=line-signin`);
               } else {
                 console.log('🔄 Redirecting according to API response:', data.redirectUrl)
-                window.location.href = data.redirectUrl
+                router.replace(data.redirectUrl);
               }
             }
-          }, 1500);
+          }, 800); // ลดจาก 1500ms เป็น 800ms
         } else {
           console.error('❌ LINE login failed:', data.error)
           throw new Error(data.error || 'การเข้าสู่ระบบด้วย LINE ล้มเหลว')

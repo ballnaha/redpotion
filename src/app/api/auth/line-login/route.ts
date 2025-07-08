@@ -29,12 +29,12 @@ export async function POST(req: NextRequest) {
     const loginType = isRecovery ? 'Recovery' : 'Normal';
     console.log(`🔐 LINE ${loginType} Login attempt with restaurantId:`, restaurantId)
 
-    // ตรวจสอบ access token กับ LINE API - เพิ่ม timeout เพื่อความเร็ว
+    // ตรวจสอบ access token กับ LINE API - ลด timeout เพื่อความเร็ว
     const lineResponse = await fetch('https://api.line.me/v2/profile', {
       headers: {
         'Authorization': `Bearer ${accessToken}`
       },
-      signal: AbortSignal.timeout(5000) // 5 วินาที timeout
+      signal: AbortSignal.timeout(3000) // 3 วินาที timeout
     })
 
     if (!lineResponse.ok) {
@@ -53,9 +53,20 @@ export async function POST(req: NextRequest) {
       statusMessage: lineProfile.statusMessage
     })
 
-    // ค้นหาหรือสร้าง user ในฐานข้อมูล
+    // ค้นหาหรือสร้าง user ในฐานข้อมูล - เพิ่ม caching
     let user = await prisma.user.findUnique({
-      where: { lineUserId: lineProfile.userId }
+      where: { lineUserId: lineProfile.userId },
+      // ดึงเฉพาะฟิลด์ที่จำเป็นเพื่อลดเวลา
+      select: {
+        id: true,
+        lineUserId: true,
+        name: true,
+        email: true,
+        role: true,
+        image: true,
+        createdAt: true,
+        updatedAt: true
+      }
     })
 
     let isNewUser = false;

@@ -41,17 +41,17 @@ function LiffLandingContent() {
         // ถ้าไม่มี session หรือ session หมดอายุ ให้ทำ LIFF login ปกติ
         console.log('🔄 No valid session found, proceeding with LIFF login...');
         
-        // โหลด LIFF SDK ด้วย timeout - ลดเวลาให้เร็วขึ้น
-        const loadTimeout = setTimeout(() => {
-          if (!liffReady) {
-            console.error('❌ LIFF SDK load timeout');
-            setError('connection_timeout');
-            setIsLoading(false);
-          }
-        }, 8000); // ลดเป็น 8 วินาที
+        // ใช้ liffLoader ที่ปรับปรุงแล้ว
+        const { ensureLiffSDKLoaded } = await import('@/lib/liffLoader');
+        setLoadingMessage('เชื่อมต่อกับ LINE SDK...');
         
-        await loadLiffSdk();
-        clearTimeout(loadTimeout);
+        const loadResult = await ensureLiffSDKLoaded(3);
+        if (!loadResult.success) {
+          console.error('❌ LIFF SDK loading failed:', loadResult.error);
+          setError('sdk_error');
+          setIsLoading(false);
+          return;
+        }
         
         setLoadingMessage('เชื่อมต่อกับ LINE...');
         
@@ -66,76 +66,41 @@ function LiffLandingContent() {
           return;
         }
         
-        if ((window as any).liff) {
-          let initAttempts = 0;
-          const maxInitAttempts = 3;
+        // ใช้ smart LIFF initialization
+        const { smartInitializeLiff } = await import('@/lib/liffLoader');
+        const initResult = await smartInitializeLiff(liffId, 3);
+        
+        if (!initResult.success) {
+          console.error('❌ LIFF initialization failed:', initResult.error);
           
-          while (initAttempts < maxInitAttempts) {
-            try {
-              await (window as any).liff.init({ liffId });
-              console.log('✅ LIFF initialized successfully');
-              setLiffReady(true);
-              break;
-            } catch (initError) {
-              initAttempts++;
-              console.error(`❌ LIFF initialization attempt ${initAttempts} failed:`, initError);
-              
-              if (initError instanceof Error) {
-                // Already initialized
-                if (initError.message.includes('already initialized') || 
-                    initError.message.includes('LIFF has already been initialized')) {
-                  console.log('✅ LIFF already initialized');
-                  setLiffReady(true);
-                  break;
-                }
-                
-                // Invalid LIFF ID
-                if (initError.message.includes('invalid liff id') || 
-                    initError.message.includes('Invalid LIFF ID')) {
-                  setError('invalid_liff_id');
-                  setIsLoading(false);
-                  return;
-                }
-                
-                // Network errors
-                if (initError.message.includes('timeout') || 
-                    initError.message.includes('network') ||
-                    initError.message.includes('failed to fetch')) {
-                  if (initAttempts >= maxInitAttempts) {
-                    setError('network_error');
-                    setIsLoading(false);
-                    return;
-                  }
-                }
-              }
-              
-              if (initAttempts >= maxInitAttempts) {
-                console.error('❌ All LIFF initialization attempts failed');
-                setError('liff_init_failed');
-                setIsLoading(false);
-                return;
-              }
-              
-              // รอก่อนลองใหม่ (progressive backoff)
-              await new Promise(resolve => setTimeout(resolve, initAttempts * 1000));
-            }
-          }
-          
-          // ตรวจสอบสถานะการล็อกอิน
-          if (!(window as any).liff.isLoggedIn()) {
-            setLoadingMessage('กำลังเข้าสู่ระบบ LINE...');
-            console.log('🔐 Auto login to LINE...');
-            
-            // Auto login โดยไม่ต้องให้ user กด
-            (window as any).liff.login();
-            return;
+          if (initResult.error?.includes('Invalid LIFF ID')) {
+            setError('invalid_liff_id');
+          } else if (initResult.error?.includes('Network error')) {
+            setError('network_error');
           } else {
-            setLoadingMessage('ตรวจสอบสิทธิ์การเข้าใช้...');
-            console.log('✅ Already logged in to LINE');
-            
-            // ดำเนินการ authentication กับ backend
-            await handleLineAuthentication();
+            setError('liff_init_failed');
           }
+          setIsLoading(false);
+          return;
+        }
+        
+        console.log('✅ LIFF initialized successfully');
+        setLiffReady(true);
+        
+        // ตรวจสอบสถานะการล็อกอิน
+        if (!window.liff.isLoggedIn()) {
+          setLoadingMessage('กำลังเข้าสู่ระบบ LINE...');
+          console.log('🔐 Auto login to LINE...');
+          
+          // Auto login โดยไม่ต้องให้ user กด
+          window.liff.login();
+          return;
+        } else {
+          setLoadingMessage('ตรวจสอบสิทธิ์การเข้าใช้...');
+          console.log('✅ Already logged in to LINE');
+          
+          // ดำเนินการ authentication กับ backend
+          await handleLineAuthentication();
         }
       } catch (error) {
         console.error('❌ LIFF initialization error:', error);
@@ -144,10 +109,10 @@ function LiffLandingContent() {
         if (error instanceof Error) {
           if (error.message.includes('timeout')) {
             setError('connection_timeout');
+          } else if (error.message.includes('Failed to load LIFF SDK')) {
+            setError('sdk_error');
           } else if (error.message.includes('initialization failed')) {
             setError('init_failed');
-          } else if (error.message.includes('SDK')) {
-            setError('sdk_error');
           } else {
             setError('connection_error');
           }
@@ -526,33 +491,7 @@ function LiffLandingContent() {
             >
               ลองใหม่
             </Button>
-            
-            {/* ปุ่มกลับไปหน้าหลัก สำหรับบาง error */}
-            {(error === 'no_restaurant' || error === 'auth_error') && (
-              <Button
-                variant="outlined"
-                onClick={() => {
-                  // ลองไปหน้าหลัก
-                  window.location.href = '/';
-                }}
-                sx={{
-                  borderColor: '#667eea',
-                  color: '#667eea',
-                  px: 4,
-                  py: 1.5,
-                  borderRadius: 3,
-                  textTransform: 'none',
-                  fontWeight: 'bold',
-                  '&:hover': {
-                    borderColor: '#5a6fd8',
-                    color: '#5a6fd8',
-                    backgroundColor: 'rgba(102, 126, 234, 0.04)'
-                  }
-                }}
-              >
-                🏠 หน้าหลัก
-              </Button>
-            )}
+          
           </Box>
         </Card>
       </Box>
