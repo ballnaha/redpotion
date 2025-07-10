@@ -376,6 +376,20 @@ function LineSignInContent() {
 
         console.log('🎯 Sending access token to backend...')
 
+        // ตรวจจับ platform จาก LIFF SDK
+        let detectedPlatform = 'BROWSER';
+        try {
+          if (window.liff && typeof window.liff.getOS === 'function') {
+            const liffOS = window.liff.getOS();
+            if (liffOS === 'ios') detectedPlatform = 'IOS';
+            else if (liffOS === 'android') detectedPlatform = 'ANDROID';
+            else detectedPlatform = 'BROWSER';
+            console.log('📱 Detected platform from LIFF:', liffOS, '→', detectedPlatform);
+          }
+        } catch (platformError) {
+          console.warn('⚠️ Could not detect platform from LIFF:', platformError);
+        }
+
         // ส่งไปยัง backend
         const response = await fetch('/api/auth/line-login', {
           method: 'POST',
@@ -384,7 +398,8 @@ function LineSignInContent() {
           },
           body: JSON.stringify({
             accessToken: accessToken,
-            restaurantId: restaurantId // ส่ง restaurantId ไปด้วย
+            restaurantId: restaurantId, // ส่ง restaurantId ไปด้วย
+            platform: detectedPlatform // ส่ง platform ไปด้วย
           })
         })
 
@@ -400,14 +415,50 @@ function LineSignInContent() {
           console.log('✅ LINE login successful:', data.user.name)
           setLineUser(data.user);
           
-          // ถ้าเป็น user ใหม่ ให้ redirect ไป role selection
+          // ถ้าเป็น user ใหม่ ให้ตรวจสอบ platform
           if (data.isNewUser) {
-            console.log('👤 New user detected, redirecting to role selection')
-            setLoadingMessage('ผู้ใช้ใหม่! กำลังตั้งค่าบัญชี...');
-            setTimeout(() => {
-              router.replace('/auth/role-selection')
-            }, 1000); // ลดจาก 2000ms เป็น 1000ms
-            return
+            // ตรวจจับ platform
+            let detectedPlatform = 'BROWSER';
+            try {
+              if (typeof window !== 'undefined' && (window as any).liff && (window as any).liff.getOS) {
+                const liffOS = (window as any).liff.getOS();
+                if (liffOS === 'ios') detectedPlatform = 'IOS';
+                else if (liffOS === 'android') detectedPlatform = 'ANDROID';
+              }
+            } catch (e) {
+              // fallback to user agent detection
+              const userAgent = navigator.userAgent;
+              if (userAgent.includes('iPhone') || userAgent.includes('iPad')) {
+                detectedPlatform = 'IOS';
+              } else if (userAgent.includes('Android')) {
+                detectedPlatform = 'ANDROID';
+              }
+            }
+
+            // ถ้าเป็น mobile platform ให้ redirect ไปเมนูโดยตรง
+            if (detectedPlatform === 'IOS' || detectedPlatform === 'ANDROID') {
+              console.log('📱 New mobile user detected, skipping role selection')
+              setLoadingMessage('ผู้ใช้ใหม่! กำลังเข้าสู่เมนู...');
+              
+              setTimeout(() => {
+                if (data.shouldRedirectToRestaurant && data.restaurantId) {
+                  // สำหรับ mobile new user ให้ไปเมนูโดยตรง
+                  router.replace(`/menu/${data.restaurantId}?from=mobile-new-user`);
+                } else {
+                  // ถ้าไม่มี restaurant ให้ไปหน้าหลัก
+                  router.replace('/');
+                }
+              }, 1000);
+              return;
+            } else {
+              // สำหรับ Browser ให้ไป role selection แบบเดิม
+              console.log('👤 New browser user detected, redirecting to role selection')
+              setLoadingMessage('ผู้ใช้ใหม่! กำลังตั้งค่าบัญชี...');
+              setTimeout(() => {
+                router.replace('/auth/role-selection')
+              }, 1000);
+              return;
+            }
           }
 
           // แสดงข้อความที่เหมาะสมตามสถานการณ์
@@ -509,7 +560,7 @@ function LineSignInContent() {
   // กำลังตรวจสอบ session
   if (checkingSession) {
     return (
-      <Container maxWidth="sm">
+      <Container maxWidth="lg">
         <Box sx={{ 
           minHeight: '100vh', 
           display: 'flex', 

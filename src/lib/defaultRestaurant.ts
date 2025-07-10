@@ -9,23 +9,42 @@ export interface DefaultRestaurant {
 /**
  * Get default restaurant from API
  */
+// Fallback default restaurant เมื่อไม่สามารถ fetch ได้
+const FALLBACK_DEFAULT_RESTAURANT: DefaultRestaurant = {
+  restaurantId: 'cmcg20f2i00029hu8p2am75df', // Default restaurant ID
+  restaurantName: 'Red Potion Restaurant',
+  status: 'ACTIVE'
+};
+
 export async function getDefaultRestaurant(): Promise<DefaultRestaurant | null> {
   try {
     const baseUrl = typeof window !== 'undefined' 
       ? window.location.origin 
       : process.env.NEXTAUTH_URL || 'http://localhost:3000';
       
-    const response = await fetch(`${baseUrl}/api/restaurant/default`);
+    const response = await fetch(`${baseUrl}/api/restaurant/default`, {
+      next: { revalidate: 300 }, // Cache for 5 minutes
+    });
     
     if (response.ok) {
       return await response.json();
     }
     
-    console.error('Failed to fetch default restaurant:', response.status);
-    return null;
+    // ใช้ fallback เมื่อไม่สามารถ fetch ได้
+    if (process.env.NODE_ENV !== 'development') {
+      return FALLBACK_DEFAULT_RESTAURANT;
+    }
+    
+    console.error('Failed to fetch default restaurant:', response.status, '- using fallback');
+    return FALLBACK_DEFAULT_RESTAURANT;
   } catch (error) {
-    console.error('Error fetching default restaurant:', error);
-    return null;
+    // ใช้ fallback เมื่อเกิด error
+    if (process.env.NODE_ENV !== 'development') {
+      return FALLBACK_DEFAULT_RESTAURANT;
+    }
+    
+    console.error('Error fetching default restaurant:', error, '- using fallback');
+    return FALLBACK_DEFAULT_RESTAURANT;
   }
 }
 

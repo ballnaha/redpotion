@@ -229,6 +229,20 @@ const recoverFromLiffSession = async (): Promise<{ success: boolean; user?: any 
           console.log('🔄 Found valid LIFF token, attempting backend login...');
           
                      // ส่ง token ไป backend เพื่อสร้าง session ใหม่และอัพเดทโปรไฟล์
+                     // ตรวจจับ platform จาก LIFF SDK
+                     let detectedPlatform = 'BROWSER';
+                     try {
+                       if (window.liff && typeof window.liff.getOS === 'function') {
+                         const liffOS = window.liff.getOS();
+                         if (liffOS === 'ios') detectedPlatform = 'IOS';
+                         else if (liffOS === 'android') detectedPlatform = 'ANDROID';
+                         else detectedPlatform = 'BROWSER';
+                         console.log('📱 Detected platform from LIFF:', liffOS, '→', detectedPlatform);
+                       }
+                     } catch (platformError) {
+                       console.warn('⚠️ Could not detect platform from LIFF:', platformError);
+                     }
+
            const response = await fetch('/api/auth/line-login', {
              method: 'POST',
              headers: {
@@ -236,7 +250,8 @@ const recoverFromLiffSession = async (): Promise<{ success: boolean; user?: any 
              },
              body: JSON.stringify({
                accessToken: accessToken,
-               isRecovery: true
+               isRecovery: true,
+               platform: detectedPlatform
              })
            });
           
@@ -481,6 +496,20 @@ export const handleLineAuth = async (restaurantId?: string): Promise<{
     }
 
     // ส่งไปยัง backend
+    // ตรวจจับ platform จาก LIFF SDK
+    let detectedPlatform = 'BROWSER';
+    try {
+      if (window.liff && typeof window.liff.getOS === 'function') {
+        const liffOS = window.liff.getOS();
+        if (liffOS === 'ios') detectedPlatform = 'IOS';
+        else if (liffOS === 'android') detectedPlatform = 'ANDROID';
+        else detectedPlatform = 'BROWSER';
+        console.log('📱 Detected platform from LIFF:', liffOS, '→', detectedPlatform);
+      }
+    } catch (platformError) {
+      console.warn('⚠️ Could not detect platform from LIFF:', platformError);
+    }
+
     const response = await fetch('/api/auth/line-login', {
       method: 'POST',
       headers: {
@@ -488,7 +517,8 @@ export const handleLineAuth = async (restaurantId?: string): Promise<{
       },
       body: JSON.stringify({
         accessToken,
-        restaurantId
+        restaurantId,
+        platform: detectedPlatform
       })
     });
 

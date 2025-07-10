@@ -42,6 +42,7 @@ model User {
   password      String?
   lineUserId    String?         @unique
   role          UserRole        @default(USER)
+  loginPlatform LoginPlatform?  // แพลตฟอร์มที่ login เข้ามา
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   accounts      Account[]
@@ -155,11 +156,14 @@ model Order {
   customerName    String
   customerPhone   String
   customerEmail   String?
+  lineUserId      String?     // LINE User ID สำหรับระบุลูกค้า
   deliveryAddress String?
   deliveryNotes   String?
   subtotal        Float
   deliveryFee     Float       @default(0)
   tax             Float       @default(0)
+  discount        Float       @default(0)    // จำนวนเงินส่วนลด
+  promoCode       String?                    // โค้ดส่วนลด
   total           Float
   paymentMethod   String?
   isPaid          Boolean     @default(false)
@@ -173,6 +177,7 @@ model Order {
   updatedAt       DateTime    @updatedAt
   restaurant      Restaurant  @relation(fields: [restaurantId], references: [id])
   items           OrderItem[]
+  paymentSlips    PaymentSlip[]
 }
 
 model OrderItem {
@@ -199,6 +204,24 @@ model OrderItemAddon {
   orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
 
   @@unique([orderItemId, addonId])
+}
+
+model PaymentSlip {
+  id                String          @id @default(cuid())
+  orderId           String
+  slipImageUrl      String
+  transferAmount    Float
+  transferDate      DateTime
+  transferReference String?
+  accountName       String
+  status            PaymentSlipStatus @default(PENDING)
+  submittedAt       DateTime        @default(now())
+  approvedAt        DateTime?
+  rejectedAt        DateTime?
+  adminNotes        String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  order             Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
 
 model Document {
@@ -262,6 +285,7 @@ model DeliveryAddress {
 
 enum UserRole {
   USER
+  CUSTOMER
   RESTAURANT_OWNER
   ADMIN
 }
@@ -295,4 +319,16 @@ enum AddressType {
 enum PromptPayType {
   PHONE_NUMBER
   CITIZEN_ID
+}
+
+enum LoginPlatform {
+  IOS
+  ANDROID
+  BROWSER
+}
+
+enum PaymentSlipStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

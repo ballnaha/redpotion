@@ -38,6 +38,60 @@ function LiffLandingContent() {
           return;
         }
         
+        // ตรวจสอบ backend session ก่อนทำ LIFF login ใหม่
+        console.log('🔄 Checking backend session before LIFF login...');
+        try {
+          const sessionResponse = await fetch('/api/auth/line-session');
+          const sessionData = await sessionResponse.json();
+          
+          if (sessionResponse.ok && sessionData.authenticated && sessionData.user) {
+            console.log('✅ Backend session valid, redirecting...');
+            setLoadingMessage('พบ session ที่ใช้งานได้ กำลังเข้าสู่เมนู...');
+            
+            const restaurantId = searchParams.get('restaurant') || sessionData.restaurantId;
+            if (restaurantId) {
+              window.location.href = `/menu/${restaurantId}?from=session-valid`;
+            } else {
+              window.location.href = '/';
+            }
+            return;
+          } else if (sessionResponse.status === 401) {
+            console.log('❌ Backend session invalid (401), proceeding with fresh LIFF login...');
+            
+            // ตรวจสอบว่าเป็นกรณี user ถูกลบหรือไม่
+            if (sessionData?.needsReAuth && sessionData?.reason === 'user_deleted') {
+              console.log('🗑️ User was deleted from database, need fresh registration');
+              setLoadingMessage('กำลังลงทะเบียนผู้ใช้ใหม่...');
+              
+              // Clear LIFF session storage
+              try {
+                const { clearLiffSession } = await import('@/lib/sessionUtils');
+                clearLiffSession();
+              } catch (clearError) {
+                console.warn('⚠️ Failed to clear LIFF session:', clearError);
+              }
+            }
+            
+            // ถ้า session invalid (401) ให้ลบ cookies และทำ login ใหม่
+            try {
+              // ลบ session cookies
+              document.cookie.split(';').forEach(cookie => {
+                const eqPos = cookie.indexOf('=');
+                const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+                if (name.includes('line-session') || name.includes('next-auth') || name.includes('LIFF_STORE')) {
+                  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+                  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
+                }
+              });
+              console.log('🗑️ Cleared stale cookies');
+            } catch (cookieError) {
+              console.warn('⚠️ Failed to clear cookies:', cookieError);
+            }
+          }
+        } catch (sessionCheckError) {
+          console.log('⚠️ Session check failed, continuing with LIFF login:', sessionCheckError);
+        }
+        
         // ถ้าไม่มี session หรือ session หมดอายุ ให้ทำ LIFF login ปกติ
         console.log('🔄 No valid session found, proceeding with LIFF login...');
         
@@ -135,20 +189,89 @@ function LiffLandingContent() {
       const accessToken = (window as any).liff.getAccessToken();
       const restaurantId = searchParams.get('restaurant');
       
-      console.log('🎯 Sending LINE token to backend...', { restaurantId });
+      // เพิ่มการตรวจสอบ accessToken ก่อนส่ง request
+      if (!accessToken) {
+        console.error('❌ No access token available from LIFF');
+        setError('auth_error');
+        setIsLoading(false);
+        return;
+      }
+
+      if (typeof accessToken !== 'string' || accessToken.trim() === '') {
+        console.error('❌ Invalid access token format:', typeof accessToken, accessToken?.length);
+        setError('auth_error');
+        setIsLoading(false);
+        return;
+      }
       
+      console.log('🎯 Sending LINE token to backend...', { 
+        restaurantId,
+        hasAccessToken: !!accessToken,
+        accessTokenLength: accessToken?.length,
+        accessTokenStart: accessToken?.substring(0, 20) + '...'
+      });
+      
+      // ตรวจจับ platform จาก LIFF SDK
+      let detectedPlatform = 'BROWSER';
+      try {
+        if (window.liff && typeof window.liff.getOS === 'function') {
+          const liffOS = window.liff.getOS();
+          if (liffOS === 'ios') detectedPlatform = 'IOS';
+          else if (liffOS === 'android') detectedPlatform = 'ANDROID';
+          else detectedPlatform = 'BROWSER';
+          console.log('📱 Detected platform from LIFF:', liffOS, '→', detectedPlatform);
+        }
+      } catch (platformError) {
+        console.warn('⚠️ Could not detect platform from LIFF:', platformError);
+      }
+      
+      const requestData = {
+        accessToken: accessToken,
+        restaurantId: restaurantId,
+        platform: detectedPlatform
+      };
+      
+      // เพิ่มการตรวจสอบ request data ก่อนส่ง
+      if (!requestData.accessToken) {
+        console.error('❌ accessToken is missing in request data');
+        setError('auth_error');
+        setIsLoading(false);
+        return;
+      }
+      
+      console.log('📦 Request data being sent:', {
+        hasAccessToken: !!requestData.accessToken,
+        accessTokenType: typeof requestData.accessToken,
+        restaurantId: requestData.restaurantId,
+        platform: requestData.platform,
+        requestSize: JSON.stringify(requestData).length
+      });
+
       const response = await fetch('/api/auth/line-login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          accessToken: accessToken,
-          restaurantId: restaurantId
-        })
+        body: JSON.stringify(requestData)
       });
 
-      const data = await response.json();
+      console.log('📡 Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
+      let data;
+      try {
+        data = await response.json();
+        console.log('📄 Response data:', data);
+      } catch (parseError) {
+        console.error('❌ Failed to parse response JSON:', parseError);
+        const textResponse = await response.text();
+        console.error('📄 Raw response text:', textResponse);
+        throw new Error('Server returned invalid JSON response');
+      }
 
       if (response.ok && data.success) {
         console.log('✅ LINE authentication successful:', data.user.name);
@@ -171,14 +294,44 @@ function LiffLandingContent() {
         }
         
         if (data.isNewUser) {
-          setLoadingMessage('ผู้ใช้ใหม่! กำลังตั้งค่าบัญชี...');
-          console.log('👤 New user detected, redirecting to role selection');
-          
-          // Delay เล็กน้อยเพื่อให้ user เห็นข้อความ
-          setTimeout(() => {
-            window.location.href = '/auth/role-selection';
-          }, 1500);
-          return;
+          // ถ้าเป็น user ใหม่จาก iOS/Android ให้ redirect ไปเมนูโดยตรง
+          if (detectedPlatform === 'IOS' || detectedPlatform === 'ANDROID') {
+            setLoadingMessage('ผู้ใช้ใหม่! กำลังเข้าสู่เมนู...');
+            console.log('📱 New mobile user detected, skipping role selection');
+            
+            if (data.shouldRedirectToRestaurant && data.restaurantId) {
+              setTimeout(() => {
+                window.location.href = `/menu/${data.restaurantId}?from=mobile-new-user`;
+              }, 1000);
+              return;
+            } else {
+              // ถ้าไม่มี restaurant ให้หาร้าน default
+              setTimeout(async () => {
+                try {
+                  const response = await fetch('/api/restaurant/default');
+                  if (response.ok) {
+                    const defaultRestaurant = await response.json();
+                    window.location.href = `/menu/${defaultRestaurant.restaurantId}?from=mobile-new-user`;
+                  } else {
+                    window.location.href = '/';
+                  }
+                } catch (error) {
+                  console.error('❌ Failed to get default restaurant:', error);
+                  window.location.href = '/';
+                }
+              }, 1000);
+              return;
+            }
+          } else {
+            // สำหรับ Browser ให้ไป role selection แบบเดิม
+            setLoadingMessage('ผู้ใช้ใหม่! กำลังตั้งค่าบัญชี...');
+            console.log('👤 New browser user detected, redirecting to role selection');
+            
+            setTimeout(() => {
+              window.location.href = '/auth/role-selection';
+            }, 1500);
+            return;
+          }
         }
 
         if (data.shouldRedirectToRestaurant && data.restaurantId) {
@@ -192,8 +345,32 @@ function LiffLandingContent() {
           window.location.href = data.redirectUrl;
         }
       } else {
-        console.error('❌ LINE authentication failed:', data.error);
-        setError('auth_error');
+        // จัดการ error cases ต่าง ๆ
+        if (response.status === 401) {
+          console.error('❌ Authentication failed (401), invalid access token');
+          // Access token หมดอายุหรือไม่ถูกต้อง ให้ logout และ login ใหม่
+          try {
+            if (window.liff && window.liff.logout) {
+              console.log('🔄 Logging out from LIFF and retrying...');
+              window.liff.logout();
+              window.liff.login();
+              return;
+            }
+          } catch (liffError) {
+            console.warn('⚠️ LIFF logout failed:', liffError);
+          }
+          setError('auth_error');
+        } else if (response.status === 400) {
+          console.error('❌ Bad request (400):', data?.error);
+          setError('auth_error');
+        } else {
+          console.error('❌ LINE authentication failed:', {
+            status: response.status,
+            error: data?.error,
+            fullResponse: data
+          });
+          setError('auth_error');
+        }
         setIsLoading(false);
       }
     } catch (error) {

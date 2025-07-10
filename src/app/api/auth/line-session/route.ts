@@ -86,18 +86,32 @@ export async function GET(req: NextRequest) {
       if (!user) {
         console.log('❌ LINE user no longer exists in database:', decoded.lineUserId)
         
-        // ลบ invalid cookie
+        // ลบ invalid cookie และแจ้งให้ client ทำ re-authentication
         const response = NextResponse.json(
-          { authenticated: false, error: 'User not found in database' },
+          { 
+            authenticated: false, 
+            error: 'User not found in database',
+            needsReAuth: true,
+            lineUserId: decoded.lineUserId,
+            reason: 'user_deleted'
+          },
           { status: 401 }
         )
-        response.cookies.set('line-session-token', '', {
+        
+        // ลบ cookies ทั้งหมดที่เกี่ยวข้อง
+        const cookieOptions = {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
+          sameSite: process.env.NODE_ENV === 'production' ? 'none' as const : 'lax' as const,
           maxAge: 0,
           path: '/'
-        })
+        };
+        
+        response.cookies.set('line-session-token', '', cookieOptions);
+        response.cookies.set('line-session-backup', '', { ...cookieOptions, httpOnly: false });
+        response.cookies.set('line-session', '', cookieOptions);
+        
+        console.log('🗑️ Cleared invalid session cookies for deleted user');
         
         return response
       }

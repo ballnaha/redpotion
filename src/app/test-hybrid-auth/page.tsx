@@ -206,9 +206,9 @@ export default function TestHybridAuthPage() {
                     <Typography variant="caption" color="text.secondary">
                       ผลลัพธ์ ({testResults[test.name].timestamp}):
                     </Typography>
-                    <pre style={{ fontSize: '0.75rem', margin: 0, whiteSpace: 'pre-wrap' }}>
+                    <Box component="pre" sx={{ fontSize: '0.75rem', margin: 0, whiteSpace: 'pre-wrap' }}>
                       {JSON.stringify(testResults[test.name], null, 2)}
-                    </pre>
+                    </Box>
                   </Box>
                 )}
               </Box>

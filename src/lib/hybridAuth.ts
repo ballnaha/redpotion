@@ -204,6 +204,20 @@ const sendLiffTokenToBackend = async (accessToken: string, options: AuthOptions 
   try {
     console.log('🔗 Sending LIFF token to backend...');
     
+    // ตรวจจับ platform จาก LIFF SDK
+    let detectedPlatform = 'BROWSER';
+    try {
+      if (window.liff && typeof window.liff.getOS === 'function') {
+        const liffOS = window.liff.getOS();
+        if (liffOS === 'ios') detectedPlatform = 'IOS';
+        else if (liffOS === 'android') detectedPlatform = 'ANDROID';
+        else detectedPlatform = 'BROWSER';
+        console.log('📱 Detected platform from LIFF:', liffOS, '→', detectedPlatform);
+      }
+    } catch (platformError) {
+      console.warn('⚠️ Could not detect platform from LIFF:', platformError);
+    }
+    
     const response = await fetch('/api/auth/line-login', {
       method: 'POST',
       headers: {
@@ -212,7 +226,8 @@ const sendLiffTokenToBackend = async (accessToken: string, options: AuthOptions 
       body: JSON.stringify({
         accessToken,
         restaurantId: options.restaurantId,
-        returnUrl: options.returnUrl
+        returnUrl: options.returnUrl,
+        platform: detectedPlatform
       })
     });
     

@@ -23,8 +23,13 @@ import {
   Radio,
   RadioGroup,
   FormControlLabel,
-  Alert
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
+import FooterNavbar from '../../components/FooterNavbar';
 import { 
   Add, 
   Remove,
@@ -123,6 +128,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
   const [promoCode, setPromoCode] = useState('');
   const [discount, setDiscount] = useState(0);
   const [promoApplied, setPromoApplied] = useState('');
+  const [showPromoSection, setShowPromoSection] = useState(false);
   
   // LINE session state
   const [lineUser, setLineUser] = useState<{
@@ -172,6 +178,13 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
     details: 'ชำระเงินปลายทาง',
     icon: '💵'
   });
+
+  const [addressDialogOpen, setAddressDialogOpen] = useState(false);
+  
+  // Order success state
+  const [orderSuccess, setOrderSuccess] = useState(false);
+  const [successOrderNumber, setSuccessOrderNumber] = useState('');
+  const [successOrderData, setSuccessOrderData] = useState<any>(null);
 
   const resolvedParams = use(params);
   const restaurantId = resolvedParams.restaurantId;
@@ -347,10 +360,6 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
     return basePrice + addOnsPrice;
   };
 
-  const getTotal = () => {
-    return cartItems.reduce((sum, item) => sum + getItemTotalPrice(item), 0);
-  };
-
   const getTotalItems = () => {
     return cartItems.reduce((sum, item) => sum + item.quantity, 0);
   };
@@ -369,6 +378,10 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
   const deliveryFee = isEligibleForFreeDelivery ? 0 : baseDeliveryFee;
   
   const finalTotal = subtotal + deliveryFee - discount;
+
+  const getTotal = () => {
+    return finalTotal; // ใช้ finalTotal ที่คำนวณส่วนลดและค่าส่งแล้ว
+  };
 
   const applyPromoCode = () => {
     const promos = {
@@ -390,6 +403,84 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
   const removePromo = () => {
     setDiscount(0);
     setPromoApplied('');
+  };
+
+  // สร้างออเดอร์
+  const handleCreateOrder = async () => {
+    if (!lineUser) {
+      alert('กรุณาเข้าสู่ระบบก่อนสั่งซื้อ');
+      return;
+    }
+
+    if (cartItems.length === 0) {
+      alert('กรุณาเลือกสินค้าก่อนสั่งซื้อ');
+      return;
+    }
+
+    if (!isValidAddress(selectedAddress)) {
+      alert('กรุณาเลือกที่อยู่สำหรับจัดส่ง');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // เตรียมข้อมูลสำหรับส่งไป API
+      const orderData = {
+        restaurantId,
+        items: cartItems.map(item => ({
+          itemId: item.itemId,
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          addOns: item.addOns || []
+        })),
+        customerInfo: {
+          firstName: customerProfile?.firstName || lineUser.name.split(' ')[0] || '',
+          lastName: customerProfile?.lastName || lineUser.name.split(' ').slice(1).join(' ') || '',
+          phone: customerProfile?.phone || '',
+          email: lineUser.email || '',
+          lineUserId: lineUser.lineUserId
+        },
+        deliveryAddress: {
+          address: selectedAddress.address
+        },
+        paymentMethod: selectedPayment.id,
+        subtotal: subtotal,
+        deliveryFee: deliveryFee, // ใช้ deliveryFee ที่คำนวณแล้ว (อาจเป็น 0 ถ้าส่งฟรี)
+        discount: discount, // ส่วนลดจำนวนเงิน
+        promoCode: promoApplied, // โค้ดส่วนลด
+        total: finalTotal // ใช้ finalTotal แทน getTotal()
+      };
+
+      const response = await fetch('/api/order/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(orderData)
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // ล้างตะกร้า
+        clearCart();
+        
+        // เซ็ตข้อมูลสำหรับ success dialog
+        setSuccessOrderNumber(result.order.orderNumber);
+        setSuccessOrderData(result.order);
+        setOrderSuccess(true);
+      } else {
+        alert(`เกิดข้อผิดพลาด: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error creating order:', error);
+      alert('เกิดข้อผิดพลาดในการสั่งซื้อ กรุณาลองใหม่');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Loading state - รวมการโหลดร้านอาหารและตะกร้า
@@ -507,6 +598,13 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
       type: 'WORK'
     }
   ];
+
+  // ตรวจสอบที่อยู่ที่ถูกต้อง
+  const isValidAddress = (address: typeof selectedAddress) => {
+    return address && address.address && address.address !== 'ยังไม่ได้ตั้งค่า' && address.address.trim() !== '';
+  };
+
+  const hasValidAddress = isValidAddress(selectedAddress);
 
   // Payment options - ดึงจาก restaurant settings
   const getPaymentOptions = () => {
@@ -1015,7 +1113,8 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                 borderRadius: '20px',
                 border: '1px solid rgba(255, 255, 255, 0.2)',
                 boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06)',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                mb: 3
               }}
             >
               {/* Header */}
@@ -1209,8 +1308,33 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
 
               {/* Promo Code Section */}
               <Box sx={{ px: 3, py: 2 }}>
-                <Box sx={{ mb: 3 }}>
-                  {!promoApplied ? (
+                {/* Toggle Button for Promo Section */}
+                {!promoApplied && (
+                  <Box sx={{ mb: showPromoSection ? 2 : 3 }}>
+                    <Button
+                      variant="text"
+                      size="small"
+                      onClick={() => setShowPromoSection(!showPromoSection)}
+                      sx={{
+                        color: '#10B981',
+                        fontSize: '0.8rem',
+                        fontWeight: 500,
+                        p: 0,
+                        minWidth: 'auto',
+                        '&:hover': {
+                          backgroundColor: 'transparent',
+                          color: '#059669'
+                        }
+                      }}
+                    >
+                      🎫 {showPromoSection ? 'ซ่อนโค้ดส่วนลด' : 'มีโค้ดส่วนลด?'}
+                    </Button>
+                  </Box>
+                )}
+
+                {/* Promo Input Section */}
+                {(showPromoSection && !promoApplied) && (
+                  <Box sx={{ mb: 3 }}>
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       <TextField
                         size="small"
@@ -1241,7 +1365,12 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                         ใช้
                       </Button>
                     </Box>
-                  ) : (
+                  </Box>
+                )}
+
+                {/* Applied Promo Display */}
+                {promoApplied && (
+                  <Box sx={{ mb: 3 }}>
                     <Box 
                       sx={{ 
                         display: 'flex', 
@@ -1255,7 +1384,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                     >
                       <Box>
                         <Typography sx={{ fontSize: '0.8rem', fontWeight: 500, color: '#059669' }}>
-                          {promoApplied}
+                          🎫 {promoApplied}
                         </Typography>
                         <Typography sx={{ fontSize: '0.7rem', color: '#059669' }}>
                           ส่วนลด ฿{discount}
@@ -1263,14 +1392,17 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                       </Box>
                       <IconButton
                         size="small"
-                        onClick={removePromo}
+                        onClick={() => {
+                          removePromo();
+                          setShowPromoSection(false); // ซ่อน section หลังลบโปรโม
+                        }}
                         sx={{ color: '#FF6F61' }}
                       >
                         <Delete sx={{ fontSize: 16 }} />
                       </IconButton>
                     </Box>
-                  )}
-                </Box>
+                  </Box>
+                )}
                 
                 {/* Payment Methods */}
                 <Box 
@@ -1375,29 +1507,16 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                   {/* แสดงข้อมูลยอดขั้นต่ำและส่งฟรี */}
                   {minOrderAmount > 0 && (
                     <Box sx={{ 
-                      mb: 1.5, 
-                      p: 1.5, 
-                      borderRadius: '8px',
-                      backgroundColor: isEligibleForFreeDelivery ? 
-                        'rgba(34, 197, 94, 0.1)' : 'rgba(249, 115, 22, 0.1)',
-                      border: `1px solid ${isEligibleForFreeDelivery ? 
-                        'rgba(34, 197, 94, 0.2)' : 'rgba(249, 115, 22, 0.2)'}`
+                     mb: 1, 
                     }}>
                       {isEligibleForFreeDelivery ? (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography sx={{ fontSize: '0.8rem', color: '#059669', fontWeight: 500 }}>
-                            🎉 ยินดีด้วย! ได้รับส่งฟรี
-                          </Typography>
-                        </Box>
+                        <Typography sx={{ fontSize: '0.75rem', color: '#059669', fontWeight: 500}}>
+                          🎉 ได้รับส่งฟรี!
+                        </Typography>
                       ) : (
-                        <Box>
-                          <Typography sx={{ fontSize: '0.8rem', color: '#EA580C', fontWeight: 500 }}>
-                            💡 สั่งซื้อขั้นต่ำ ฿{minOrderAmount.toFixed(0)} เพื่อได้รับส่งฟรี
-                          </Typography>
-                          <Typography sx={{ fontSize: '0.75rem', color: '#9CA3AF', mt: 0.5 }}>
-                            เหลืออีก ฿{(minOrderAmount - subtotal).toFixed(0)}
-                          </Typography>
-                        </Box>
+                        <Typography sx={{ fontSize: '0.75rem', color: '#EA580C', fontWeight: 500}}>
+                          💡 สั่งเพิ่ม ฿{(minOrderAmount - subtotal).toFixed(0)} เพื่อส่งฟรี
+                        </Typography>
                       )}
                     </Box>
                   )}
@@ -1453,6 +1572,8 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
 
                 </Box>
               </Box>
+
+
             </Box>
 
 
@@ -1500,17 +1621,30 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
             {addressOptions.map((address) => (
               <Box
                 key={address.id}
-                onClick={() => handleAddressSelect(address)}
+                onClick={() => {
+                  // ถ้าเป็นที่อยู่ที่ยังไม่ได้ตั้งค่า ให้เปิด dialog แทน
+                  if (address.address === 'ยังไม่ได้ตั้งค่า') {
+                    setAddressDialogOpen(true);
+                    return;
+                  }
+                  handleAddressSelect(address);
+                }}
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: 2,
                   p: 2,
                   borderRadius: '12px',
-                  border: selectedAddress.id === address.id ? '2px solid #10B981' : '1px solid rgba(0, 0, 0, 0.1)',
-                  backgroundColor: selectedAddress.id === address.id ? 'rgba(34, 197, 94, 0.05)' : 'transparent',
+                  border: selectedAddress.id === address.id ? '2px solid #10B981' : 
+                         address.address === 'ยังไม่ได้ตั้งค่า' ? '1px solid rgba(239, 68, 68, 0.3)' :
+                         '1px solid rgba(0, 0, 0, 0.1)',
+                  backgroundColor: selectedAddress.id === address.id ? 'rgba(34, 197, 94, 0.05)' : 
+                                  address.address === 'ยังไม่ได้ตั้งค่า' ? 'rgba(239, 68, 68, 0.05)' :
+                                  'transparent',
                   cursor: 'pointer',
-                  '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }
+                  '&:hover': { 
+                    backgroundColor: address.address === 'ยังไม่ได้ตั้งค่า' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(0, 0, 0, 0.02)' 
+                  }
                 }}
               >
                 <Box 
@@ -1742,158 +1876,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
         </Box>
       </Drawer>
 
-      {/* Fixed Footer - Order Button */}
-      {cartItems.length > 0 && (
-        <Box
-          sx={{
-            position: 'fixed',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            background: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            boxShadow: '0 -8px 32px rgba(0, 0, 0, 0.12)',
-            p: 2,
-            zIndex: 1000,
-          }}
-        >
-          <Box sx={{ maxWidth: '500px', mx: 'auto' }}>
-            <Button
-              fullWidth
-              variant="contained"
-              onClick={async () => {
-                try {
-                  console.log('🛒 Placing order...', {
-                    items: cartItems,
-                    total: finalTotal,
-                    address: selectedAddress,
-                    payment: selectedPayment
-                  });
 
-                  const orderData = {
-                    restaurantId,
-                    items: cartItems,
-                    customerInfo: customerProfile,
-                    deliveryAddress: selectedAddress,
-                    paymentMethod: selectedPayment.id,
-                    subtotal: subtotal,
-                    deliveryFee: deliveryFee, // ใช้ค่าที่คำนวณแล้ว (อาจเป็น 0 หากส่งฟรี)
-                    baseDeliveryFee: baseDeliveryFee, // ค่าส่งปกติ
-                    isEligibleForFreeDelivery: isEligibleForFreeDelivery,
-                    minOrderAmount: minOrderAmount,
-                    total: finalTotal,
-                    discount,
-                    promoCode: promoApplied || undefined
-                  };
-
-                  const response = await fetch('/api/order/create', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(orderData)
-                  });
-
-                  const result = await response.json();
-
-                  if (result.success) {
-                    alert(`✅ ${result.message}\nเลขที่ออเดอร์: ${result.order.orderNumber}`);
-                    
-                    // ล้างตะกร้าหลังสั่งซื้อสำเร็จ
-                    clearCart();
-                    
-                    // เปลี่ยนหน้าไปที่หน้าออเดอร์หรือหน้าหลัก (อาจเพิ่มในอนาคต)
-                    // router.push(`/order/${result.order.id}`);
-                  } else {
-                    alert(`❌ เกิดข้อผิดพลาด: ${result.error}`);
-                  }
-                } catch (error) {
-                  console.error('Order placement error:', error);
-                  alert('❌ ไม่สามารถสั่งซื้อได้ กรุณาลองใหม่อีกครั้ง');
-                }
-              }}
-              sx={{
-                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                borderRadius: '16px',
-                py: 2,
-                fontSize: '1.1rem',
-                fontWeight: 600,
-                boxShadow: '0 4px 16px rgba(16, 185, 129, 0.3)',
-                position: 'relative',
-                overflow: 'hidden',
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-                  boxShadow: '0 6px 20px rgba(16, 185, 129, 0.4)',
-                  transform: 'translateY(-1px)'
-                },
-                '&:active': {
-                  transform: 'translateY(0)'
-                },
-                '&::before': {
-                  content: '""',
-                  position: 'absolute',
-                  top: 0,
-                  left: '-100%',
-                  width: '100%',
-                  height: '100%',
-                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                  transition: 'left 0.5s ease-in-out'
-                },
-                '&:hover::before': {
-                  left: '100%'
-                }
-              }}
-            >
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'space-between',
-                width: '100%',
-                position: 'relative',
-                zIndex: 1
-              }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <LocalShipping sx={{ fontSize: 24 }} />
-                  <Typography sx={{ fontSize: '1.1rem', fontWeight: 600 }}>
-                    สั่งซื้อ ({getTotalItems()} รายการ)
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography sx={{ fontSize: '1.2rem', fontWeight: 700 }}>
-                    ฿{finalTotal.toLocaleString()}
-                  </Typography>
-                  <Box
-                    sx={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      background: 'rgba(255, 255, 255, 0.8)',
-                      animation: 'pulse 2s infinite'
-                    }}
-                  />
-                </Box>
-              </Box>
-            </Button>
-
-            {/* Order Summary */}
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              mt: 1,
-              px: 1
-            }}>
-              <Typography variant="caption" sx={{ color: '#6B7280', fontSize: '0.75rem' }}>
-                จัดส่งโดย: {selectedAddress.label}
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#6B7280', fontSize: '0.75rem' }}>
-                ชำระด้วย: {selectedPayment.label}
-              </Typography>
-            </Box>
-          </Box>
-        </Box>
-      )}
 
       {/* QR Code Payment Drawer */}
       <Drawer
@@ -2112,27 +2095,7 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
                   >
                     ปิด
                   </Button>
-                  <Button
-                    variant="contained"
-                    fullWidth
-                    onClick={() => {
-                      // Handle transfer confirmation
-                      setQrCodeDrawerOpen(false);
-                      alert('จะดำเนินการตรวจสอบการโอนเงิน (Demo)');
-                    }}
-                    sx={{
-                      background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                      borderRadius: '12px',
-                      py: 1.5,
-                      boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)',
-                      '&:hover': {
-                        background: 'linear-gradient(135deg, #D97706 0%, #B45309 100%)',
-                        boxShadow: '0 6px 16px rgba(245, 158, 11, 0.4)'
-                      }
-                    }}
-                  >
-                    โอนเงินแล้ว
-                  </Button>
+
                 </Box>
               </Box>
             );
@@ -2140,13 +2103,206 @@ export default function RestaurantCartPage({ params }: { params: Promise<{ resta
         </Box>
       </Drawer>
 
+      {/* Dialog แจ้งเตือนกรณีไม่ได้ตั้งค่าที่อยู่ */}
+      <Dialog open={addressDialogOpen} onClose={() => setAddressDialogOpen(false)}>
+        <DialogTitle sx={{ fontWeight: 700, color: '#EF4444' }}>กรุณาตั้งค่าที่อยู่ในโปรไฟล์</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 2 }}>
+            กรุณาตั้งค่าที่อยู่ในหน้าโปรไฟล์ก่อน<br />
+            จะเปลี่ยนหน้าไปที่โปรไฟล์เพื่อเพิ่มที่อยู่
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddressDialogOpen(false)} color="inherit">ยกเลิก</Button>
+          <Button onClick={() => { setAddressDialogOpen(false); router.push('/profile'); }} color="primary" variant="contained" autoFocus>
+            ไปที่โปรไฟล์
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Success Order Dialog */}
+      <Dialog 
+        open={orderSuccess} 
+        onClose={() => {
+          setOrderSuccess(false);
+          router.push('/orders');
+        }}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '20px',
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <Box sx={{ textAlign: 'center', p: 4 }}>
+          {/* Success Icon */}
+          <Box
+            sx={{
+              width: 80,
+              height: 80,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mx: 'auto',
+              mb: 3,
+              boxShadow: '0 8px 32px rgba(16, 185, 129, 0.3)',
+              animation: 'bounce 0.6s ease-out'
+            }}
+          >
+            <CheckCircle sx={{ 
+              fontSize: 40, 
+              color: 'white',
+              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+            }} />
+          </Box>
+
+          {/* Success Message */}
+          <Typography variant="h5" sx={{ fontWeight: 700, color: '#065F46', mb: 1 }}>
+            สั่งซื้อเรียบร้อย! 🎉
+          </Typography>
+          
+          <Typography variant="body1" sx={{ color: '#6B7280', mb: 3 }}>
+            ขอบคุณที่ใช้บริการ เราได้รับออเดอร์ของคุณแล้ว
+          </Typography>
+
+          {/* Order Number */}
+          <Box 
+            sx={{ 
+              background: 'linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)',
+              border: '1px solid rgba(16, 185, 129, 0.2)',
+              borderRadius: '16px',
+              p: 3,
+              mb: 3
+            }}
+          >
+            <Typography variant="caption" sx={{ color: '#6B7280', display: 'block', mb: 1 }}>
+              หมายเลขออเดอร์
+            </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: '#059669', letterSpacing: 1 }}>
+              #{successOrderNumber}
+            </Typography>
+          </Box>
+
+          {/* Order Summary */}
+          {successOrderData && (
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle2" sx={{ color: '#6B7280', mb: 2 }}>
+                สรุปรายการสั่งซื้อ
+              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                <Typography variant="body2">ยอดรวมสินค้า</Typography>
+                <Typography variant="body2">฿{successOrderData.subtotal?.toLocaleString()}</Typography>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                <Typography variant="body2">ค่าจัดส่ง</Typography>
+                <Typography variant="body2">฿{successOrderData.deliveryFee?.toLocaleString()}</Typography>
+              </Box>
+              {successOrderData.discount > 0 && (
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body2" sx={{ color: '#10B981' }}>
+                    ส่วนลด {successOrderData.promoCode && `(${successOrderData.promoCode})`}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#10B981' }}>
+                    -฿{successOrderData.discount?.toLocaleString()}
+                  </Typography>
+                </Box>
+              )}
+              <Divider sx={{ my: 1 }} />
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>ยอดรวมทั้งหมด</Typography>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#10B981' }}>
+                  ฿{successOrderData.total?.toLocaleString()}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+
+          {/* Action Buttons */}
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant="outlined"
+              fullWidth
+              onClick={() => {
+                setOrderSuccess(false);
+                router.push('/orders');
+              }}
+              sx={{
+                borderRadius: '12px',
+                py: 1.5,
+                borderColor: '#E5E7EB',
+                color: '#6B7280',
+                '&:hover': {
+                  borderColor: '#D1D5DB',
+                  backgroundColor: 'rgba(0, 0, 0, 0.02)'
+                }
+              }}
+            >
+              ดูประวัติการสั่งซื้อ
+            </Button>
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={() => {
+                setOrderSuccess(false);
+                router.push(`/menu/${restaurantId}`);
+              }}
+              sx={{
+                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                borderRadius: '12px',
+                py: 1.5,
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                  boxShadow: '0 6px 16px rgba(16, 185, 129, 0.4)'
+                }
+              }}
+            >
+              สั่งอาหารต่อ
+            </Button>
+          </Box>
+        </Box>
+      </Dialog>
+
       <style jsx global>{`
         @keyframes pulse {
           0% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.5; transform: scale(1.2); }
           100% { opacity: 1; transform: scale(1); }
         }
+        
+        @keyframes bounce {
+          0% { transform: scale(0) rotate(0deg); }
+          50% { transform: scale(1.2) rotate(180deg); }
+          100% { transform: scale(1) rotate(360deg); }
+        }
+        
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+        }
+        
+        @keyframes shimmer {
+          0% { left: -100%; }
+          100% { left: 100%; }
+        }
       `}</style>
+
+      {/* Footer Navigation with Checkout Button */}
+      <FooterNavbar 
+        restaurantId={restaurantId}
+        isCartPage={true}
+        cartData={{
+          items: cartItems,
+          total: mounted ? getTotal() : 0,
+          loading: loading,
+          hasValidAddress: Boolean(hasValidAddress),
+          onCheckout: handleCreateOrder
+        }}
+      />
     </Box>
   );
 } 

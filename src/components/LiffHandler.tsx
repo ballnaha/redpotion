@@ -198,6 +198,20 @@ function LiffHandlerContent() {
         const loginCurrentPath = window.location.pathname;
         console.log('🔐 Performing auto login with restaurantId:', restaurantId, 'currentPath:', loginCurrentPath);
 
+        // ตรวจจับ platform จาก LIFF SDK
+        let detectedPlatform = 'BROWSER';
+        try {
+          if (window.liff && typeof window.liff.getOS === 'function') {
+            const liffOS = window.liff.getOS();
+            if (liffOS === 'ios') detectedPlatform = 'IOS';
+            else if (liffOS === 'android') detectedPlatform = 'ANDROID';
+            else detectedPlatform = 'BROWSER';
+            console.log('📱 Detected platform from LIFF:', liffOS, '→', detectedPlatform);
+          }
+        } catch (platformError) {
+          console.warn('⚠️ Could not detect platform from LIFF:', platformError);
+        }
+
         const response = await fetch('/api/auth/line-login', {
           method: 'POST',
           headers: {
@@ -206,7 +220,8 @@ function LiffHandlerContent() {
           body: JSON.stringify({
             accessToken: accessToken,
             restaurantId: restaurantId,
-            returnUrl: loginCurrentPath
+            returnUrl: loginCurrentPath,
+            platform: detectedPlatform
           })
         });
 

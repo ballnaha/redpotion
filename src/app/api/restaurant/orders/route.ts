@@ -1,29 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const restaurantId = searchParams.get('restaurantId');
-    const status = searchParams.get('status');
-
-    if (!restaurantId) {
+    const session = await getServerSession();
+    
+    if (!session?.user?.email) {
       return NextResponse.json(
-        { success: false, error: 'ต้องระบุ Restaurant ID' },
-        { status: 400 }
+        { success: false, error: 'ไม่ได้รับอนุญาต' },
+        { status: 401 }
       );
     }
 
-    const whereClause: any = {
-      restaurantId: restaurantId
-    };
+    // หาผู้ใช้และร้านค้าของเขา
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    });
 
-    if (status) {
-      whereClause.status = status;
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'ไม่พบผู้ใช้' },
+        { status: 404 }
+      );
     }
 
+    // หาร้านค้าที่ผู้ใช้เป็นเจ้าของ
+    const restaurant = await prisma.restaurant.findFirst({
+      where: { 
+        ownerId: user.id,
+        status: 'ACTIVE'
+      },
+      select: { id: true }
+    });
+
+    if (!restaurant) {
+      return NextResponse.json(
+        { success: false, error: 'ไม่พบร้านค้า' },
+        { status: 404 }
+      );
+    }
+
+    const restaurantId = restaurant.id;
+
+    // ดึงรายการ orders ของร้าน
     const orders = await prisma.order.findMany({
-      where: whereClause,
+      where: { restaurantId },
       include: {
         items: {
           include: {
@@ -60,11 +82,11 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('❌ Get restaurant orders error:', error);
+    console.error('❌ Get orders error:', error);
     return NextResponse.json(
       { 
         success: false, 
-        error: 'เกิดข้อผิดพลาดในการดึงข้อมูลออเดอร์',
+        error: 'เกิดข้อผิดพลาดในการดึงข้อมูล',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }

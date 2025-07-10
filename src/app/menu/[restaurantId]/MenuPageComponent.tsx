@@ -49,6 +49,7 @@ import {
   Cake,
   LocalBar
 } from '@mui/icons-material';
+import FooterNavbar from '../../components/FooterNavbar';
 
 // Global styles สำหรับ liquid glass effect
 const globalStyles = `
@@ -1944,130 +1945,8 @@ export default function MenuPageComponent() {
 
       </Box>
 
-      {/* Footer - Fixed */}
-      <Paper
-        className="liquid-glass"
-        sx={{
-          position: 'fixed',
-          left: 0,
-          bottom: 0,
-          width: '100%',
-          zIndex: 100,
-          borderRadius: 0,
-          p: 0,
-          boxShadow: '0 -2px 12px rgba(16,185,129,0.08)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: 56
-        }}
-      >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: 60, width: '100%', px: 2 }}>
-          <IconButton 
-            color="primary" 
-            sx={{ 
-              flex: 1, 
-              color: '#10B981', 
-              flexDirection: 'column',
-              gap: 0.5,
-              py: 1,
-              borderRadius: '50%',
-              '&:hover': {
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                transform: 'scale(1.1)'
-              },
-              transition: 'all 0.3s ease'
-            }}
-          >
-            <Category sx={{ fontSize: 24 }} />
-            <Typography sx={{ fontSize: '0.7rem', fontWeight: 600 }}>เมนู</Typography>
-          </IconButton>
-          <IconButton 
-            sx={{ 
-              flex: 1, 
-              color: '#64748b',
-              flexDirection: 'column',
-              gap: 0.5,
-              py: 1,
-              borderRadius: '50%',
-              '&:hover': {
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                color: '#10B981',
-                transform: 'scale(1.1)'
-              },
-              transition: 'all 0.3s ease'
-            }} 
-            onClick={() => router.push('/orders')}
-          >
-            <FavoriteBorder sx={{ fontSize: 24 }} />
-            <Typography sx={{ fontSize: '0.7rem', fontWeight: 600 }}>ออเดอร์</Typography>
-          </IconButton>
-          <IconButton 
-            sx={{ 
-              flex: 1, 
-              color: '#64748b',
-              flexDirection: 'column',
-              gap: 0.5,
-              py: 1,
-              borderRadius: '50%',
-              '&:hover': {
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                color: '#10B981',
-                transform: 'scale(1.1)'
-              },
-              transition: 'all 0.3s ease'
-            }} 
-            onClick={() => router.push('/chats')}
-          >
-            <FavoriteBorder sx={{ fontSize: 24 }} />
-            <Typography sx={{ fontSize: '0.7rem', fontWeight: 600 }}>แชท</Typography>
-          </IconButton>
-          <IconButton 
-            sx={{ 
-              flex: 1, 
-              color: '#64748b',
-              flexDirection: 'column',
-              gap: 0.5,
-              py: 1,
-              borderRadius: '50%',
-              '&:hover': {
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                color: '#10B981',
-                transform: 'scale(1.1)'
-              },
-              transition: 'all 0.3s ease'
-            }} 
-            onClick={() => router.push('/notification')}
-          >
-            <Badge color="error" variant="dot" overlap="circular">
-              <FilterList sx={{ fontSize: 24 }} />
-            </Badge>
-            <Typography sx={{ fontSize: '0.7rem', fontWeight: 600 }}>แจ้งเตือน</Typography>
-          </IconButton>
-          <IconButton 
-            sx={{ 
-              flex: 1, 
-              color: '#64748b',
-              flexDirection: 'column',
-              gap: 0.5,
-              py: 1,
-              borderRadius: '50%',
-              '&:hover': {
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                color: '#10B981',
-                transform: 'scale(1.1)'
-              },
-              transition: 'all 0.3s ease'
-            }} 
-            onClick={() => router.push('/profile')}
-          >
-            <Avatar sx={{ width: 24, height: 24, bgcolor: lineUser && lineSessionChecked ? '#10B981' : '#e5e7eb', color: lineUser && lineSessionChecked ? 'white' : '#6b7280' }}>
-              {lineUser && lineSessionChecked ? (lineUser?.name?.[0] || lineUser?.displayName?.[0] || 'U') : '?'}
-            </Avatar>
-            <Typography sx={{ fontSize: '0.7rem', fontWeight: 600 }}>โปรไฟล์</Typography>
-          </IconButton>
-        </Box>
-      </Paper>
+      {/* Footer Navigation */}
+      <FooterNavbar restaurantId={restaurant?.id} />
 
       {/* Debug Component - Development Only with URL Parameter */}
       {process.env.NODE_ENV === 'development' && 

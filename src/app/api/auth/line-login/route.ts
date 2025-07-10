@@ -17,19 +17,85 @@ interface LineLoginRequest {
 
 export async function POST(req: NextRequest) {
   try {
-    const { accessToken, restaurantId, returnUrl, isRecovery }: LineLoginRequest & { isRecovery?: boolean } = await req.json()
+    // เพิ่ม debugging สำหรับ request ที่เข้ามา
+    console.log('🔍 LINE Login API called');
+    console.log('📊 Request headers:', {
+      'content-type': req.headers.get('content-type'),
+      'user-agent': req.headers.get('user-agent')?.slice(0, 100),
+      'origin': req.headers.get('origin'),
+      'referer': req.headers.get('referer')
+    });
+
+    // อ่าน request body และ debug
+    let requestBody;
+    try {
+      requestBody = await req.json();
+      console.log('📦 Request body received:', {
+        hasAccessToken: !!requestBody.accessToken,
+        accessTokenLength: requestBody.accessToken?.length || 0,
+        restaurantId: requestBody.restaurantId,
+        platform: requestBody.platform,
+        returnUrl: requestBody.returnUrl,
+        isRecovery: requestBody.isRecovery,
+        allKeys: Object.keys(requestBody)
+      });
+    } catch (jsonError) {
+      console.error('❌ Failed to parse JSON body:', jsonError);
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      );
+    }
+
+    const { accessToken, restaurantId, returnUrl, isRecovery, platform } = requestBody;
 
     if (!accessToken) {
+      console.error('❌ No access token provided in request');
       return NextResponse.json(
         { error: 'Access token is required' },
         { status: 400 }
       )
     }
 
+    if (typeof accessToken !== 'string' || accessToken.trim() === '') {
+      console.error('❌ Invalid access token format:', typeof accessToken, accessToken?.length);
+      return NextResponse.json(
+        { error: 'Access token must be a non-empty string' },
+        { status: 400 }
+      );
+    }
+
+    // ตรวจจับแพลตฟอร์มจาก User-Agent และ platform parameter
+    const detectPlatform = (): 'IOS' | 'ANDROID' | 'BROWSER' => {
+      // ใช้ platform parameter ก่อนถ้ามี
+      if (platform) {
+        const platformLower = platform.toLowerCase();
+        if (platformLower === 'ios') return 'IOS';
+        if (platformLower === 'android') return 'ANDROID';
+        if (platformLower === 'web' || platformLower === 'browser') return 'BROWSER';
+      }
+
+      // ตรวจจับจาก User-Agent
+      const userAgent = req.headers.get('user-agent') || '';
+      
+      if (userAgent.includes('iPhone') || userAgent.includes('iPad') || userAgent.includes('iOS')) {
+        return 'IOS';
+      }
+      if (userAgent.includes('Android')) {
+        return 'ANDROID';
+      }
+      
+      return 'BROWSER';
+    };
+
+    const loginPlatform = detectPlatform();
+    console.log(`🔐 LINE Login from platform: ${loginPlatform}`);
+
     const loginType = isRecovery ? 'Recovery' : 'Normal';
     console.log(`🔐 LINE ${loginType} Login attempt with restaurantId:`, restaurantId)
 
     // ตรวจสอบ access token กับ LINE API - ลด timeout เพื่อความเร็ว
+    console.log('🌐 Validating access token with LINE API...');
     const lineResponse = await fetch('https://api.line.me/v2/profile', {
       headers: {
         'Authorization': `Bearer ${accessToken}`
@@ -38,7 +104,9 @@ export async function POST(req: NextRequest) {
     })
 
     if (!lineResponse.ok) {
-      console.error('❌ LINE API error:', lineResponse.status, lineResponse.statusText)
+      console.error('❌ LINE API error:', lineResponse.status, lineResponse.statusText);
+      const errorBody = await lineResponse.text().catch(() => 'Unknown error');
+      console.error('❌ LINE API error body:', errorBody);
       return NextResponse.json(
         { error: 'Invalid LINE access token' },
         { status: 401 }
@@ -55,18 +123,7 @@ export async function POST(req: NextRequest) {
 
     // ค้นหาหรือสร้าง user ในฐานข้อมูล - เพิ่ม caching
     let user = await prisma.user.findUnique({
-      where: { lineUserId: lineProfile.userId },
-      // ดึงเฉพาะฟิลด์ที่จำเป็นเพื่อลดเวลา
-      select: {
-        id: true,
-        lineUserId: true,
-        name: true,
-        email: true,
-        role: true,
-        image: true,
-        createdAt: true,
-        updatedAt: true
-      }
+      where: { lineUserId: lineProfile.userId }
     })
 
     let isNewUser = false;
@@ -75,20 +132,29 @@ export async function POST(req: NextRequest) {
     if (!user) {
       console.log('👤 Creating new LINE user with profile data')
       isNewUser = true;
+      
+      // ถ้า login มาจาก iOS หรือ Android ให้บังคับ role เป็น USER (skip role selection)
+      const userRole = 'USER'; // ใช้ USER สำหรับทุก platform แต่จะมีการจัดการ redirect ต่างกัน
+      
+      console.log(`📱 Platform: ${loginPlatform}, Setting role: ${userRole}`);
+      
       user = await prisma.user.create({
         data: {
           lineUserId: lineProfile.userId,
           name: lineProfile.displayName,
           image: lineProfile.pictureUrl,
-          role: 'USER',
+          role: userRole,
+          loginPlatform: loginPlatform,
           // สร้าง email จาก LINE User ID
           email: `line_${lineProfile.userId}@line.user`
-        }
+        } as any
       })
       console.log('✅ New user created:', {
         id: user.id,
         name: user.name,
-        image: user.image
+        image: user.image,
+        role: user.role,
+        platform: loginPlatform
       });
     } else {
       console.log('👤 Existing LINE user found, checking for profile updates...')
@@ -96,14 +162,17 @@ export async function POST(req: NextRequest) {
       // ตรวจสอบว่าต้องอัพเดทข้อมูลหรือไม่
       const needsUpdate = 
         user.name !== lineProfile.displayName || 
-        user.image !== lineProfile.pictureUrl;
+        user.image !== lineProfile.pictureUrl ||
+        (user as any).loginPlatform !== loginPlatform;
       
       if (needsUpdate) {
         console.log('🔄 Profile data changed, updating...', {
           oldName: user.name,
           newName: lineProfile.displayName,
           oldImage: user.image,
-          newImage: lineProfile.pictureUrl
+          newImage: lineProfile.pictureUrl,
+          oldPlatform: (user as any).loginPlatform,
+          newPlatform: loginPlatform
         });
         
         // อัพเดทข้อมูลจาก LINE ทุกครั้งที่ login
@@ -112,15 +181,17 @@ export async function POST(req: NextRequest) {
           data: {
             name: lineProfile.displayName,
             image: lineProfile.pictureUrl,
+            loginPlatform: loginPlatform,
             updatedAt: new Date() // บันทึกเวลาที่อัพเดทล่าสุด
-          }
+          } as any
         })
         profileUpdated = true;
         
         console.log('✅ Profile updated successfully:', {
           id: user.id,
           name: user.name,
-          image: user.image
+          image: user.image,
+          loginPlatform: (user as any).loginPlatform
         });
       } else {
         console.log('ℹ️ Profile data unchanged, no update needed');
@@ -129,8 +200,9 @@ export async function POST(req: NextRequest) {
         user = await prisma.user.update({
           where: { id: user.id },
           data: {
+            loginPlatform: loginPlatform,
             updatedAt: new Date()
-          }
+          } as any
         })
       }
     }
@@ -165,8 +237,14 @@ export async function POST(req: NextRequest) {
     let shouldRedirectToRestaurant = false
     let finalRedirectUrl = '/'
 
+    // ถ้าเป็น newUser จาก iOS/Android และมี restaurantId ให้ redirect ไปเมนูโดยตรง
+    if (isNewUser && (loginPlatform === 'IOS' || loginPlatform === 'ANDROID') && restaurantId) {
+      console.log('📱 New mobile user with restaurant, direct redirect to menu')
+      shouldRedirectToRestaurant = true
+      finalRedirectUrl = `/menu/${restaurantId}?from=mobile-new-user`
+    }
     // ใช้ returnUrl ถ้ามี, ไม่เช่นนั้นใช้ logic เดิม
-    if (returnUrl) {
+    else if (returnUrl) {
       console.log('🔄 Using returnUrl:', returnUrl)
       finalRedirectUrl = returnUrl
       if (returnUrl.includes('/menu/') || returnUrl.includes('/cart/')) {
