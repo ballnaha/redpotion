@@ -17,7 +17,7 @@ import {
   Alert,
   CircularProgress,
   IconButton,
-  Grid
+  useMediaQuery
 } from '@mui/material';
 import { 
   People, 
@@ -33,6 +33,7 @@ import {
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useSession } from 'next-auth/react';
+import { useNotification } from '@/contexts/NotificationContext';
 
 interface PendingRestaurant {
   id: string;
@@ -62,6 +63,8 @@ interface PendingRestaurant {
 export default function AdminPage() {
   const theme = useTheme();
   const { data: session } = useSession();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { showSuccess, showError } = useNotification();
   const [pendingRestaurants, setPendingRestaurants] = useState<PendingRestaurant[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -101,11 +104,12 @@ export default function AdminPage() {
       if (response.ok) {
         setPendingRestaurants(prev => prev.filter(r => r.id !== restaurantId));
         setDetailsOpen(false);
+        showSuccess('อนุมัติร้านอาหารเรียบร้อยแล้ว');
       } else {
-        setError('ไม่สามารถอนุมัติร้านได้');
+        showError('ไม่สามารถอนุมัติร้านได้');
       }
     } catch (error) {
-      setError('เกิดข้อผิดพลาดในการอนุมัติ');
+      showError('เกิดข้อผิดพลาดในการอนุมัติ');
     } finally {
       setActionLoading(null);
     }
@@ -120,11 +124,12 @@ export default function AdminPage() {
       if (response.ok) {
         setPendingRestaurants(prev => prev.filter(r => r.id !== restaurantId));
         setDetailsOpen(false);
+        showSuccess('ปฏิเสธร้านอาหารเรียบร้อยแล้ว');
       } else {
-        setError('ไม่สามารถปฏิเสธร้านได้');
+        showError('ไม่สามารถปฏิเสธร้านได้');
       }
     } catch (error) {
-      setError('เกิดข้อผิดพลาดในการปฏิเสธ');
+      showError('เกิดข้อผิดพลาดในการปฏิเสธ');
     } finally {
       setActionLoading(null);
     }
@@ -267,13 +272,13 @@ export default function AdminPage() {
             ไม่มีร้านอาหารที่รออนุมัติ
           </Alert>
         ) : (
-                     <Box sx={{ 
-             display: 'grid', 
-             gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', 
-             gap: 3 
-           }}>
-             {pendingRestaurants.map((restaurant) => (
-               <Box key={restaurant.id}>
+          <Box sx={{ 
+            display: 'flex', 
+            flexWrap: 'wrap', 
+            gap: 3 
+          }}>
+            {pendingRestaurants.map((restaurant) => (
+              <Box key={restaurant.id} sx={{ flex: '1 1 350px', minWidth: 350 }}>
                 <Card
                   sx={{
                     backgroundColor: 'rgba(255, 255, 255, 0.25)',
@@ -368,11 +373,11 @@ export default function AdminPage() {
                         ปฏิเสธ
                       </Button>
                     </Box>
-                                     </CardContent>
-                 </Card>
-               </Box>
-             ))}
-           </Box>
+                  </CardContent>
+                </Card>
+              </Box>
+            ))}
+          </Box>
         )}
       </Box>
 
@@ -545,25 +550,31 @@ export default function AdminPage() {
                   เอกสารที่อัพโหลด ({selectedRestaurant.documents.length} ไฟล์)
                 </Typography>
                 {selectedRestaurant.documents.length > 0 ? (
-                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2 }}>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    flexWrap: 'wrap', 
+                    gap: 2 
+                  }}>
                     {selectedRestaurant.documents.map((doc) => (
-                      <Card key={doc.id} sx={{ p: 2 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                          {doc.documentType.replace('_', ' ')}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                          {doc.fileName}
-                        </Typography>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          href={doc.fileUrl}
-                          target="_blank"
-                          sx={{ width: '100%' }}
-                        >
-                          ดูไฟล์
-                        </Button>
-                      </Card>
+                      <Box key={doc.id} sx={{ flex: '1 1 200px', minWidth: 200 }}>
+                        <Card sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                            {doc.documentType.replace('_', ' ')}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                            {doc.fileName}
+                          </Typography>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            href={doc.fileUrl}
+                            target="_blank"
+                            sx={{ width: '100%' }}
+                          >
+                            ดูไฟล์
+                          </Button>
+                        </Card>
+                      </Box>
                     ))}
                   </Box>
                 ) : (

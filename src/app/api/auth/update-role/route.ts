@@ -16,8 +16,8 @@ export async function POST(request: NextRequest) {
 
     const { role } = await request.json();
 
-    // Validate role
-    if (!role || !['RESTAURANT_OWNER', 'CUSTOMER', 'USER'].includes(role)) {
+    // Validate role - เอา USER ออกแล้วเพราะไม่ใช้แล้ว
+    if (!role || !['RESTAURANT_OWNER', 'CUSTOMER'].includes(role)) {
       return NextResponse.json(
         { message: 'ประเภทผู้ใช้ไม่ถูกต้อง' },
         { status: 400 }

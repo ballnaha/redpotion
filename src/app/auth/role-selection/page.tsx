@@ -38,6 +38,8 @@ export default function RoleSelectionPage() {
         router.replace('/restaurant');
       } else if (session.user.role === 'ADMIN') {
         router.replace('/admin');
+      } else if (session.user.role === 'CUSTOMER') {
+        router.replace('/');
       } else {
         router.replace('/');
       }
@@ -95,7 +97,7 @@ export default function RoleSelectionPage() {
     );
   }
 
-  // Don't render if redirecting
+  // Don't render if redirecting - ตอนนี้ USER role ไม่ควรมีแล้ว เพราะ default เป็น CUSTOMER
   if (status === 'unauthenticated' || 
       (session?.user?.role && session.user.role !== 'USER')) {
     return null;

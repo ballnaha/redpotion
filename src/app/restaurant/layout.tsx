@@ -33,7 +33,8 @@ import {
   AccountCircle,
   Logout,
   Person,
-  PhoneAndroid
+  PhoneAndroid,
+  AttachMoney
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { SessionProvider, useSession, signOut } from 'next-auth/react';
@@ -481,6 +482,12 @@ export default function RestaurantLayout({
       icon: <DeliveryDining />, 
       href: '/restaurant/orders',
       active: pathname.startsWith('/restaurant/orders')
+    },
+    { 
+      text: 'Billing', 
+      icon: <AttachMoney />, 
+      href: '/restaurant/billing/subscriptions',
+      active: pathname.startsWith('/restaurant/billing')
     },
     { 
       text: 'Analytics', 

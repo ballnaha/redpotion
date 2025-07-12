@@ -272,9 +272,9 @@ export default function UserOrdersPage() {
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('th-TH', {
+      day: '2-digit',
+      month: '2-digit',
       year: 'numeric',
-      month: 'short',
-      day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
     });
@@ -322,13 +322,30 @@ export default function UserOrdersPage() {
   // Payment slip functions
   const handleOpenSlipDialog = (order: Order) => {
     setSelectedOrderForSlip(order);
-    setTransferAmount(''); // ให้ผู้ใช้กรอกเอง
-    setSlipDialogOpen(true);
     
-    // Set current date and time as default
-    const now = new Date();
-    setTransferDate(now.toISOString().split('T')[0]);
-    setTransferTime(now.toTimeString().slice(0, 5));
+    // ถ้ามีสลิปเดิม ให้เติมข้อมูลเดิม
+    const latestSlip = getLatestPaymentSlip(order);
+    if (latestSlip) {
+      setTransferAmount(latestSlip.transferAmount.toString());
+      setAccountName(latestSlip.accountName);
+      setTransferRef(latestSlip.transferReference || '');
+      
+      // แปลงวันที่
+      const transferDate = new Date(latestSlip.transferDate);
+      setTransferDate(transferDate.toISOString().split('T')[0]);
+      setTransferTime(transferDate.toTimeString().slice(0, 5));
+    } else {
+      // ถ้าไม่มีสลิปเดิม ใช้วันที่ปัจจุบัน
+      setTransferAmount('');
+      setAccountName('');
+      setTransferRef('');
+      
+      const now = new Date();
+      setTransferDate(now.toISOString().split('T')[0]);
+      setTransferTime(now.toTimeString().slice(0, 5));
+    }
+    
+    setSlipDialogOpen(true);
   };
 
   const handleCloseSlipDialog = () => {
@@ -700,35 +717,103 @@ export default function UserOrdersPage() {
                     </Typography>
                   </Box>
 
-                  {/* Upload Slip Button for PromptPay */}
+                  {/* Upload/Edit Slip Button for PromptPay */}
                   {(order.paymentMethod === 'transfer' || order.paymentMethod === 'promptpay') && 
-                   !order.isPaid && 
-                   (!hasPaymentSlip(order) || getLatestPaymentSlip(order)?.status === 'REJECTED') && (
+                   !order.isPaid && (
                     <Box sx={{ mb: 2 }}>
-                      <Button
-                        fullWidth
-                        variant="outlined"
-                        color="primary"
-                        startIcon={<CloudUpload />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenSlipDialog(order);
-                        }}
-                        sx={{
-                          borderRadius: '12px',
-                          py: 1,
-                          fontSize: '0.875rem',
-                          fontWeight: 500,
-                          borderColor: '#10B981',
-                          color: '#10B981',
-                          '&:hover': {
-                            borderColor: '#059669',
-                            backgroundColor: 'rgba(16, 185, 129, 0.05)'
-                          }
-                        }}
-                      >
-                        {getLatestPaymentSlip(order)?.status === 'REJECTED' ? 'แนบสลิปใหม่' : 'แนบสลิปการโอนเงิน'}
-                      </Button>
+                      {(() => {
+                        const latestSlip = getLatestPaymentSlip(order);
+                        const hasSlip = hasPaymentSlip(order);
+                        
+                        // ไม่มีสลิปเลย
+                        if (!hasSlip) {
+                          return (
+                            <Button
+                              fullWidth
+                              variant="outlined"
+                              color="primary"
+                              startIcon={<CloudUpload />}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenSlipDialog(order);
+                              }}
+                              sx={{
+                                borderRadius: '12px',
+                                py: 1,
+                                fontSize: '0.875rem',
+                                fontWeight: 500,
+                                borderColor: '#10B981',
+                                color: '#10B981',
+                                '&:hover': {
+                                  borderColor: '#059669',
+                                  backgroundColor: 'rgba(16, 185, 129, 0.05)'
+                                }
+                              }}
+                            >
+                              แนบสลิปการโอนเงิน
+                            </Button>
+                          );
+                        }
+                        
+                        // มีสลิปแล้ว
+                        if (latestSlip?.status === 'PENDING') {
+                          return (
+                            <Button
+                              fullWidth
+                              variant="outlined"
+                              startIcon={<PendingActions />}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenSlipDialog(order);
+                              }}
+                              sx={{
+                                borderRadius: '12px',
+                                py: 1,
+                                fontSize: '0.875rem',
+                                fontWeight: 500,
+                                borderColor: '#FF9800',
+                                color: '#FF9800',
+                                '&:hover': {
+                                  borderColor: '#F57C00',
+                                  backgroundColor: 'rgba(255, 152, 0, 0.05)'
+                                }
+                              }}
+                            >
+                              แก้ไขสลิป (รอตรวจสอบ)
+                            </Button>
+                          );
+                        }
+                        
+                        if (latestSlip?.status === 'REJECTED') {
+                          return (
+                            <Button
+                              fullWidth
+                              variant="outlined"
+                              startIcon={<CloudUpload />}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenSlipDialog(order);
+                              }}
+                              sx={{
+                                borderRadius: '12px',
+                                py: 1,
+                                fontSize: '0.875rem',
+                                fontWeight: 500,
+                                borderColor: '#F44336',
+                                color: '#F44336',
+                                '&:hover': {
+                                  borderColor: '#D32F2F',
+                                  backgroundColor: 'rgba(244, 67, 54, 0.05)'
+                                }
+                              }}
+                            >
+                              ส่งสลิปใหม่ (ถูกปฏิเสธ)
+                            </Button>
+                          );
+                        }
+                        
+                        return null;
+                      })()}
                     </Box>
                   )}
 
@@ -1122,33 +1207,95 @@ export default function UserOrdersPage() {
                 zIndex: 1
               }}
             >
-              {/* Upload Slip Button for PromptPay in Detail Dialog */}
+              {/* Upload/Edit Slip Button for PromptPay in Detail Dialog */}
               {(selectedOrder.paymentMethod === 'transfer' || selectedOrder.paymentMethod === 'promptpay') && 
-               !selectedOrder.isPaid && 
-               (!hasPaymentSlip(selectedOrder) || getLatestPaymentSlip(selectedOrder)?.status === 'REJECTED') && (
-                <Button
-                  onClick={() => {
-                    setDetailDialogOpen(false);
-                    handleOpenSlipDialog(selectedOrder);
-                  }}
-                  variant="outlined"
-                  startIcon={<CloudUpload />}
-                  sx={{
-                    borderRadius: '12px',
-                    py: 1.5,
-                    mr: 1,
-                    flex: 1,
-                    borderColor: '#10B981',
-                    color: '#10B981',
-                    '&:hover': {
-                      borderColor: '#059669',
-                      backgroundColor: 'rgba(16, 185, 129, 0.05)'
-                    }
-                  }}
-                >
-                  {getLatestPaymentSlip(selectedOrder)?.status === 'REJECTED' ? 'แนบสลิปใหม่' : 'แนบสลิป'}
-                </Button>
-              )}
+               !selectedOrder.isPaid && (() => {
+                 const latestSlip = getLatestPaymentSlip(selectedOrder);
+                 const hasSlip = hasPaymentSlip(selectedOrder);
+                 
+                 if (!hasSlip) {
+                   return (
+                     <Button
+                       onClick={() => {
+                         setDetailDialogOpen(false);
+                         handleOpenSlipDialog(selectedOrder);
+                       }}
+                       variant="outlined"
+                       startIcon={<CloudUpload />}
+                       sx={{
+                         borderRadius: '12px',
+                         py: 1.5,
+                         mr: 1,
+                         flex: 1,
+                         borderColor: '#10B981',
+                         color: '#10B981',
+                         '&:hover': {
+                           borderColor: '#059669',
+                           backgroundColor: 'rgba(16, 185, 129, 0.05)'
+                         }
+                       }}
+                     >
+                       แนบสลิป
+                     </Button>
+                   );
+                 }
+                 
+                 if (latestSlip?.status === 'PENDING') {
+                   return (
+                     <Button
+                       onClick={() => {
+                         setDetailDialogOpen(false);
+                         handleOpenSlipDialog(selectedOrder);
+                       }}
+                       variant="outlined"
+                       startIcon={<PendingActions />}
+                       sx={{
+                         borderRadius: '12px',
+                         py: 1.5,
+                         mr: 1,
+                         flex: 1,
+                         borderColor: '#FF9800',
+                         color: '#FF9800',
+                         '&:hover': {
+                           borderColor: '#F57C00',
+                           backgroundColor: 'rgba(255, 152, 0, 0.05)'
+                         }
+                       }}
+                     >
+                       แก้ไขสลิป
+                     </Button>
+                   );
+                 }
+                 
+                 if (latestSlip?.status === 'REJECTED') {
+                   return (
+                     <Button
+                       onClick={() => {
+                         setDetailDialogOpen(false);
+                         handleOpenSlipDialog(selectedOrder);
+                       }}
+                       variant="outlined"
+                       startIcon={<CloudUpload />}
+                       sx={{
+                         borderRadius: '12px',
+                         py: 1.5,
+                         mr: 1,
+                         flex: 1,
+                         borderColor: '#F44336',
+                         color: '#F44336',
+                         '&:hover': {
+                           borderColor: '#D32F2F',
+                           backgroundColor: 'rgba(244, 67, 54, 0.05)'
+                         }
+                       }}
+                     >
+                       ส่งสลิปใหม่
+                     </Button>
+                   );
+                 }
+                 
+                 return null;
+               })()}
               
               <Button 
                 onClick={() => setDetailDialogOpen(false)}
@@ -1180,7 +1327,8 @@ export default function UserOrdersPage() {
           sx: {
             borderRadius: { xs: 0, sm: '20px' }, // ไม่มี border radius ในมือถือ
             overflow: 'hidden',
-            height: { xs: '100vh', sm: 'auto' } // เต็มความสูงในมือถือ
+            height: { xs: '100vh', sm: 'auto' }, // เต็มความสูงในมือถือ
+            backgroundColor: 'white'
           }
         }}
       >
@@ -1211,12 +1359,32 @@ export default function UserOrdersPage() {
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
             
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              แนบสลิปการโอนเงิน
+              {(() => {
+                if (!selectedOrderForSlip) return 'แนบสลิปการโอนเงิน';
+                const latestSlip = getLatestPaymentSlip(selectedOrderForSlip);
+                const hasSlip = hasPaymentSlip(selectedOrderForSlip);
+                
+                if (!hasSlip) return 'แนบสลิปการโอนเงิน';
+                if (latestSlip?.status === 'PENDING') return 'แก้ไขสลิปการโอนเงิน';
+                if (latestSlip?.status === 'REJECTED') return 'ส่งสลิปใหม่';
+                
+                return 'แนบสลิปการโอนเงิน';
+              })()}
             </Typography>
           </Box>
           {selectedOrderForSlip && (
             <Typography variant="body2" sx={{ opacity: 0.9 }}>
               ออเดอร์ #{selectedOrderForSlip.orderNumber}
+              {(() => {
+                const latestSlip = getLatestPaymentSlip(selectedOrderForSlip);
+                if (latestSlip?.status === 'REJECTED') {
+                  return ' (สลิปถูกปฏิเสธ)';
+                }
+                if (latestSlip?.status === 'PENDING') {
+                  return ' (รอการตรวจสอบ)';
+                }
+                return '';
+              })()}
             </Typography>
           )}
         </DialogTitle>
@@ -1250,6 +1418,30 @@ export default function UserOrdersPage() {
               </Box>
             </Box>
           )}
+
+          {/* Show rejection reason if applicable */}
+          {selectedOrderForSlip && (() => {
+            const latestSlip = getLatestPaymentSlip(selectedOrderForSlip);
+            if (latestSlip?.status === 'REJECTED' && latestSlip.adminNotes) {
+              return (
+                <Box sx={{ 
+                  backgroundColor: '#FEF2F2',
+                  border: '1px solid #FECACA',
+                  borderRadius: '12px',
+                  p: 2,
+                  mb: 3
+                }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: '#DC2626' }}>
+                    เหตุผลที่ถูกปฏิเสธ
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#7F1D1D' }}>
+                    {latestSlip.adminNotes}
+                  </Typography>
+                </Box>
+              );
+            }
+            return null;
+          })()}
 
           {/* File Upload Section */}
           <Box sx={{ mb: 3 }}>

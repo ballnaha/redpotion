@@ -6,7 +6,7 @@ import { Box, CircularProgress, Typography } from '@mui/material';
 
 interface AuthLoadingWrapperProps {
   children: ReactNode;
-  requiredRole?: 'RESTAURANT_OWNER' | 'ADMIN' | 'USER';
+  requiredRole?: 'RESTAURANT_OWNER' | 'ADMIN' | 'CUSTOMER';
   loadingText?: string;
   unauthorizedText?: string;
   showSessionStatus?: boolean;
@@ -83,7 +83,7 @@ export default function AuthLoadingWrapper({
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             {requiredRole === 'RESTAURANT_OWNER' && 'คุณต้องเป็นเจ้าของร้านอาหารเพื่อเข้าใช้งานหน้านี้'}
             {requiredRole === 'ADMIN' && 'คุณต้องเป็นผู้ดูแลระบบเพื่อเข้าใช้งานหน้านี้'}
-            {requiredRole === 'USER' && 'คุณต้องเป็นผู้ใช้งานทั่วไปเพื่อเข้าใช้งานหน้านี้'}
+            {requiredRole === 'CUSTOMER' && 'คุณต้องเป็นลูกค้าเพื่อเข้าใช้งานหน้านี้'}
           </Typography>
         </Box>
       );

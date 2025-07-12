@@ -10,9 +10,7 @@ import {
   CardContent,
   Typography,
   TextField,
-  Button,
   Alert,
-  CircularProgress,
   Divider,
   Chip,
   IconButton,
@@ -22,16 +20,15 @@ import {
 import { 
   ContentCopy, 
   OpenInNew, 
-  QrCode, 
-  Save,
   PhoneAndroid,
   Link as LinkIcon,
   CheckCircle,
-  Warning
+  Warning,
+  Info
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useNotification } from '../../../contexts/NotificationContext';
-import { createLiffUrl, createQRCodeUrl, createShareUrl } from '@/lib/liffUtils';
+import { createLiffUrl, createQRCodeUrl } from '@/lib/liffUtils';
 
 interface RestaurantData {
   id: string;
@@ -95,16 +92,6 @@ export default function LiffSetupPage() {
     }
   );
 
-  const [liffId, setLiffId] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  // Auto-populate LIFF ID when data loads
-  useEffect(() => {
-    if (liffData?.liffId) {
-      setLiffId(liffData.liffId);
-    }
-  }, [liffData]);
-
   // Redirect if not authenticated or not restaurant owner
   useEffect(() => {
     if (sessionStatus === 'loading') return;
@@ -116,42 +103,14 @@ export default function LiffSetupPage() {
     }
   }, [sessionStatus, session?.user?.role, router]);
 
-  const handleSave = async () => {
-    if (!restaurant?.id) return;
-    
-    try {
-      setSaving(true);
-      const response = await fetch(`/api/restaurant/${restaurant.id}/liff`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ liffId: liffId.trim() }),
-      });
-
-      if (response.ok) {
-        await refreshLiff(); // รีเฟรช LIFF data
-        showSuccess('บันทึก LIFF ID สำเร็จ!');
-      } else {
-        const errorData = await response.json();
-        showError(errorData.error || 'เกิดข้อผิดพลาดในการบันทึก');
-      }
-    } catch (error) {
-      console.error('Save error:', error);
-      showError('เกิดข้อผิดพลาดในการบันทึก');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     showSuccess('คัดลอกแล้ว!');
   };
 
   const generateLiffUrl = () => {
-    if (!liffId || !restaurant) return '';
-    return `https://liff.line.me/${liffId}?restaurant=${restaurant.id}`;
+    if (!liffData?.liffId || !restaurant) return '';
+    return `https://liff.line.me/${liffData.liffId}?restaurant=${restaurant.id}`;
   };
 
   // Show loading while session is loading
@@ -205,7 +164,7 @@ export default function LiffSetupPage() {
             ร้านอาหารยังไม่ได้รับการอนุมัติ
           </Typography>
           <Typography>
-            คุณจะสามารถใช้งาน LINE LIFF Setup ได้เมื่อร้านอาหารได้รับการอนุมัติแล้ว
+            คุณจะสามารถดูข้อมูล LINE LIFF ได้เมื่อร้านอาหารได้รับการอนุมัติแล้ว
           </Typography>
         </Alert>
       </Box>
@@ -219,11 +178,11 @@ export default function LiffSetupPage() {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
           <PhoneAndroid sx={{ fontSize: 32, color: 'primary.main' }} />
           <Typography variant="h4" sx={{ fontWeight: 600 }}>
-            LINE LIFF Setup
+            LINE LIFF Information
           </Typography>
         </Box>
         <Typography variant="body1" color="text.secondary">
-          จัดการ LINE LIFF สำหรับร้าน "{restaurant.name}"
+          ข้อมูล LINE LIFF สำหรับร้าน "{restaurant.name}"
         </Typography>
       </Box>
 
@@ -261,7 +220,7 @@ export default function LiffSetupPage() {
         </CardContent>
       </Card>
 
-      {/* LIFF Configuration Card */}
+      {/* LIFF Information Card */}
       <Card sx={{ 
         backgroundColor: 'rgba(255, 255, 255, 0.1)',
         backdropFilter: 'blur(20px)',
@@ -269,166 +228,84 @@ export default function LiffSetupPage() {
       }}>
         <CardContent>
           <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-            LIFF Configuration
+            LIFF Information
           </Typography>
           
-          <TextField
-            fullWidth
-            label="LIFF ID"
-            placeholder="เช่น 2007609360-3Z0L8Ekg"
-            value={liffId}
-            onChange={(e) => setLiffId(e.target.value)}
-            helperText="ใส่ LIFF ID ที่ได้จาก LINE Developers Console"
-            sx={{ mb: 3 }}
-            variant="outlined"
-          />
-
-          <Button
-            variant="contained"
-            startIcon={saving ? <CircularProgress size={16} /> : <Save />}
-            onClick={handleSave}
-            disabled={saving || !liffId.trim()}
-            sx={{ mb: 3 }}
-          >
-            {saving ? 'กำลังบันทึก...' : 'บันทึก'}
-          </Button>
-
-          {/* LIFF URL Information */}
-          {restaurant?.id && liffId && (
-            <Card sx={{ 
-              backgroundColor: 'rgba(16, 185, 129, 0.1)',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
-              mb: 3
-            }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: '#065f46' }}>
-                  📱 LIFF URL Information
-                </Typography>
-                
-                <Typography variant="body2" sx={{ mb: 2, color: '#047857' }}>
-                  ใช้ URL นี้สำหรับแชร์ร้านอาหารของคุณใน LINE:
-                </Typography>
-
-                <TextField
-                  fullWidth
-                  label="LIFF URL สำหรับลูกค้า"
-                  value={createLiffUrl(restaurant.id)}
-                  InputProps={{
-                    readOnly: true,
-                    endAdornment: (
-                      <Button
-                        size="small"
-                        onClick={() => {
-                          navigator.clipboard.writeText(createLiffUrl(restaurant.id));
-                          showSuccess('คัดลอก URL แล้ว!');
-                        }}
-                      >
-                        คัดลอก
-                      </Button>
-                    )
-                  }}
-                  sx={{ mb: 2 }}
-                />
-
-                <Typography variant="body2" sx={{ mb: 2, color: '#047857' }}>
-                  <strong>⚠️ สำคัญ:</strong> ใน LINE Developers Console ให้ตั้งค่า Endpoint URL เป็น:
-                </Typography>
-
-                <TextField
-                  fullWidth
-                  label="Endpoint URL (สำหรับ LINE Developers Console)"
-                  value={`${process.env.NEXTAUTH_URL || 'https://red1.theredpotion.com'}/liff`}
-                  InputProps={{
-                    readOnly: true,
-                    endAdornment: (
-                      <Button
-                        size="small"
-                        onClick={() => {
-                          navigator.clipboard.writeText(`${process.env.NEXTAUTH_URL || 'https://red1.theredpotion.com'}/liff`);
-                          showSuccess('คัดลอก Endpoint URL แล้ว!');
-                        }}
-                      >
-                        คัดลอก
-                      </Button>
-                    )
-                  }}
-                  sx={{ mb: 2 }}
-                />
-
-                <Typography variant="caption" sx={{ color: '#059669', display: 'block', mb: 2 }}>
-                  💡 ไม่ต้องใส่ ?restaurant=xxx ใน Endpoint URL - ระบบจะจัดการ parameter นี้ให้อัตโนมัติ
-                </Typography>
-
-                {/* QR Code */}
-                <Box sx={{ textAlign: 'center', mt: 2 }}>
-                  <Typography variant="subtitle2" sx={{ mb: 1, color: '#065f46' }}>
-                    QR Code สำหรับลูกค้า:
-                  </Typography>
-                  <img 
-                    src={createQRCodeUrl(restaurant.id)} 
-                    alt="LIFF QR Code"
-                    style={{ maxWidth: '200px', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                  />
-                </Box>
-              </CardContent>
-            </Card>
-          )}
-
-          {liffId && (
-            <>
-              <Divider sx={{ my: 3 }} />
-              
-              <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-                LIFF URL สำหรับร้านของคุณ
+          {/* Check if LIFF is configured */}
+          {!liffData?.liffId ? (
+            <Alert severity="info" sx={{ mb: 3 }}>
+              <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
+                ยังไม่ได้ตั้งค่า LIFF ID
               </Typography>
-              
-              <Box sx={{ 
-                p: 2, 
-                bgcolor: 'rgba(0, 0, 0, 0.05)', 
-                borderRadius: 1, 
-                display: 'flex', 
-                alignItems: 'center',
-                gap: 1,
-                mb: 2,
-                border: '1px solid rgba(0, 0, 0, 0.1)'
-              }}>
-                <LinkIcon sx={{ color: 'text.secondary', mr: 1 }} />
-                <Typography 
-                  variant="body2" 
-                  sx={{ 
-                    flexGrow: 1, 
-                    wordBreak: 'break-all',
-                    fontFamily: 'monospace'
-                  }}
-                >
-                  {generateLiffUrl()}
-                </Typography>
-                <Tooltip title="คัดลอก URL">
-                  <IconButton 
-                    onClick={() => copyToClipboard(generateLiffUrl())}
-                    size="small"
-                  >
-                    <ContentCopy />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="เปิดในแท็บใหม่">
-                  <IconButton 
-                    onClick={() => window.open(generateLiffUrl(), '_blank')}
-                    size="small"
-                  >
-                    <OpenInNew />
-                  </IconButton>
-                </Tooltip>
-              </Box>
+              <Typography variant="body2">
+                กรุณาติดต่อผู้ดูแลระบบเพื่อตั้งค่า LIFF ID สำหรับร้านของคุณ
+              </Typography>
+            </Alert>
+          ) : (
+            <>
+              {/* LIFF ID Display */}
+              <TextField
+                fullWidth
+                label="LIFF ID"
+                value={liffData.liffId}
+                InputProps={{
+                  readOnly: true,
+                  endAdornment: (
+                    <Tooltip title="คัดลอก LIFF ID">
+                      <IconButton 
+                        onClick={() => copyToClipboard(liffData.liffId!)}
+                        size="small"
+                      >
+                        <ContentCopy />
+                      </IconButton>
+                    </Tooltip>
+                  )
+                }}
+                sx={{ mb: 3 }}
+                variant="outlined"
+              />
 
+              {/* LIFF URL Display */}
+              <TextField
+                fullWidth
+                label="LIFF URL"
+                value={generateLiffUrl()}
+                InputProps={{
+                  readOnly: true,
+                  endAdornment: (
+                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                      <Tooltip title="คัดลอก LIFF URL">
+                        <IconButton 
+                          onClick={() => copyToClipboard(generateLiffUrl())}
+                          size="small"
+                        >
+                          <ContentCopy />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="เปิดในแท็บใหม่">
+                        <IconButton 
+                          onClick={() => window.open(generateLiffUrl(), '_blank')}
+                          size="small"
+                        >
+                          <OpenInNew />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  )
+                }}
+                sx={{ mb: 3 }}
+                variant="outlined"
+              />
+              
               <Alert severity="info" sx={{ borderRadius: 2 }}>
                 <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
-                  วิธีการใช้งาน:
+                  <Info sx={{ mr: 1, verticalAlign: 'middle' }} />
+                  ข้อมูลการใช้งาน:
                 </Typography>
                 <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
-                  <strong>1.</strong> นำ URL นี้ไปตั้งเป็น Endpoint URL ใน LINE Developers Console<br/>
-                  <strong>2.</strong> ตั้งค่า Rich Menu หรือ Flex Message เพื่อเปิด LIFF<br/>
-                  <strong>3.</strong> ลูกค้าจะถูก redirect มายังหน้าเมนูของร้านโดยอัตโนมัติ
+                  <strong>•</strong> LIFF ID และ URL นี้ถูกตั้งค่าโดยผู้ดูแลระบบ<br/>
+                  <strong>•</strong> ลูกค้าสามารถใช้ LIFF URL หรือ QR Code เพื่อเข้าถึงเมนูร้านของคุณ<br/>
+                  <strong>•</strong> หากต้องการแก้ไขข้อมูล กรุณาติดต่อผู้ดูแลระบบ
                 </Typography>
               </Alert>
             </>

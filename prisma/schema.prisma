@@ -41,7 +41,7 @@ model User {
   image         String?
   password      String?
   lineUserId    String?         @unique
-  role          UserRole        @default(USER)
+  role          UserRole        @default(CUSTOMER)
   loginPlatform LoginPlatform?  // แพลตฟอร์มที่ login เข้ามา
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
@@ -88,6 +88,18 @@ model Restaurant {
   promptpayId    String?          // เลขพร้อมเพย์ (เบอร์โทรหรือบัตรประชาชน)
   promptpayType  PromptPayType?   // ประเภทพร้อมเพย์
   promptpayName  String?          // ชื่อบัญชีพร้อมเพย์
+  // LIFF & Subscription Settings
+  liffExpiresAt  DateTime?        // วันที่หมดอายุ LIFF
+  subscriptionType SubscriptionType? @default(FREE) // ประเภทการสมัครสมาชิก
+  subscriptionStartDate DateTime?  // วันที่เริ่มสมัครสมาชิก
+  subscriptionEndDate DateTime?    // วันที่หมดอายุสมาชิก
+  isLiffActive   Boolean          @default(true)   // สถานะการใช้งาน LIFF
+  liffSettings   Json?            // การตั้งค่า LIFF เพิ่มเติม
+  // Last Extension Info
+  lastExtensionDate DateTime?     // วันที่ต่ออายุครั้งล่าสุด
+  lastExtensionType SubscriptionType? // ประเภทการต่ออายุครั้งล่าสุด
+  lastExtensionAmount Int?        // จำนวนเดือน/ปีที่ต่อครั้งล่าสุด
+  lastExtensionBy   String?       // ผู้ที่ทำการต่ออายุครั้งล่าสุด
   ownerId        String           @unique
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
@@ -331,4 +343,30 @@ enum PaymentSlipStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+model PricingPlan {
+  id              String           @id @default(cuid())
+  name            String           // ชื่อแผน เช่น "แผนรายเดือน", "แผนรายปี"
+  description     String?          // คำอธิบายแผน
+  planType        SubscriptionType // ประเภทแผน MONTHLY, YEARLY
+  duration        Int              // ระยะเวลา (เดือน สำหรับ MONTHLY = 1, YEARLY = 12)
+  originalPrice   Float            // ราคาเต็ม
+  discountPercent Float            @default(0) // เปอร์เซ็นต์ส่วนลด
+  finalPrice      Float            // ราคาหลังหักส่วนลด
+  isActive        Boolean          @default(true) // สถานะการใช้งาน
+  sortOrder       Int              @default(0) // ลำดับการแสดง
+  features        String[]         @default([]) // ฟีเจอร์ที่ได้รับ
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  createdBy       String?          // ผู้สร้าง
+  updatedBy       String?          // ผู้แก้ไขล่าสุด
+}
+
+enum SubscriptionType {
+  FREE        // ฟรี (จำกัดฟีเจอร์)
+  MONTHLY     // รายเดือน
+  YEARLY      // รายปี
+  LIFETIME    // ตลอดชีพ
+  TRIAL       // ทดลองใช้
 }

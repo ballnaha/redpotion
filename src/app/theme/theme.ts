@@ -66,7 +66,7 @@ const themeOptions: ThemeOptions = {
     },
   },
   typography: {
-    fontFamily: 'var(--font-prompt)',
+    fontFamily: 'var(--font-prompt), "Prompt", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     h1: {
       fontSize: '2rem',
       fontWeight: 700,

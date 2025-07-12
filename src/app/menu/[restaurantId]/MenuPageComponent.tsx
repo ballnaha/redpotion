@@ -254,6 +254,8 @@ export default function MenuPageComponent() {
   const [galleryLoading, setGalleryLoading] = useState(true);
   const [profileUpdateMessage, setProfileUpdateMessage] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [customerProfile, setCustomerProfile] = useState<any>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   // Client-side hydration check
   useEffect(() => {
@@ -332,6 +334,32 @@ export default function MenuPageComponent() {
       // ไม่สร้าง mock user อีกต่อไป
     }
   }, [isClient, lineUser]);
+
+  // Fetch customer profile
+  const fetchCustomerProfile = async () => {
+    if (!lineUser) return;
+    
+    try {
+      setProfileLoading(true);
+      const response = await fetch('/api/customer/profile');
+      if (response.ok) {
+        const profile = await response.json();
+        console.log('👤 Customer profile loaded:', profile);
+        setCustomerProfile(profile);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching customer profile:', error);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  // Load customer profile when user is available
+  useEffect(() => {
+    if (lineUser && lineUser.lineUserId && lineUser.lineUserId !== 'demo') {
+      fetchCustomerProfile();
+    }
+  }, [lineUser]);
 
   // Fetch gallery images
   useEffect(() => {
@@ -473,7 +501,7 @@ export default function MenuPageComponent() {
               image: userData.pictureUrl || userData.image,
               lineUserId: userData.userId || userData.lineUserId,
               email: userData.email || `line_${userData.userId}@line.user`,
-              role: 'USER'
+              role: 'CUSTOMER'
             });
             setLineSessionChecked(true);
             setSessionCheckComplete(true);
@@ -487,7 +515,7 @@ export default function MenuPageComponent() {
                 image: userData.pictureUrl || userData.image,
                 lineUserId: userData.userId || userData.lineUserId,
                 email: userData.email || `line_${userData.userId}@line.user`,
-                role: 'USER'
+                role: 'CUSTOMER'
               }));
               console.log('💾 Updated localStorage with restored session data');
             } catch (storageError) {
@@ -890,6 +918,39 @@ export default function MenuPageComponent() {
     }).format(price);
   };
 
+  // Get default delivery address
+  const getDefaultDeliveryAddress = () => {
+    // Show loading if profile is still being fetched
+    if (profileLoading) {
+      return 'กำลังโหลดตำแหน่ง...';
+    }
+
+    // Show message if user is not logged in
+    if (!lineUser || !lineUser.lineUserId || lineUser.lineUserId === 'demo') {
+      return 'กรุณาเข้าสู่ระบบเพื่อแสดงตำแหน่ง';
+    }
+
+    // Show loading if profile data is not available yet
+    if (!customerProfile?.addresses) {
+      return 'กำลังโหลดตำแหน่ง...';
+    }
+
+    const defaultAddress = customerProfile.addresses.find((addr: any) => addr.isDefault);
+    if (defaultAddress && defaultAddress.address !== 'ยังไม่ได้ตั้งค่า') {
+      return defaultAddress.address;
+    }
+
+    // Fallback to selected address type if no default or default is not set
+    const selectedTypeAddress = customerProfile.addresses.find((addr: any) => 
+      addr.type === customerProfile.selectedAddressType
+    );
+    if (selectedTypeAddress && selectedTypeAddress.address !== 'ยังไม่ได้ตั้งค่า') {
+      return selectedTypeAddress.address;
+    }
+
+    return 'กรุณาตั้งค่าที่อยู่';
+  };
+
   // Professional Gallery Swiper Logic
   const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -1189,6 +1250,9 @@ export default function MenuPageComponent() {
                     {/* Current Location */}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
                       <MyLocation sx={{ color: '#10B981', fontSize: '0.8rem' }} />
+                      {profileLoading ? (
+                        <CircularProgress size={10} sx={{ color: '#10B981', mr: 0.5 }} />
+                      ) : null}
                       <Typography 
                         variant="caption" 
                         sx={{ 
@@ -1202,7 +1266,7 @@ export default function MenuPageComponent() {
                           lineHeight: 1.2
                         }}
                       >
-                        คลองตัน, วัฒนา, กรุงเทพมหานคร
+                        {getDefaultDeliveryAddress()}
                       </Typography>
                     </Box>
               </Box>

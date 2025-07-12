@@ -133,8 +133,8 @@ export async function POST(req: NextRequest) {
       console.log('👤 Creating new LINE user with profile data')
       isNewUser = true;
       
-      // ถ้า login มาจาก iOS หรือ Android ให้บังคับ role เป็น USER (skip role selection)
-      const userRole = 'USER'; // ใช้ USER สำหรับทุก platform แต่จะมีการจัดการ redirect ต่างกัน
+      // ตั้ง role เป็น CUSTOMER เป็น default สำหรับผู้ใช้ใหม่
+      const userRole = 'CUSTOMER'; // ใช้ CUSTOMER เป็น default role สำหรับทุก platform
       
       console.log(`📱 Platform: ${loginPlatform}, Setting role: ${userRole}`);
       

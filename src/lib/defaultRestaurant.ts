@@ -11,7 +11,7 @@ export interface DefaultRestaurant {
  */
 // Fallback default restaurant เมื่อไม่สามารถ fetch ได้
 const FALLBACK_DEFAULT_RESTAURANT: DefaultRestaurant = {
-  restaurantId: 'cmcg20f2i00029hu8p2am75df', // Default restaurant ID
+  restaurantId: 'cmczw9ayn00029hk83pdo9bwz', // Default restaurant ID
   restaurantName: 'Red Potion Restaurant',
   status: 'ACTIVE'
 };

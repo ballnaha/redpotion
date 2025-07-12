@@ -184,9 +184,11 @@ export async function generateMetadata(): Promise<Metadata> {
 const prompt = Prompt({
   weight: ['200', '300', '400', '500'],
   subsets: ['thai', 'latin'],
-  display: 'swap',
+  display: 'block',
   preload: true,
-  variable: '--font-prompt'
+  variable: '--font-prompt',
+  fallback: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+  adjustFontFallback: false
 })
 
 // Static metadata is now replaced by generateMetadata function above
@@ -211,6 +213,38 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://images.unsplash.com" />
         <link rel="preconnect" href="https://static.line-scdn.net" />
+        
+        {/* Preload critical Prompt font weights */}
+        <link
+          rel="preload"
+          href="https://fonts.gstatic.com/s/prompt/v10/cIf9MaFLtkE5Ev8_Ta6Yy9A.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preload"
+          href="https://fonts.gstatic.com/s/prompt/v10/cIf4MaFLtkE5Ev8_QCmGw9E.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+        
+        {/* Inline critical CSS for font loading */}
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            @font-face {
+              font-family: 'Prompt';
+              font-style: normal;
+              font-weight: 400;
+              font-display: optional;
+              src: url('https://fonts.gstatic.com/s/prompt/v10/cIf9MaFLtkE5Ev8_Ta6Yy9A.woff2') format('woff2');
+            }
+            body {
+              font-family: 'Prompt', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            }
+          `
+        }} />
         
         {/* DNS Prefetch */}
         <link rel="dns-prefetch" href="//www.google-analytics.com" />
