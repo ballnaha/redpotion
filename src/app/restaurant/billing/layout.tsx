@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Box,
@@ -9,7 +9,9 @@ import {
   Tab,
   Card,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  CircularProgress,
+  Fade
 } from '@mui/material';
 import {
   CreditCard,
@@ -21,10 +23,11 @@ interface TabPanelProps {
   children?: React.ReactNode;
   index: number;
   value: number;
+  isLoading?: boolean;
 }
 
 function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
+  const { children, value, index, isLoading, ...other } = props;
 
   return (
     <div
@@ -35,8 +38,37 @@ function TabPanel(props: TabPanelProps) {
       {...other}
     >
       {value === index && (
-        <Box sx={{ pt: 3 }}>
-          {children}
+        <Box sx={{ pt: 3, position: 'relative', minHeight: '200px' }}>
+          {isLoading ? (
+            <Fade in={isLoading}>
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                minHeight: '300px',
+                flexDirection: 'column',
+                gap: 2,
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                backdropFilter: 'blur(4px)',
+                zIndex: 10
+              }}>
+                <CircularProgress size={48} thickness={4} />
+                <Typography variant="body1" color="text.secondary" sx={{ fontWeight: 500 }}>
+                  กำลังโหลดข้อมูล...
+                </Typography>
+              </Box>
+            </Fade>
+          ) : null}
+          <Fade in={!isLoading}>
+            <Box sx={{ opacity: isLoading ? 0.3 : 1, transition: 'opacity 0.3s ease' }}>
+              {children}
+            </Box>
+          </Fade>
         </Box>
       )}
     </div>
@@ -68,9 +100,21 @@ export default function BillingLayout({
   };
 
   const [value, setValue] = useState(getActiveTab());
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Update tab when pathname changes
+  useEffect(() => {
+    const newTab = getActiveTab();
+    if (newTab !== value) {
+      setValue(newTab);
+    }
+  }, [pathname, value]);
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+    if (newValue === value) return; // ป้องกันการคลิก tab เดียวกัน
+    
     setValue(newValue);
+    setIsLoading(true);
     
     // Navigate to appropriate page
     switch (newValue) {
@@ -83,6 +127,11 @@ export default function BillingLayout({
       default:
         router.push('/restaurant/billing/subscriptions');
     }
+
+    // จำลอง loading time
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 800);
   };
 
   return (
@@ -158,10 +207,10 @@ export default function BillingLayout({
 
         {/* Tab Content */}
         <Box sx={{ p: { xs: 2, md: 3 } }}>
-          <TabPanel value={value} index={0}>
+          <TabPanel value={value} index={0} isLoading={isLoading}>
             {pathname.includes('/subscriptions') && children}
           </TabPanel>
-          <TabPanel value={value} index={1}>
+          <TabPanel value={value} index={1} isLoading={isLoading}>
             {pathname.includes('/payment-history') && children}
           </TabPanel>
         </Box>

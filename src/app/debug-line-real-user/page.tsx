@@ -347,6 +347,81 @@ export default function DebugLineRealUser() {
     }
   };
 
+  const checkCurrentCookies = () => {
+    try {
+      addResult({
+        name: 'Check Current Cookies',
+        status: 'info',
+        message: '🍪 ตรวจสอบ cookies ปัจจุบัน...'
+      });
+
+      // ดึง cookies ทั้งหมด
+      const allCookies = document.cookie.split(';').reduce((cookies: any, cookie) => {
+        const [name, value] = cookie.trim().split('=');
+        if (name && value) {
+          cookies[name] = value;
+        }
+        return cookies;
+      }, {});
+
+      const cookieNames = Object.keys(allCookies);
+      const lineCookies = cookieNames.filter(name => 
+        name.includes('line') || name.includes('liff')
+      );
+      const nextAuthCookies = cookieNames.filter(name => 
+        name.includes('next-auth') || name.includes('__Host-next-auth') || name.includes('__Secure-next-auth')
+      );
+
+      addResult({
+        name: 'Current Cookies',
+        status: 'info',
+        message: `📋 พบ cookies ทั้งหมด ${cookieNames.length} รายการ`,
+        details: {
+          totalCookies: cookieNames.length,
+          allCookieNames: cookieNames,
+          lineCookies: lineCookies,
+          nextAuthCookies: nextAuthCookies,
+          hasLineSessionToken: allCookies['line-session-token'] ? true : false,
+          hasLineSessionBackup: allCookies['line-session-backup'] ? true : false
+        }
+      });
+
+      // ตรวจสอบ localStorage และ sessionStorage
+      const localStorageKeys = Object.keys(localStorage);
+      const sessionStorageKeys = Object.keys(sessionStorage);
+      const lineLocalStorage = localStorageKeys.filter(key => 
+        key.includes('line') || key.includes('liff')
+      );
+      const lineSessionStorage = sessionStorageKeys.filter(key => 
+        key.includes('line') || key.includes('liff')
+      );
+
+      addResult({
+        name: 'Browser Storage',
+        status: 'info',
+        message: `💾 ตรวจสอบ browser storage`,
+        details: {
+          localStorage: {
+            total: localStorageKeys.length,
+            lineRelated: lineLocalStorage
+          },
+          sessionStorage: {
+            total: sessionStorageKeys.length,
+            lineRelated: lineSessionStorage
+          }
+        }
+      });
+
+    } catch (error) {
+      addResult({
+        name: 'Check Current Cookies',
+        status: 'error',
+        message: '❌ ไม่สามารถตรวจสอบ cookies ได้',
+        details: error
+      });
+    }
+  };
+
   const testSessionCheck = async () => {
     try {
       addResult({
@@ -377,7 +452,9 @@ export default function DebugLineRealUser() {
           details: {
             status: response.status,
             needsReAuth: sessionData.needsReAuth,
-            reason: sessionData.reason
+            reason: sessionData.reason,
+            error: sessionData.error,
+            debug: sessionData.debug
           }
         });
       }
@@ -399,13 +476,19 @@ export default function DebugLineRealUser() {
       message: '🚀 เริ่มการทดสอบแบบเต็ม...'
     });
 
-    // 1. ตรวจสอบ session ปัจจุบัน
+    // 1. ตรวจสอบ cookies และ storage ปัจจุบัน
+    checkCurrentCookies();
+    
+    // รอ 500ms
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // 2. ตรวจสอบ session ปัจจุบัน
     await testSessionCheck();
     
     // รอ 1 วินาที
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // 2. ทดสอบ backend authentication
+    // 3. ทดสอบ backend authentication
     if (accessToken) {
       await testBackendAuthentication();
     } else {
@@ -415,6 +498,279 @@ export default function DebugLineRealUser() {
         message: '⚠️ ข้าม Backend test เนื่องจากไม่มี Access Token'
       });
     }
+  };
+
+  // ฟังก์ชันสำหรับ clear cache, session, และ token
+  const clearAllData = async () => {
+    addResult({
+      name: 'Clear All Data',
+      status: 'info',
+      message: '🧹 กำลังล้างข้อมูลทั้งหมด...'
+    });
+
+    try {
+      // 1. Clear LIFF
+      if ((window as any).liff && (window as any).liff.isLoggedIn()) {
+        await (window as any).liff.logout();
+        addResult({
+          name: 'LIFF Logout',
+          status: 'success',
+          message: '✅ ล็อกเอาท์จาก LIFF สำเร็จ'
+        });
+      }
+
+      // 2. Clear localStorage
+      const localStorageKeys = Object.keys(localStorage);
+      const liffKeys = localStorageKeys.filter(key => 
+        key.includes('liff') || 
+        key.includes('line') || 
+        key.includes('access_token') ||
+        key.includes('session')
+      );
+      
+      liffKeys.forEach(key => localStorage.removeItem(key));
+      
+      if (liffKeys.length > 0) {
+        addResult({
+          name: 'Clear localStorage',
+          status: 'success',
+          message: `✅ ล้าง localStorage สำเร็จ (${liffKeys.length} keys)`,
+          details: { clearedKeys: liffKeys }
+        });
+      }
+
+      // 3. Clear sessionStorage
+      const sessionStorageKeys = Object.keys(sessionStorage);
+      const sessionLiffKeys = sessionStorageKeys.filter(key => 
+        key.includes('liff') || 
+        key.includes('line') || 
+        key.includes('access_token') ||
+        key.includes('session')
+      );
+      
+      sessionLiffKeys.forEach(key => sessionStorage.removeItem(key));
+      
+      if (sessionLiffKeys.length > 0) {
+        addResult({
+          name: 'Clear sessionStorage',
+          status: 'success',
+          message: `✅ ล้าง sessionStorage สำเร็จ (${sessionLiffKeys.length} keys)`,
+          details: { clearedKeys: sessionLiffKeys }
+        });
+      }
+
+      // 4. Clear cookies
+      const cookies = document.cookie.split(';');
+      let clearedCookies = 0;
+      
+      cookies.forEach(cookie => {
+        const eqPos = cookie.indexOf('=');
+        const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+        if (name.includes('liff') || name.includes('line') || name.includes('session') || name.includes('next-auth')) {
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
+          clearedCookies++;
+        }
+      });
+
+      if (clearedCookies > 0) {
+        addResult({
+          name: 'Clear Cookies',
+          status: 'success',
+          message: `✅ ล้าง cookies สำเร็จ (${clearedCookies} cookies)`
+        });
+      }
+
+      // 5. Clear cache (if possible)
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        const liffCaches = cacheNames.filter(name => 
+          name.includes('liff') || name.includes('line')
+        );
+        
+        for (const cacheName of liffCaches) {
+          await caches.delete(cacheName);
+        }
+        
+        if (liffCaches.length > 0) {
+          addResult({
+            name: 'Clear Cache',
+            status: 'success',
+            message: `✅ ล้าง cache สำเร็จ (${liffCaches.length} caches)`,
+            details: { clearedCaches: liffCaches }
+          });
+        }
+      }
+
+      // 6. Reset state
+      setLiffReady(false);
+      setUserProfile(null);
+      setAccessToken('');
+      setIsInLineApp(false);
+
+      addResult({
+        name: 'Reset State',
+        status: 'success',
+        message: '✅ รีเซ็ต state สำเร็จ'
+      });
+
+      addResult({
+        name: 'Clear All Data Complete',
+        status: 'success',
+        message: '🎉 ล้างข้อมูลทั้งหมดเสร็จสิ้น! กรุณา refresh หน้า หรือเริ่มต้นใหม่'
+      });
+
+    } catch (error) {
+      addResult({
+        name: 'Clear All Data Error',
+        status: 'error',
+        message: '❌ เกิดข้อผิดพลาดในการล้างข้อมูล',
+        details: error
+      });
+    }
+  };
+
+  const forceReloadLiff = async () => {
+    addResult({
+      name: 'Force Reload LIFF',
+      status: 'info',
+      message: '🔄 กำลังโหลด LIFF ใหม่แบบบังคับ...'
+    });
+
+    try {
+      // ลบ LIFF SDK script เก่า
+      const existingScript = document.querySelector('script[src*="liff"]');
+      if (existingScript) {
+        existingScript.remove();
+        addResult({
+          name: 'Remove Old LIFF Script',
+          status: 'success',
+          message: '✅ ลบ LIFF script เก่าแล้ว'
+        });
+      }
+
+      // ลบ LIFF object
+      if ((window as any).liff) {
+        delete (window as any).liff;
+        addResult({
+          name: 'Remove LIFF Object',
+          status: 'success',
+          message: '✅ ลบ LIFF object แล้ว'
+        });
+      }
+
+      // รอสักครู่
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // เริ่มต้น LIFF ใหม่
+      await initializeLiffTest();
+
+    } catch (error) {
+      addResult({
+        name: 'Force Reload LIFF Error',
+        status: 'error',
+        message: '❌ เกิดข้อผิดพลาดในการโหลด LIFF ใหม่',
+        details: error
+      });
+    }
+  };
+
+  const clearServerSession = async () => {
+    try {
+      addResult({
+        name: 'Clear Server Session',
+        status: 'loading',
+        message: '⏳ กำลังล้าง session ฝั่งเซิร์ฟเวอร์...'
+      });
+
+      // ลองล้าง LINE session ก่อน
+      try {
+        const lineSessionResponse = await fetch('/api/auth/line-session', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (lineSessionResponse.ok) {
+          addResult({
+            name: 'Clear LINE Session',
+            status: 'success',
+            message: '✅ ล้าง LINE session สำเร็จ'
+          });
+        } else {
+          addResult({
+            name: 'Clear LINE Session',
+            status: 'warning',
+            message: `⚠️ ไม่สามารถล้าง LINE session ได้ (${lineSessionResponse.status})`
+          });
+        }
+      } catch (lineError) {
+        addResult({
+          name: 'Clear LINE Session',
+          status: 'warning',
+          message: '⚠️ ไม่สามารถเรียก LINE session API ได้',
+          details: lineError
+        });
+      }
+
+      // ลองล้าง NextAuth session
+      try {
+        const nextAuthResponse = await fetch('/api/auth/signout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (nextAuthResponse.ok) {
+          addResult({
+            name: 'Clear NextAuth Session',
+            status: 'success',
+            message: '✅ ล้าง NextAuth session สำเร็จ'
+          });
+        } else {
+          addResult({
+            name: 'Clear NextAuth Session',
+            status: 'warning',
+            message: `⚠️ ไม่สามารถล้าง NextAuth session ได้ (${nextAuthResponse.status})`
+          });
+        }
+      } catch (nextAuthError) {
+        addResult({
+          name: 'Clear NextAuth Session',
+          status: 'warning',
+          message: '⚠️ ไม่สามารถเรียก NextAuth signout API ได้',
+          details: nextAuthError
+        });
+      }
+
+      addResult({
+        name: 'Clear Server Session Complete',
+        status: 'success',
+        message: '✅ ล้าง server session เสร็จสิ้น'
+      });
+
+    } catch (error) {
+      addResult({
+        name: 'Clear Server Session',
+        status: 'error',
+        message: '❌ เกิดข้อผิดพลาดในการล้าง server session',
+        details: error
+      });
+    }
+  };
+
+  const refreshPage = () => {
+    addResult({
+      name: 'Page Refresh',
+      status: 'info',
+      message: '🔄 กำลัง refresh หน้าเว็บ...'
+    });
+    
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
   };
 
   const getStatusColor = (status: string) => {
@@ -484,6 +840,59 @@ export default function DebugLineRealUser() {
         </CardContent>
       </Card>
 
+      {/* ปุ่มล้างข้อมูล - เพิ่มส่วนใหม่ */}
+      <Card sx={{ mb: 3, border: '2px solid #f44336' }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom sx={{ color: '#f44336' }}>
+            🧹 ล้างข้อมูล & แก้ปัญหา
+          </Typography>
+          
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              <strong>ใช้เมื่อ:</strong> มีปัญหาการ login, เปลี่ยน LINE endpoint, หรือ session ไม่ถูกต้อง
+            </Typography>
+          </Alert>
+          
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+            <Button 
+              variant="contained" 
+              color="error" 
+              onClick={clearAllData}
+              sx={{ minWidth: 150 }}
+            >
+              🗑️ ล้างข้อมูลทั้งหมด
+            </Button>
+            
+            <Button 
+              variant="outlined" 
+              color="error" 
+              onClick={clearServerSession}
+              sx={{ minWidth: 150 }}
+            >
+              🔄 ล้าง Server Session
+            </Button>
+            
+            <Button 
+              variant="outlined" 
+              color="warning" 
+              onClick={forceReloadLiff}
+              sx={{ minWidth: 150 }}
+            >
+              🔄 โหลด LIFF ใหม่
+            </Button>
+            
+            <Button 
+              variant="outlined" 
+              color="primary" 
+              onClick={refreshPage}
+              sx={{ minWidth: 150 }}
+            >
+              🔄 Refresh หน้า
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
+
       {/* ปุ่มควบคุม */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
@@ -503,6 +912,10 @@ export default function DebugLineRealUser() {
                 🔐 เข้าสู่ระบบ LINE
               </Button>
             )}
+            
+            <Button variant="outlined" onClick={checkCurrentCookies}>
+              🍪 ตรวจสอบ Cookies
+            </Button>
             
             <Button variant="outlined" onClick={testSessionCheck}>
               🔍 ตรวจสอบ Session
@@ -589,8 +1002,10 @@ export default function DebugLineRealUser() {
         </Typography>
         <Typography variant="body2" component="ul" sx={{ mt: 1, pl: 2 }}>
           <li>เปิดหน้านี้จาก LINE Application</li>
+          <li><strong>หากมีปัญหา login:</strong> กด "ล้างข้อมูลทั้งหมด" ก่อน</li>
           <li>กดปุ่ม "ทดสอบเต็ม" เพื่อทดสอบการทำงานทั้งหมด</li>
           <li>ตรวจสอบผลลัพธ์ว่ามีข้อผิดพลาดหรือไม่</li>
+          <li>หากยังมีปัญหา ให้ "Refresh หน้า" และลองใหม่</li>
           <li>หากมีปัญหาให้ส่งผลลัพธ์ให้ developer</li>
         </Typography>
       </Alert>

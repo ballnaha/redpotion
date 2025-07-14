@@ -138,6 +138,11 @@ export default function MenuManagementPage() {
   // Global notification
   const { showSuccess, showError, showWarning, showInfo } = useNotification();
 
+  // Loading states for buttons
+  const [categoryModalLoading, setCategoryModalLoading] = useState<string | null>(null); // categoryId being processed
+  const [menuItemModalLoading, setMenuItemModalLoading] = useState<string | null>(null); // menuItemId being processed
+  const [deletingId, setDeletingId] = useState<string | null>(null); // id being deleted
+
   // Category Modal States
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -250,6 +255,7 @@ export default function MenuManagementPage() {
 
     try {
       setDeleting(true);
+      setDeletingId(deleteTarget.id);
 
       if (deleteTarget.id === 'close-category') {
         // ปิด category โดยการเซฟ form ต่อ
@@ -283,12 +289,19 @@ export default function MenuManagementPage() {
       showError(`ไม่สามารถ${deleteTarget.id === 'close-category' ? 'ปิดการใช้งาน' : 'ลบ'}${deleteTarget.type === 'category' ? 'หมวดหมู่' : 'เมนู'}ได้`);
     } finally {
       setDeleting(false);
+      setDeletingId(null);
     }
   };
 
   // Category Functions
-  const openCategoryModal = (category?: Category) => {
+  const openCategoryModal = async (category?: Category) => {
     if (category) {
+      setCategoryModalLoading(category.id);
+      showInfo('กำลังเตรียมข้อมูล...');
+      
+      // จำลอง loading time
+      await new Promise(resolve => setTimeout(resolve, 600));
+      
       setEditingCategory(category);
       setCategoryForm({
         name: category.name,
@@ -296,6 +309,7 @@ export default function MenuManagementPage() {
         imageUrl: category.imageUrl || '',
         isActive: category.isActive
       });
+      setCategoryModalLoading(null);
     } else {
       setEditingCategory(null);
       setCategoryForm({
@@ -428,6 +442,8 @@ export default function MenuManagementPage() {
   };
 
   const deleteCategory = (categoryId: string, categoryName: string, menuCount: number) => {
+    if (deletingId === categoryId) return; // ป้องกันการคลิกซ้ำ
+    
     const details = menuCount > 0 
       ? `⚠️ หมวดหมู่นี้มีเมนูอาหาร ${menuCount} รายการ การลบจะทำให้เมนูอาหารทั้งหมดในหมวดหมู่นี้ถูกลบไปด้วย และไม่สามารถเรียกคืนได้`
       : undefined;
@@ -438,6 +454,9 @@ export default function MenuManagementPage() {
   // MenuItem Functions
   const openMenuItemModal = async (menuItem?: MenuItem) => {
     if (menuItem) {
+      setMenuItemModalLoading(menuItem.id);
+      showInfo('กำลังโหลดข้อมูลเมนู...');
+      
       setEditingMenuItem(menuItem);
       setMenuItemForm({
         name: menuItem.name,
@@ -462,6 +481,10 @@ export default function MenuManagementPage() {
       } catch (error) {
         console.error('Error loading addons:', error);
       }
+      
+      // จำลอง loading time
+      await new Promise(resolve => setTimeout(resolve, 700));
+      setMenuItemModalLoading(null);
     } else {
       setEditingMenuItem(null);
       setMenuItemForm({
@@ -665,6 +688,8 @@ export default function MenuManagementPage() {
   };
 
   const deleteMenuItem = (menuItemId: string, menuItemName: string) => {
+    if (deletingId === menuItemId) return; // ป้องกันการคลิกซ้ำ
+    
     openDeleteConfirm('menuItem', menuItemId, menuItemName);
   };
 
@@ -732,6 +757,7 @@ export default function MenuManagementPage() {
             variant="contained"
             startIcon={<Add />}
             onClick={() => openCategoryModal()}
+            disabled={!!categoryModalLoading || !!deletingId}
           >
             เพิ่มหมวดหมู่
           </Button>
@@ -794,8 +820,9 @@ export default function MenuManagementPage() {
                       <Button
                         size="small"
                         variant="outlined"
-                        startIcon={!isMobile && <Edit />}
+                        startIcon={!isMobile && (categoryModalLoading === category.id ? <CircularProgress size={16} /> : <Edit />)}
                         onClick={() => openCategoryModal(category)}
+                        disabled={categoryModalLoading === category.id || deletingId === category.id}
                         sx={{ 
                           minWidth: isMobile ? '100%' : 'auto',
                           px: isMobile ? 2 : 1.5,
@@ -812,19 +839,24 @@ export default function MenuManagementPage() {
                             backgroundColor: 'rgba(25, 118, 210, 0.08)',
                             transform: 'translateY(-2px)',
                             boxShadow: '0 4px 12px rgba(25, 118, 210, 0.25)'
+                          },
+                          '&.Mui-disabled': {
+                            borderColor: 'rgba(25, 118, 210, 0.26)',
+                            color: 'rgba(25, 118, 210, 0.26)'
                           }
                         }}
                       >
-                        {isMobile ? <Edit sx={{ mr: 1 }} /> : null}
-                        แก้ไข
+                        {isMobile ? (categoryModalLoading === category.id ? <CircularProgress size={16} sx={{ mr: 1 }} /> : <Edit sx={{ mr: 1 }} />) : null}
+                        {categoryModalLoading === category.id ? 'กำลังโหลด...' : 'แก้ไข'}
                       </Button>
                     </Tooltip>
                     <Tooltip title="ลบหมวดหมู่" arrow placement="top">
                       <Button
                         size="small"
                         variant="outlined"
-                        startIcon={!isMobile && <Delete />}
+                        startIcon={!isMobile && (deletingId === category.id ? <CircularProgress size={16} /> : <Delete />)}
                         onClick={() => deleteCategory(category.id, category.name, category._count?.menuItems || 0)}
+                        disabled={categoryModalLoading === category.id || deletingId === category.id}
                         sx={{ 
                           minWidth: isMobile ? '100%' : 'auto',
                           px: isMobile ? 2 : 1.5,
@@ -841,11 +873,15 @@ export default function MenuManagementPage() {
                             backgroundColor: 'rgba(244, 67, 54, 0.08)',
                             transform: 'translateY(-2px)',
                             boxShadow: '0 4px 12px rgba(244, 67, 54, 0.25)'
+                          },
+                          '&.Mui-disabled': {
+                            borderColor: 'rgba(244, 67, 54, 0.26)',
+                            color: 'rgba(244, 67, 54, 0.26)'
                           }
                         }}
                       >
-                        {isMobile ? <Delete sx={{ mr: 1 }} /> : null}
-                        ลบ
+                        {isMobile ? (deletingId === category.id ? <CircularProgress size={16} sx={{ mr: 1 }} /> : <Delete sx={{ mr: 1 }} />) : null}
+                        {deletingId === category.id ? 'กำลังลบ...' : 'ลบ'}
                       </Button>
                     </Tooltip>
                   </Box>
@@ -888,6 +924,7 @@ export default function MenuManagementPage() {
               variant="contained"
               startIcon={<Add />}
               onClick={() => openCategoryModal()}
+              disabled={!!categoryModalLoading || !!deletingId}
             >
               เพิ่มหมวดหมู่แรก
             </Button>
@@ -905,7 +942,7 @@ export default function MenuManagementPage() {
             variant="contained"
             startIcon={<Add />}
             onClick={() => openMenuItemModal()}
-            disabled={categories.length === 0}
+            disabled={categories.length === 0 || !!menuItemModalLoading || !!deletingId}
           >
             เพิ่มเมนู
           </Button>
@@ -962,8 +999,9 @@ export default function MenuManagementPage() {
                         <Button
                           size="small"
                           variant="outlined"
-                          startIcon={!isMobile && <Edit />}
+                          startIcon={!isMobile && (menuItemModalLoading === menuItem.id ? <CircularProgress size={16} /> : <Edit />)}
                           onClick={() => openMenuItemModal(menuItem)}
+                          disabled={menuItemModalLoading === menuItem.id || deletingId === menuItem.id}
                           sx={{ 
                             minWidth: isMobile ? '100%' : 'auto',
                             px: isMobile ? 2 : 1.5,
@@ -980,19 +1018,24 @@ export default function MenuManagementPage() {
                               backgroundColor: 'rgba(25, 118, 210, 0.08)',
                               transform: 'translateY(-2px)',
                               boxShadow: '0 4px 12px rgba(25, 118, 210, 0.25)'
+                            },
+                            '&.Mui-disabled': {
+                              borderColor: 'rgba(25, 118, 210, 0.26)',
+                              color: 'rgba(25, 118, 210, 0.26)'
                             }
                           }}
                         >
-                          {isMobile ? <Edit sx={{ mr: 1 }} /> : null}
-                          แก้ไข
+                          {isMobile ? (menuItemModalLoading === menuItem.id ? <CircularProgress size={16} sx={{ mr: 1 }} /> : <Edit sx={{ mr: 1 }} />) : null}
+                          {menuItemModalLoading === menuItem.id ? 'กำลังโหลด...' : 'แก้ไข'}
                         </Button>
                       </Tooltip>
                       <Tooltip title="ลบเมนู" arrow placement="top">
                         <Button
                           size="small"
                           variant="outlined"
-                          startIcon={!isMobile && <Delete />}
+                          startIcon={!isMobile && (deletingId === menuItem.id ? <CircularProgress size={16} /> : <Delete />)}
                           onClick={() => deleteMenuItem(menuItem.id, menuItem.name)}
+                          disabled={menuItemModalLoading === menuItem.id || deletingId === menuItem.id}
                           sx={{ 
                             minWidth: isMobile ? '100%' : 'auto',
                             px: isMobile ? 2 : 1.5,
@@ -1009,11 +1052,15 @@ export default function MenuManagementPage() {
                               backgroundColor: 'rgba(244, 67, 54, 0.08)',
                               transform: 'translateY(-2px)',
                               boxShadow: '0 4px 12px rgba(244, 67, 54, 0.25)'
+                            },
+                            '&.Mui-disabled': {
+                              borderColor: 'rgba(244, 67, 54, 0.26)',
+                              color: 'rgba(244, 67, 54, 0.26)'
                             }
                           }}
                         >
-                          {isMobile ? <Delete sx={{ mr: 1 }} /> : null}
-                          ลบ
+                          {isMobile ? (deletingId === menuItem.id ? <CircularProgress size={16} sx={{ mr: 1 }} /> : <Delete sx={{ mr: 1 }} />) : null}
+                          {deletingId === menuItem.id ? 'กำลังลบ...' : 'ลบ'}
                         </Button>
                       </Tooltip>
                     </Box>
@@ -1146,6 +1193,7 @@ export default function MenuManagementPage() {
               variant="contained"
               startIcon={<Add />}
               onClick={() => openMenuItemModal()}
+              disabled={!!menuItemModalLoading || !!deletingId}
             >
               เพิ่มเมนูแรก
             </Button>

@@ -21,7 +21,9 @@ import {
   IconButton,
   Tooltip,
   useMediaQuery,
-  useTheme
+  useTheme,
+  Fade,
+  Skeleton
 } from '@mui/material';
 import {
   CheckCircle,
@@ -69,7 +71,7 @@ export default function PaymentHistoryPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Redirect if not restaurant owner
   useEffect(() => {
@@ -81,6 +83,15 @@ export default function PaymentHistoryPage() {
       router.replace('/');
     }
   }, [sessionStatus, session?.user?.role, router]);
+
+  // จำลอง loading time
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('th-TH', {
@@ -138,22 +149,24 @@ export default function PaymentHistoryPage() {
     console.log('Download receipt for:', transactionId);
   };
 
-  // Show loading while session is loading
+  // Loading state เมื่อยังไม่ได้ authenticate
   if (sessionStatus === 'loading') {
     return (
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        minHeight: '50vh',
-        flexDirection: 'column',
-        gap: 2
-      }}>
-        <CircularProgress size={40} />
-        <Typography variant="body2" color="text.secondary">
-          กำลังตรวจสอบสิทธิ์การเข้าใช้งาน...
-        </Typography>
-      </Box>
+      <Fade in={true}>
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          minHeight: '40vh',
+          flexDirection: 'column',
+          gap: 2
+        }}>
+          <CircularProgress size={40} />
+          <Typography variant="body2" color="text.secondary">
+            กำลังตรวจสอบสิทธิ์การเข้าใช้งาน...
+          </Typography>
+        </Box>
+      </Fade>
     );
   }
 
@@ -164,24 +177,94 @@ export default function PaymentHistoryPage() {
 
   if (isLoading) {
     return (
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        minHeight: '40vh',
-        flexDirection: 'column',
-        gap: 2
-      }}>
-        <CircularProgress size={40} />
-        <Typography variant="body2" color="text.secondary">
-          กำลังโหลดประวัติการชำระเงิน...
-        </Typography>
-      </Box>
+      <Fade in={true}>
+        <Box>
+          {/* Header */}
+          <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Skeleton variant="text" width="50%" height={40} sx={{ mb: 1 }} />
+              <Skeleton variant="text" width="70%" height={24} />
+            </Box>
+            <Skeleton variant="circular" width={40} height={40} />
+          </Box>
+
+          {/* Summary Card */}
+          <Card sx={{ 
+            mb: 4,
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.18)',
+          }}>
+            <CardContent>
+              <Skeleton variant="text" width="40%" height={32} sx={{ mb: 3 }} />
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 3 }}>
+                {[...Array(3)].map((_, i) => (
+                  <Box key={i} sx={{ textAlign: 'center' }}>
+                    <Skeleton variant="text" width="60%" height={24} sx={{ mx: 'auto', mb: 1 }} />
+                    <Skeleton variant="text" width="80%" height={36} sx={{ mx: 'auto' }} />
+                  </Box>
+                ))}
+              </Box>
+            </CardContent>
+          </Card>
+
+          {/* Table Header */}
+          <Card>
+            <CardContent>
+              <Skeleton variant="text" width="30%" height={32} sx={{ mb: 3 }} />
+              
+              {/* Table Skeleton */}
+              <TableContainer component={Paper} sx={{ backgroundColor: 'transparent' }}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      {['วันที่', 'แผน', 'จำนวนเงิน', 'สถานะ', 'การดำเนินการ'].map((header, i) => (
+                        <TableCell key={i}>
+                          <Skeleton variant="text" width="80%" height={24} />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {[...Array(5)].map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell><Skeleton variant="text" width="90%" height={24} /></TableCell>
+                        <TableCell><Skeleton variant="text" width="80%" height={24} /></TableCell>
+                        <TableCell><Skeleton variant="text" width="70%" height={24} /></TableCell>
+                        <TableCell><Skeleton variant="rectangular" width="60%" height={32} sx={{ borderRadius: 1 }} /></TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Skeleton variant="circular" width={32} height={32} />
+                            <Skeleton variant="circular" width={32} height={32} />
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </CardContent>
+          </Card>
+        </Box>
+      </Fade>
     );
   }
 
   return (
-    <Box>
+    <Fade in={true}>
+      <Box>
+        {/* Header */}
+        <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              ประวัติการชำระเงิน
+            </Typography>
+            <Tooltip title="รีเฟรชข้อมูล">
+              <IconButton onClick={handleRefresh} disabled={isLoading}>
+                <Refresh />
+              </IconButton>
+            </Tooltip>
+          </Box>
+
       {/* Summary Cards */}
       <Box sx={{ 
         display: 'grid', 
@@ -226,16 +309,7 @@ export default function PaymentHistoryPage() {
       {/* Payment History Table */}
       <Card>
         <CardContent>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              ประวัติการชำระเงิน
-            </Typography>
-            <Tooltip title="รีเฟรชข้อมูล">
-              <IconButton onClick={handleRefresh} disabled={isLoading}>
-                <Refresh />
-              </IconButton>
-            </Tooltip>
-          </Box>
+          
           
           {mockPaymentHistory.length === 0 ? (
             <Alert severity="info">
@@ -399,5 +473,6 @@ export default function PaymentHistoryPage() {
         </CardContent>
       </Card>
     </Box>
+    </Fade>
   );
 } 
