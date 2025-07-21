@@ -49,6 +49,7 @@ model User {
   restaurant    Restaurant?
   sessions      Session[]
   profile       CustomerProfile?
+  lineUserProfile LineUserProfile?
 }
 
 model VerificationToken {
@@ -109,6 +110,7 @@ model Restaurant {
   menuItems      MenuItem[]
   orders         Order[]
   owner          User             @relation(fields: [ownerId], references: [id])
+  lineUserProfiles LineUserProfile[]
 }
 
 model Category {
@@ -369,4 +371,75 @@ enum SubscriptionType {
   YEARLY      // รายปี
   LIFETIME    // ตลอดชีพ
   TRIAL       // ทดลองใช้
+}
+
+// LINE Webhook และ User Profile Models
+model LineWebhookEvent {
+  id                String                 @id @default(cuid())
+  eventType         LineEventType         // ประเภท event (message, follow, unfollow, etc.)
+  lineUserId        String                // LINE User ID ของผู้ส่ง
+  replyToken        String?               // Reply token สำหรับตอบกลับ
+  messageType       LineMessageType?      // ประเภทข้อความ (text, image, etc.)
+  messageText       String?               // ข้อความที่ส่งมา (สำหรับ text message)
+  messageId         String?               // ID ของข้อความ
+  timestamp         DateTime              // เวลาที่เกิด event
+  rawData           Json                  // ข้อมูล raw จาก LINE webhook
+  isProcessed       Boolean               @default(false) // สถานะการประมวลผล
+  processedAt       DateTime?             // เวลาที่ประมวลผลเสร็จ
+  errorMessage      String?               // ข้อความ error หากมี
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  lineUserProfile   LineUserProfile?      @relation(fields: [lineUserId], references: [lineUserId])
+}
+
+model LineUserProfile {
+  id              String              @id @default(cuid())
+  lineUserId      String              @unique // LINE User ID
+  displayName     String?             // ชื่อที่แสดงใน LINE
+  pictureUrl      String?             // รูปโปรไฟล์
+  statusMessage   String?             // สถานะข้อความ
+  language        String?             // ภาษาที่ใช้
+  isFollowing     Boolean             @default(true) // สถานะการติดตาม OA
+  followedAt      DateTime?           // วันที่เริ่มติดตาม
+  unfollowedAt    DateTime?           // วันที่เลิกติดตาม
+  lastActiveAt    DateTime?           // ครั้งล่าสุดที่มีกิจกรรม
+  restaurantId    String?             // ร้านอาหารที่เกี่ยวข้อง (ถ้ามี)
+  userId          String?             @unique // User ID ในระบบ (ถ้าได้ทำการเชื่อมต่อ)
+  metadata        Json?               // ข้อมูลเพิ่มเติม
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  restaurant      Restaurant?         @relation(fields: [restaurantId], references: [id])
+  user            User?               @relation(fields: [userId], references: [id])
+  webhookEvents   LineWebhookEvent[]
+}
+
+// เพิ่ม relation ใน Restaurant และ User models
+// Restaurant จะมี LineUserProfile หลายรายการ
+// User จะมี LineUserProfile เดียว
+
+enum LineEventType {
+  MESSAGE         // ข้อความ
+  FOLLOW          // เริ่มติดตาม
+  UNFOLLOW        // เลิกติดตาม
+  JOIN            // เข้าร่วมกลุ่ม
+  LEAVE           // ออกจากกลุ่ม
+  POSTBACK        // Postback event
+  BEACON          // Beacon event
+  ACCOUNT_LINK    // Account link
+  THINGS          // LINE Things
+  OTHER           // อื่นๆ
+}
+
+enum LineMessageType {
+  TEXT            // ข้อความ
+  IMAGE           // รูปภาพ
+  VIDEO           // วิดีโอ
+  AUDIO           // เสียง
+  FILE            // ไฟล์
+  LOCATION        // ตำแหน่ง
+  STICKER         // สติกเกอร์
+  IMAGEMAP        // Image map
+  TEMPLATE        // Template message
+  FLEX            // Flex message
+  OTHER           // อื่นๆ
 }

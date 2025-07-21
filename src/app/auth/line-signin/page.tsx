@@ -51,6 +51,7 @@ function LineSignInContent() {
   const restaurantId = searchParams.get('restaurant')
   const isRequired = searchParams.get('required') === 'true'
   const errorType = searchParams.get('error')
+  const isFromSettings = searchParams.get('settings') === 'true'
 
   // Pre-load LIFF SDK แบบเงียบๆ
   useEffect(() => {
@@ -75,6 +76,42 @@ function LineSignInContent() {
   useEffect(() => {
     checkLineSession()
   }, [])
+
+  // ตรวจสอบว่าเป็น popup mode หรือไม่
+  const isPopupMode = typeof window !== 'undefined' && window.opener && window.opener !== window
+
+  // Function ส่ง access token กลับไปยัง parent window (สำหรับ popup mode)
+  const sendAccessTokenToParent = (accessToken: string) => {
+    if (isPopupMode && window.opener) {
+      try {
+        window.opener.postMessage({
+          type: 'LINE_LOGIN_SUCCESS',
+          accessToken: accessToken
+        }, window.location.origin);
+        console.log('✅ Access token sent to parent window');
+      } catch (error) {
+        console.error('❌ Error sending access token to parent:', error);
+        window.opener.postMessage({
+          type: 'LINE_LOGIN_ERROR',
+          error: 'ไม่สามารถส่งข้อมูลกลับได้'
+        }, window.location.origin);
+      }
+    }
+  }
+
+  const sendErrorToParent = (errorMessage: string) => {
+    if (isPopupMode && window.opener) {
+      try {
+        window.opener.postMessage({
+          type: 'LINE_LOGIN_ERROR',
+          error: errorMessage
+        }, window.location.origin);
+        console.log('❌ Error sent to parent window:', errorMessage);
+      } catch (error) {
+        console.error('❌ Error sending error to parent:', error);
+      }
+    }
+  }
 
   // Auto login effect สำหรับ LIFF environment - ใช้ระบบใหม่
   useEffect(() => {
@@ -211,8 +248,13 @@ function LineSignInContent() {
           } else {
             // Redirect ทันทีเพื่อลด loading time (web browser)
             console.log('🌐 Already authenticated, not from LINE, using web browser redirect...');
-            if (restaurantId) {
-              console.log('🏪 Already authenticated, redirecting to restaurant menu:', restaurantId)
+            
+            // ตรวจสอบ role ก่อน redirect
+            if (data.user.role === 'RESTAURANT_OWNER') {
+              console.log('👨‍🍳 Restaurant owner (existing session) redirecting to management')
+              router.replace('/restaurant');
+            } else if (restaurantId) {
+              console.log('🏪 Customer (existing session) redirecting to restaurant menu:', restaurantId)
               router.replace(`/menu/${restaurantId}?from=line-signin`);
             } else {
               console.log('🏠 Redirecting to home')
@@ -374,6 +416,43 @@ function LineSignInContent() {
           throw new Error('ไม่สามารถดึงข้อมูลการยืนยันตัวตนจาก LINE ได้')
         }
 
+        // ถ้าเป็น popup mode ให้ส่ง access token กลับไปยัง parent และหยุด
+        if (isPopupMode) {
+          console.log('🪟 Popup mode detected, sending access token to parent...');
+          
+          // ถ้าเป็นจาก settings ให้ดึง LINE User ID ก่อนส่งกลับ
+          if (isFromSettings) {
+            try {
+              const response = await fetch('/api/auth/line-user-id', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  accessToken: accessToken
+                })
+              });
+
+              if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.lineUserId) {
+                  window.opener.postMessage({
+                    type: 'LINE_USER_ID_READY',
+                    lineUserId: data.lineUserId
+                  }, window.location.origin);
+                  console.log('✅ LINE User ID sent to parent window:', data.lineUserId);
+                  return;
+                }
+              }
+            } catch (error) {
+              console.error('❌ Error getting LINE User ID:', error);
+            }
+          }
+          
+          sendAccessTokenToParent(accessToken);
+          return; // หยุดการทำงานที่นี่
+        }
+
         console.log('🎯 Sending access token to backend...')
 
         // ตรวจจับ platform จาก LIFF SDK
@@ -506,8 +585,13 @@ function LineSignInContent() {
             } else {
               // ถ้ามาจาก web browser ให้ไปตาม response ปกติ
               console.log('🌐 Not from LINE, using web browser redirect...');
-              if (data.shouldRedirectToRestaurant && data.restaurantId) {
-                console.log('🏪 Redirecting to restaurant menu:', data.restaurantId)
+              
+              // ตรวจสอบ role ก่อน redirect
+              if (data.user.role === 'RESTAURANT_OWNER') {
+                console.log('👨‍🍳 Restaurant owner redirecting to management:', data.redirectUrl)
+                router.replace(data.redirectUrl); // จะเป็น '/restaurant'
+              } else if (data.shouldRedirectToRestaurant && data.restaurantId) {
+                console.log('🏪 Customer redirecting to restaurant menu:', data.restaurantId)
                 router.replace(`/menu/${data.restaurantId}?from=line-signin`);
               } else {
                 console.log('🔄 Redirecting according to API response:', data.redirectUrl)
@@ -549,6 +633,12 @@ function LineSignInContent() {
         } else {
           errorMessage = `เกิดข้อผิดพลาด: ${error.message}`
         }
+      }
+      
+      // ถ้าเป็น popup mode ให้ส่ง error กลับไปยัง parent
+      if (isPopupMode) {
+        sendErrorToParent(errorMessage);
+        return;
       }
       
       setError(errorMessage)
@@ -729,6 +819,43 @@ function LineSignInContent() {
 
   const errorMessage = getErrorMessage(errorType)
 
+  // ถ้าเป็น popup mode และกำลัง loading ให้แสดงหน้าจอพิเศษ
+  if (isPopupMode && (loading || checkingSession)) {
+    return (
+      <Container maxWidth="sm">
+        <Box sx={{ 
+          minHeight: '100vh', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          py: 4,
+          background: '#ffffff'
+        }}>
+          <Card sx={{ 
+            borderRadius: 4, 
+            boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
+            background: '#ffffff',
+            border: '1px solid rgba(0,0,0,0.06)'
+          }}>
+            <CardContent sx={{ p: 4, textAlign: 'center' }}>
+              <Box sx={{ mb: 3 }}>
+                <Image src="/images/logo_trim.png" alt="logo" width={120} height={80} />
+              </Box>
+              
+              <CircularProgress sx={{ mb: 2, color: '#06C755' }} />
+              <Typography variant="h6" gutterBottom sx={{ color: '#06C755', fontWeight: 600 }}>
+                กำลังเข้าสู่ระบบ LINE
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                กรุณารอสักครู่...
+              </Typography>
+            </CardContent>
+          </Card>
+        </Box>
+      </Container>
+    )
+  }
+
   return (
     <Container maxWidth="sm">
       <Box sx={{ 
@@ -754,7 +881,8 @@ function LineSignInContent() {
 
               {/* Title */}
               <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', color: '#06C755' }}>
-                {isRequired ? 'จำเป็นต้องเข้าสู่ระบบ' : 'เข้าสู่ระบบด้วย LINE'}
+                {isPopupMode ? 'เข้าสู่ระบบ LINE' : 
+                 isRequired ? 'จำเป็นต้องเข้าสู่ระบบ' : 'เข้าสู่ระบบด้วย LINE'}
               </Typography>
 
               {/* Required message */}

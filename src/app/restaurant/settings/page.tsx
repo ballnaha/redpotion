@@ -104,8 +104,13 @@ export default function RestaurantSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   
+
+  
   // Use notification hook
   const { showSuccess, showError, showWarning, showInfo } = useNotification();
+
+
+
 
   // Form data
   const [formData, setFormData] = useState({
@@ -558,6 +563,8 @@ export default function RestaurantSettingsPage() {
               </Box>
             </CardContent>
           </Card>
+
+
 
           {/* ตำแหน่งร้าน */}
           <Card>

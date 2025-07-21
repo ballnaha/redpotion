@@ -257,10 +257,12 @@ function LiffHandlerContent() {
             router.replace(loginData.redirectUrl);
           }
         } else {
-          // Default redirect
+          // Default redirect ตาม role
           if (loginData.user.role === 'RESTAURANT_OWNER') {
+            console.log('👨‍🍳 Restaurant owner (LiffHandler) redirecting to management');
             router.replace('/restaurant');
           } else {
+            console.log('👤 Regular user (LiffHandler) redirecting to home');
             router.replace('/');
           }
         }

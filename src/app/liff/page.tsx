@@ -334,9 +334,14 @@ function LiffLandingContent() {
           }
         }
 
-        if (data.shouldRedirectToRestaurant && data.restaurantId) {
+        // ตรวจสอบ role ก่อน redirect
+        if (data.user.role === 'RESTAURANT_OWNER') {
+          setLoadingMessage('กำลังเข้าสู่หน้าจัดการร้าน...');
+          console.log('👨‍🍳 Restaurant owner redirecting to management');
+          window.location.href = '/restaurant';
+        } else if (data.shouldRedirectToRestaurant && data.restaurantId) {
           setLoadingMessage(`กำลังเข้าสู่เมนูร้านอาหาร...`);
-          console.log('🏪 Redirecting to restaurant menu:', data.restaurantId);
+          console.log('🏪 Customer redirecting to restaurant menu:', data.restaurantId);
           
           // Fast redirect for better UX
           window.location.href = `/menu/${data.restaurantId}?from=liff-auto-login`;

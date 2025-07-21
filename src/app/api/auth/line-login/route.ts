@@ -13,6 +13,9 @@ interface LineLoginRequest {
   accessToken: string
   restaurantId?: string
   returnUrl?: string
+  platform?: string
+  updateProfile?: boolean
+  isRecovery?: boolean
 }
 
 export async function POST(req: NextRequest) {
@@ -47,7 +50,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { accessToken, restaurantId, returnUrl, isRecovery, platform } = requestBody;
+    const { accessToken, restaurantId, returnUrl, isRecovery, platform, updateProfile } = requestBody;
 
     if (!accessToken) {
       console.error('❌ No access token provided in request');
@@ -163,10 +166,12 @@ export async function POST(req: NextRequest) {
       const needsUpdate = 
         user.name !== lineProfile.displayName || 
         user.image !== lineProfile.pictureUrl ||
-        (user as any).loginPlatform !== loginPlatform;
+        (user as any).loginPlatform !== loginPlatform ||
+        updateProfile; // บังคับ update เมื่อมาจากหน้า settings
       
       if (needsUpdate) {
-        console.log('🔄 Profile data changed, updating...', {
+        const updateReason = updateProfile ? 'forced from settings' : 'profile data changed';
+        console.log(`🔄 Updating user profile (${updateReason})...`, {
           oldName: user.name,
           newName: lineProfile.displayName,
           oldImage: user.image,
@@ -179,6 +184,7 @@ export async function POST(req: NextRequest) {
         user = await prisma.user.update({
           where: { id: user.id },
           data: {
+            lineUserId: lineProfile.userId, // เพิ่มการอัปเดต lineUserId
             name: lineProfile.displayName,
             image: lineProfile.pictureUrl,
             loginPlatform: loginPlatform,
@@ -191,7 +197,9 @@ export async function POST(req: NextRequest) {
           id: user.id,
           name: user.name,
           image: user.image,
-          loginPlatform: (user as any).loginPlatform
+          lineUserId: user.lineUserId,
+          loginPlatform: (user as any).loginPlatform,
+          updateFromSettings: updateProfile
         });
       } else {
         console.log('ℹ️ Profile data unchanged, no update needed');
@@ -200,6 +208,7 @@ export async function POST(req: NextRequest) {
         user = await prisma.user.update({
           where: { id: user.id },
           data: {
+            lineUserId: lineProfile.userId, // ให้แน่ใจว่ามี lineUserId
             loginPlatform: loginPlatform,
             updatedAt: new Date()
           } as any
@@ -237,26 +246,31 @@ export async function POST(req: NextRequest) {
     let shouldRedirectToRestaurant = false
     let finalRedirectUrl = '/'
 
+    // ตัดสินใจ redirect ตาม role ก่อน
+    if (user.role === 'RESTAURANT_OWNER') {
+      console.log('👨‍🍳 Restaurant owner login - redirect to restaurant management')
+      finalRedirectUrl = '/restaurant'
+      shouldRedirectToRestaurant = false // Restaurant owner ไปหน้าจัดการร้าน ไม่ใช่เมนู
+    }
     // ถ้าเป็น newUser จาก iOS/Android และมี restaurantId ให้ redirect ไปเมนูโดยตรง
-    if (isNewUser && (loginPlatform === 'IOS' || loginPlatform === 'ANDROID') && restaurantId) {
+    else if (isNewUser && (loginPlatform === 'IOS' || loginPlatform === 'ANDROID') && restaurantId) {
       console.log('📱 New mobile user with restaurant, direct redirect to menu')
       shouldRedirectToRestaurant = true
       finalRedirectUrl = `/menu/${restaurantId}?from=mobile-new-user`
     }
-    // ใช้ returnUrl ถ้ามี, ไม่เช่นนั้นใช้ logic เดิม
-    else if (returnUrl) {
-      console.log('🔄 Using returnUrl:', returnUrl)
+    // ใช้ returnUrl ถ้ามี (สำหรับ customer เท่านั้น)
+    else if (returnUrl && user.role === 'CUSTOMER') {
+      console.log('🔄 Using returnUrl for customer:', returnUrl)
       finalRedirectUrl = returnUrl
       if (returnUrl.includes('/menu/') || returnUrl.includes('/cart/')) {
         shouldRedirectToRestaurant = true
       }
-    } else if (restaurantId) {
-      console.log('🏪 RestaurantId provided:', restaurantId)
+    } 
+    // ถ้ามี restaurantId และเป็น customer
+    else if (restaurantId && user.role === 'CUSTOMER') {
+      console.log('🏪 Customer with restaurantId, redirect to menu:', restaurantId)
       shouldRedirectToRestaurant = true
       finalRedirectUrl = `/menu/${restaurantId}?from=line-signin`
-    } else if (user.role === 'RESTAURANT_OWNER') {
-      console.log('👨‍🍳 Restaurant owner login')
-      finalRedirectUrl = '/restaurant'
     } else {
       console.log('👤 Regular user login to home')
       finalRedirectUrl = '/'
